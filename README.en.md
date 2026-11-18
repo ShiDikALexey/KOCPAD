@@ -7,37 +7,53 @@
 
 **A markdown notepad for Windows — like Notepad, but it remembers everything.**
 
-KOCPAD keeps your notes as plain `.md` files in a folder you choose. It opens
-instantly, autosaves as you type, and shows the rendered result next to the
-source. No accounts, no database, no proprietary format — just files you can
-open in any other editor.
+KOCPAD opens instantly, lets you write immediately (no folder required), autosaves
+to disk as you type and shows the rendered result next to the source. Notes are
+plain `.md` files: no accounts, no database, no proprietary format — they open in
+any other editor.
 
-> Status: early alpha (`0.2.0`). The writing workflow works end to end; packaging
-> and polish are the next milestone. See [ROADMAP.md](docs/ROADMAP.md).
+> Status: working alpha **`0.3.2`**. Writing, saving, searching, pasting images and
+> closing without data loss all work today; installer signing and large-library
+> features are next. Plan: [docs/ROADMAP.md](docs/ROADMAP.md), history:
+> [CHANGELOG.md](CHANGELOG.md).
 >
-> Download: [installers from the latest release](https://github.com/ShiDikALexey/KOCPAD/releases)
+> Download: [installers from the latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 > or the `kocpad-windows` artifact of the [latest build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml).
 
 ![KOCPAD in split mode, light theme](docs/screenshots/light.png)
 
 ## Download and install
 
-Builds are attached to the [latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest):
+Builds are attached to the [latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest).
+Windows 10 or 11 (x64) and WebView2 are required — the latter ships with Windows 11.
 
 | File | What it is |
 | --- | --- |
-| `KOCPAD_0.2.1_x64-setup.exe` | per-user installer (NSIS) — recommended |
-| `KOCPAD_0.2.1_x64_en-US.msi` | MSI for group policy or Intune deployment |
+| `KOCPAD_<version>_x64-setup.exe` | per-user installer (NSIS) — recommended |
+| `KOCPAD_<version>_x64_en-US.msi` | MSI for group policy or Intune deployment |
 | `kocpad.exe` | portable: drop it in any folder and run, no installation |
 
 The builds are **not code-signed**, so SmartScreen shows "Windows protected your
-PC" on first launch: **More info** → **Run anyway**. Signing the installer is on
-the roadmap ([docs/ROADMAP.md](docs/ROADMAP.md)). The installer is per-user and
-does not need administrator rights.
+PC" on first launch: **More info** → **Run anyway**. CI already has a signing step;
+only the certificate is missing ([docs/ROADMAP.md](docs/ROADMAP.md)). The installer
+is per-user and needs no administrator rights.
 
-Everything lives in the settings screen (`Ctrl+,`): theme, accent, editor and preview fonts and sizes, tab width, keymap, autosave delay.
+## What's new in 0.3.x
 
-On the first launch KOCPAD offers one choice: **start with a draft** (write right away, no folder) or **open a notes folder**. It can be changed at any time.
+- **Drafts without a folder.** `Ctrl+N` opens a blank page instantly: the text is
+  kept locally and comes back after a restart, and «Сохранить в папку…» turns the
+  draft into a real `.md` file.
+- **Closing without losses.** On exit KOCPAD asks whether to save drafts into a
+  folder, keep them as drafts, or delete them.
+- **Window and folder memory.** Window size and position, the last folder, open
+  tabs and a recent-folders list in the palette are all restored.
+- **One-step onboarding.** On the first launch: «Начать с черновика» or
+  «Открыть папку заметок».
+- **Settings that fit.** Tab width (2/4/8), Vim keymap, fonts and sizes, five
+  accents, autosave delay.
+- **Fully Russian interface**, including the find & replace panel.
+
+![Find and replace panel in Russian](docs/screenshots/find.png)
 
 ## Why another markdown editor
 
@@ -45,8 +61,8 @@ On the first launch KOCPAD offers one choice: **start with a draft** (write righ
   with OneDrive, Git, or a USB stick — nothing is locked in.
 - **Notepad speed, editor comfort.** Tabs with independent undo history, markdown
   syntax highlighting, find and replace, live preview.
-- **Nothing is lost.** Autosave on every pause, tabs restored on the next launch,
-  a warning before closing with nothing written.
+- **Nothing is lost.** Autosave on every pause, drafts and tabs return after a
+  restart, and closing asks about unsaved work.
 - **Honest desktop app.** Tauri 2: a small native window using the system WebView2,
   not a browser tab pretending to be an app.
 
@@ -55,19 +71,20 @@ On the first launch KOCPAD offers one choice: **start with a draft** (write righ
 | Area | What works today |
 | --- | --- |
 | Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
-| Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: its text is kept locally and comes back after a restart. «Сохранить в папку…» (`Ctrl+S`) turns a draft into a real `.md` file, `F2` renames it. On exit the app asks whether to save drafts into a folder, keep them as drafts, or delete them |
-| Workspace | Open a folder, close it, connect another one; the last folder is remembered between launches, recent folders are in the palette (`Ctrl+K`), open tabs are restored |
+| Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: the text is stored locally and restored after a restart. «Сохранить в папку…» (`Ctrl+S`) turns it into a real `.md` file, `F2` renames it |
+| Closing | On exit: save drafts into a folder, keep them as drafts, or delete them. If the page stops responding, the window still closes |
+| Workspace | Open a folder, close it, connect another one; the last folder is remembered, recent folders live in the palette (`Ctrl+K`), open tabs are restored |
 | Window | Window size and position are remembered between launches |
-| Writing | CodeMirror 6 editor, markdown syntax highlighting, soft wrap, per-tab undo history, bold/italic shortcuts, configurable tab width (2/4/8), Vim keymap |
-| Preview | Live GFM render: headings, tables, task lists, code with highlighting, quotes, links; synchronized scrolling |
-| Structure | Outline panel listing every heading of the current note, click to jump, current section highlighted |
-| Images | Paste or drop an image: it is written to `assets/` next to the note and inserted as markdown; relative images render in the preview |
-| Saving | Debounced autosave (0.3 s / 0.7 s / 1.5 s, configurable), explicit `Ctrl+S`, flush on tab switch, window blur and app close |
-| Search | In-note find & replace (`Ctrl+F`, `Ctrl+H`), workspace-wide search with match snippets (`Ctrl+Shift+F`) |
-| Interface | Light / dark / follow-Windows themes, five accent colours, configurable editor and preview fonts, editor-only and preview-only modes, draggable sidebar and split, Russian UI |
-| Files in | Drag `.md` or `.txt` files from Explorer into the window to import and open them |
-| Commands | Command palette (`Ctrl+K`) over every action; settings screen (`Ctrl+,`) |
-| Export | Standalone HTML file, print-to-PDF through the system print dialog |
+| Writing | CodeMirror 6 editor, markdown highlighting, soft wrap, per-tab undo history, `Ctrl+B` / `Ctrl+I`, tab width (2/4/8), Vim keymap |
+| Preview | Live GFM: headings, tables, task lists, highlighted code, quotes, links; synchronized scrolling |
+| Structure | Outline panel with every heading of the current note, click to jump, current section highlighted |
+| Images | Paste or drop an image: it is written to `assets/` next to the note, markdown is inserted, relative images render in the preview |
+| Saving | Debounced autosave (0.3 s / 0.7 s / 1.5 s, configurable), explicit `Ctrl+S`, flush on tab switch, blur and close |
+| Search | In-note find & replace (`Ctrl+F`, `Ctrl+H`) with a Russian panel, workspace search with snippets (`Ctrl+Shift+F`); drafts are searched too |
+| Interface | Light / dark / follow-Windows themes, five accents, configurable editor and preview fonts, editor / split / preview modes, draggable panels |
+| Files in | Drag `.md` or `.txt` files from Explorer into the window: imported into the current folder and opened |
+| Commands | Command palette (`Ctrl+K`) over every action, settings screen (`Ctrl+,`) |
+| Export | Standalone HTML file, print-to-PDF through the system dialog |
 | Tasks | Click a checkbox in the preview to toggle `- [ ]` in the source |
 
 ## Quick start
@@ -79,9 +96,9 @@ npm install
 npm run dev          # http://localhost:1420
 ```
 
-Open `http://localhost:1420/?demo=1` for a self-contained demo workspace that
-needs no folder permission. In Chromium, “Открыть папку” connects a real folder
-through the File System Access API.
+Open `http://localhost:1420/?demo=1` for a self-contained demo workspace that needs
+no folder permission. In Chromium, «Открыть папку» connects a real folder through
+the File System Access API.
 
 ### Desktop app (Windows)
 
@@ -103,8 +120,8 @@ The release build produces an NSIS installer and an MSI under
 `src-tauri/target/release/bundle/`, plus the portable exe in
 `src-tauri/target/release/kocpad.exe`.
 
-> Nothing is installed system-wide by KOCPAD itself: the NSIS bundle uses
-> per-user install mode.
+> Nothing is installed system-wide by KOCPAD itself: the NSIS bundle uses per-user
+> install mode.
 
 ### Checks
 
@@ -136,10 +153,10 @@ npm run build          # typecheck + production frontend build
 | `Ctrl+Shift+L` | Toggle dark theme |
 | `Ctrl+\` | Toggle sidebar |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Editor font size |
-| `F2` | Rename current note |
+| `F2` | Rename the current note or draft |
 | `F5` | Refresh the tree |
 
-Full list with context: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
+Full list with context (and the Vim section): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
 
 ## Screenshots
 
@@ -147,11 +164,15 @@ Full list with context: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
 | --- | --- |
 | ![Light theme](docs/screenshots/light.png) | ![Dark theme](docs/screenshots/dark.png) |
 
-| Outline panel | Settings |
+| Workspace search | Outline panel |
 | --- | --- |
-| ![Outline panel](docs/screenshots/outline.png) | ![Settings](docs/screenshots/settings.png) |
+| ![Workspace search](docs/screenshots/search.png) | ![Outline panel](docs/screenshots/outline.png) |
 
-![Workspace search](docs/screenshots/search.png)
+| First launch | Draft without a folder |
+| --- | --- |
+| ![First launch](docs/screenshots/onboarding.png) | ![Draft without a folder](docs/screenshots/draft.png) |
+
+![Settings](docs/screenshots/settings.png)
 
 ## How it is built
 
@@ -159,7 +180,7 @@ Full list with context: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
 KOCPAD
 ├─ index.html            app shell (static markup, filled by src/main.ts)
 ├─ src/
-│  ├─ main.ts            wiring: theme, layout, shortcuts, actions, autosave
+│  ├─ main.ts            wiring: theme, layout, shortcuts, autosave
 │  ├─ store.ts           single source of truth: settings, tree, tabs, saves
 │  ├─ drafts.ts          untitled notes kept in localStorage
 │  ├─ images.ts          pasted images → assets/, relative images → blob URLs
@@ -173,8 +194,10 @@ KOCPAD
 │  │                     search, settings
 │  ├─ path.ts, util.ts   path and DOM helpers
 │  └─ style.css          design tokens, themes, accents, components
+├─ scripts/              bump-version.cjs — keeps the three version fields in sync
 ├─ src-tauri/            Tauri 2 shell
 │  ├─ src/fs_ops.rs      list / read / write / rename / delete / reveal
+│  ├─ src/lib.rs         window, geometry memory, close interception
 │  ├─ tauri.conf.json    window, CSP, bundle config
 │  └─ capabilities/      dialog permissions for the main window
 └─ docs/                 architecture, keybindings, roadmap
@@ -186,18 +209,23 @@ Design decisions worth knowing:
   backend (or adding WebDAV later) touches one file.
 - **Documents own their editor state.** Each tab keeps a CodeMirror `EditorState`,
   so undo history and caret survive tab switches.
-- **Writes are serialized per path.** Autosave and explicit saves cannot
-  interleave; a snapshot is only marked clean after it reached the disk.
-- **The Rust side is small on purpose.** Eleven commands, no plugin scopes to
+- **Writes are serialized per path.** Autosave and explicit saves cannot interleave;
+  a snapshot is only marked clean after it reached the disk.
+- **A draft is a document without a file.** `draft:<id>` lives in the same tab list
+  as files but writes to localStorage instead of the disk.
+- **The Rust side is small on purpose.** Thirteen commands, no plugin scopes to
   maintain, one place that decides which files count as notes.
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Roadmap
 
-Near-term: verify the local `.exe` build on a clean machine, code-sign the
-installer, and remember window geometry between launches. The full list lives in
-[docs/ROADMAP.md](docs/ROADMAP.md).
+Near-term: sign the installer (needs an OV/EV certificate — the CI step is ready)
+and verify on a clean machine. Then larger libraries: tags, `[[note]]` links with
+backlinks, a search index and lazy tree loading for thousands of notes. The full
+list is in [docs/ROADMAP.md](docs/ROADMAP.md), the history in
+[CHANGELOG.md](CHANGELOG.md), all builds in
+[Releases](https://github.com/ShiDikALexey/KOCPAD/releases).
 
 ## Contributing
 
