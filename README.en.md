@@ -20,6 +20,21 @@ open in any other editor.
 
 ![KOCPAD in split mode, light theme](docs/screenshots/light.png)
 
+## Download and install
+
+Builds are attached to the [latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest):
+
+| File | What it is |
+| --- | --- |
+| `KOCPAD_0.2.1_x64-setup.exe` | per-user installer (NSIS) — recommended |
+| `KOCPAD_0.2.1_x64_en-US.msi` | MSI for group policy or Intune deployment |
+| `kocpad.exe` | portable: drop it in any folder and run, no installation |
+
+The builds are **not code-signed**, so SmartScreen shows "Windows protected your
+PC" on first launch: **More info** → **Run anyway**. Signing the installer is on
+the roadmap ([docs/ROADMAP.md](docs/ROADMAP.md)). The installer is per-user and
+does not need administrator rights.
+
 ## Why another markdown editor
 
 - **Local-first.** A folder of `.md` files is the whole storage format. Back it up
