@@ -104,6 +104,11 @@ export class BrowserStorage implements Storage {
     return true;
   }
 
+  async closeRoot(): Promise<void> {
+    this.handle = null;
+    await forgetBrowserRoot();
+  }
+
   async listTree(): Promise<NoteNode[]> {
     if (!this.handle) return [];
     const children = await this.walk(this.handle, '');

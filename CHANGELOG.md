@@ -4,6 +4,25 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.2.2] — 2026-11-18
+
+Feedback fixes: fewer interruptions, and a way out of a folder.
+
+### Changed
+
+- `Ctrl+N` creates a note immediately with an automatic name («Новая заметка»,
+  «Новая заметка 2», …) and focuses the editor. The name dialog is gone; rename
+  with `F2` when the title matters.
+- With no folder connected, creating a note opens the folder picker first instead
+  of failing.
+
+### Added
+
+- «Закрыть папку» — in the sidebar header, the «Ещё» menu and the command palette.
+  It saves pending changes, detaches the workspace (notes stay on disk) and clears
+  the remembered folder, so the next launch starts empty. In demo mode the same
+  action resets the demo notes.
+
 ## [0.2.1] — 2026-11-18
 
 First patch release, from smoke-testing the 0.2.0 binary on Windows.

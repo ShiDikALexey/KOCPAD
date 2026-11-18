@@ -249,6 +249,13 @@ export class DemoStorage implements Storage {
     return true;
   }
 
+  /** Resets the demo workspace back to its seed notes. */
+  async closeRoot(): Promise<void> {
+    this.files = new Map(Object.entries(SEED));
+    this.blobs.clear();
+    this.dirs = new Set(collectSeedDirs());
+  }
+
   async listTree(): Promise<NoteNode[]> {
     return buildTree([...this.files.keys()].filter(isTextFile), [...this.dirs]);
   }

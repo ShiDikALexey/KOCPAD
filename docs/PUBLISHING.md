@@ -59,11 +59,16 @@ git push origin v0.1.0
 ```
 
 The workflow builds the installers and publishes a release with generated notes.
-Bump the version in three places before tagging:
+Bump the version with the script — it updates `package.json`,
+`src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` in one go and writes plain
+UTF-8 (PowerShell's `Set-Content` adds a BOM, which Tauri's config parser rejects):
 
-- `package.json` → `version`
-- `src-tauri/Cargo.toml` → `version`
-- `src-tauri/tauri.conf.json` → `version`
+```bash
+node scripts/bump-version.cjs 0.2.2
+git commit -am "release: 0.2.2"
+git tag -a v0.2.2 -m "KOCPAD 0.2.2"
+git push origin main v0.2.2
+```
 
 ## Notes
 

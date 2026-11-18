@@ -7,9 +7,10 @@
 
 | Keys | Action |
 | --- | --- |
-| `Ctrl+N` | New note in the current folder |
+| `Ctrl+N` | New note in the current folder, created immediately as «Новая заметка» (rename with `F2`) |
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
+| — | Close the folder: the folder button in the sidebar header or «Ещё» → «Закрыть папку» |
 | `Ctrl+S` | Save the current note now |
 | `Ctrl+W` | Close the current tab (autosaves first) |
 | `Ctrl+Tab` | Next tab |

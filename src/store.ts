@@ -298,6 +298,50 @@ export class Store {
     return false;
   }
 
+  /**
+   * Picks the next free name in a folder: «Новая заметка», «Новая заметка 2», …
+   * Creating a note should not interrupt the person with a dialog.
+   */
+  private async nextNoteName(dir: string): Promise<string> {
+    const base = 'Новая заметка';
+    for (let index = 0; index < 200; index += 1) {
+      const name = index === 0 ? `${base}.md` : `${base} ${index + 1}.md`;
+      if (!(await this.storage.exists(joinPath(dir, name)))) return name;
+    }
+    return `${base} ${Date.now()}.md`;
+  }
+
+  /** Creates a note with an automatic name, then opens it. One keypress, no prompt. */
+  async createNoteAuto(parentDir: string): Promise<string | null> {
+    if (!this.requireWorkspace()) return null;
+    return this.createNote(parentDir, await this.nextNoteName(parentDir));
+  }
+
+  /** Detaches the current workspace; notes stay on disk. */
+  async closeWorkspace(): Promise<void> {
+    await this.saveAll();
+
+    for (const timer of this.saveTimers.values()) window.clearTimeout(timer);
+    this.saveTimers.clear();
+    this.writes.clear();
+
+    await this.storage.closeRoot();
+    this.docs = [];
+    this.activePath = null;
+    this.tree = [];
+    this.patchSettings({ lastRoot: null });
+    this.emit('docs', 'active');
+
+    if (this.storage.kind === 'demo') {
+      // The demo has no folder to detach from; reset it to the seed notes instead.
+      await this.refreshTree();
+      this.setStatus('Демо-заметки сброшены');
+    } else {
+      this.emit('tree', 'root');
+      this.setStatus('Папка закрыта');
+    }
+  }
+
   async createNote(parentDir: string, rawName: string): Promise<string | null> {
     if (!this.requireWorkspace()) return null;
     const name = ensureMarkdownName(rawName);

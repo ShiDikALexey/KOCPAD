@@ -67,6 +67,11 @@ export class TauriStorage implements Storage {
     return true;
   }
 
+  async closeRoot(): Promise<void> {
+    this.currentRoot = null;
+    localStorage.removeItem('kocpad.root');
+  }
+
   async listTree(): Promise<NoteNode[]> {
     if (!this.currentRoot) return [];
     const raw = await invoke<RawNode[]>('fs_list_tree', { path: this.currentRoot });

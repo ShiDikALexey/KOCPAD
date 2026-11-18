@@ -25,6 +25,15 @@
 - [x] Autosave delay is a setting instead of a constant
 - [x] Binary storage on all three backends (base64 over Tauri IPC)
 
+## 0.2.1 — 0.2.2 (done)
+
+- [x] Refuse to create notes without a connected folder
+- [x] `Ctrl+N` creates a note immediately under an automatic name; no name dialog
+- [x] «Закрыть папку»: save, detach the workspace, forget the remembered folder,
+      reset the demo workspace
+- [x] CI guard against UTF-8 BOM in `package.json`, `tauri.conf.json`, `Cargo.toml`
+- [x] `scripts/bump-version.cjs` so the three version fields cannot drift
+
 ## 0.3.0 — ship a real installer
 
 - [ ] Verify `tauri build` on a clean Windows machine and attach the installer to a release

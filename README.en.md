@@ -50,7 +50,8 @@ does not need administrator rights.
 
 | Area | What works today |
 | --- | --- |
-| Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
+| Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name. A new note (`Ctrl+N`) appears immediately as «Новая заметка» — rename it later with `F2` |
+| Workspace | Open a folder, close it, connect another one; the last folder is remembered between launches and open tabs are restored |
 | Writing | CodeMirror 6 editor, markdown syntax highlighting, soft wrap, per-tab undo history, bold/italic shortcuts |
 | Preview | Live GFM render: headings, tables, task lists, code with highlighting, quotes, links; synchronized scrolling |
 | Structure | Outline panel listing every heading of the current note, click to jump, current section highlighted |
@@ -110,7 +111,7 @@ npm run build          # typecheck + production frontend build
 
 | Keys | Action |
 | --- | --- |
-| `Ctrl+N` | New note |
+| `Ctrl+N` | New note (created immediately, no name dialog) |
 | `Ctrl+Shift+N` | New folder |
 | `Ctrl+O` | Open folder |
 | `Ctrl+S` | Save now |

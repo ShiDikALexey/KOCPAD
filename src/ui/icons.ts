@@ -7,6 +7,7 @@ export type IconName =
   | 'chevron'
   | 'plus'
   | 'folderPlus'
+  | 'folderOff'
   | 'refresh'
   | 'close'
   | 'search'
@@ -32,6 +33,7 @@ const PATHS: Record<IconName, string> = {
   chevron: 'M7 5l4 4-4 4',
   plus: 'M8 3.5v9M3.5 8h9',
   folderPlus: 'M2.5 4.5h4l1.2 1.6h6.8v7.4h-12z M8 8.2v3.6M6.2 10h3.6',
+  folderOff: 'M2.5 4.5h4l1.2 1.6h6.8v7.4h-12z M6.4 9.4h3.4',
   refresh: 'M13 8a5 5 0 1 1-1.6-3.7M13 3v3h-3',
   close: 'M4.5 4.5l7 7M11.5 4.5l-7 7',
   search: 'M7.2 11.4a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4zM10.4 10.4L13.5 13.5',

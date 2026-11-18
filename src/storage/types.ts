@@ -26,6 +26,8 @@ export interface Storage {
   chooseRoot(): Promise<boolean>;
   /** Re-mounts the folder used last time. Returns false when it is gone. */
   restoreRoot(): Promise<boolean>;
+  /** Detaches the workspace: after this `root` is null until a folder is picked. */
+  closeRoot(): Promise<void>;
   /** Reads the whole workspace tree below the root. */
   listTree(): Promise<NoteNode[]>;
 

@@ -103,8 +103,7 @@ function applyTypography(): void {
   root.style.setProperty('--preview-font', PREVIEW_FONT_STACK[settings.previewFontFamily]);
 }
 
-function applySidebarTab(): void {
-  const tab = store.settings.sidebarTab;
+function applySidebarTab(): void {  const tab = store.settings.sidebarTab;
   document.querySelectorAll<HTMLButtonElement>('.sidebar__tab').forEach((button) => {
     const isActive = button.dataset.tab === tab;
     button.classList.toggle('sidebar__tab--active', isActive);
@@ -115,6 +114,16 @@ function applySidebarTab(): void {
   dom.treeFilter.hidden = !notesVisible;
   dom.outline.hidden = notesVisible;
   if (!notesVisible) outline.render();
+}
+
+/** Close-folder control only exists while a workspace is connected. */
+function applyWorkspaceChrome(): void {
+  const button = document.getElementById('btn-close-folder');
+  if (!button) return;
+  button.hidden = !store.storage.root;
+  const demo = store.storage.kind === 'demo';
+  button.title = demo ? 'Сбросить демо-заметки' : 'Закрыть папку';
+  button.setAttribute('aria-label', button.title);
 }
 
 function applyLayout(): void {
@@ -135,6 +144,7 @@ function applyLayout(): void {
   applyTheme();
   applyTypography();
   applySidebarTab();
+  applyWorkspaceChrome();
 }
 
 // -------------------------------------------------------------------- editor
@@ -316,38 +326,67 @@ function targetDirectory(): string {
   return doc ? dirname(doc.path) : '';
 }
 
+/** Opens the folder picker and mounts the result. Shared by "Открыть папку" and friends. */
+async function chooseWorkspace(): Promise<boolean> {
+  try {
+    await store.saveAll();
+    const ok = await store.chooseRoot();
+    if (!ok) return false;
+    if (store.storage.root) localStorage.setItem('kocpad.root', store.storage.root);
+    await restoreTabs();
+    if (!store.activeDoc) {
+      const first = store.flatFiles()[0];
+      if (first) await store.openNote(first.path);
+    }
+    showToast(`Папка подключена · ${store.rootName}`, 'success');
+    return true;
+  } catch (error) {
+    showToast(`Не удалось открыть папку: ${(error as Error).message}`, 'error');
+    return false;
+  }
+}
+
+/**
+ * A new note appears immediately with an automatic name — no dialog in the way.
+ * Renaming stays on F2 if the person cares about the title.
+ */
+async function createNoteNow(parentDir?: string): Promise<void> {
+  if (!store.storage.root && !(await chooseWorkspace())) return;
+  const dir = parentDir ?? targetDirectory();
+  const path = await store.createNoteAuto(dir);
+  if (path) window.setTimeout(() => editor.focus(), 60);
+}
+
+async function closeCurrentWorkspace(): Promise<void> {
+  const demo = store.storage.kind === 'demo';
+  const confirmed = demo
+    ? await confirmAction({
+        title: 'Сбросить демо-заметки?',
+        message: 'Правки, сделанные в демо-режиме, будут потеряны. Файлы на диске это не затрагивает.',
+        confirmLabel: 'Сбросить',
+        danger: true,
+      })
+    : await confirmAction({
+        title: 'Закрыть папку?',
+        message: `Папка «${store.rootName}» будет отключена. Заметки останутся на диске — ничего не удаляется.`,
+        confirmLabel: 'Закрыть папку',
+      });
+  if (!confirmed) return;
+  await store.closeWorkspace();
+  if (!demo) showToast('Папка закрыта, заметки на диске', 'success');
+}
+
 const actions: AppActions = {
   openFolder: () => {
-    void (async () => {
-      try {
-        const ok = await store.chooseRoot();
-        if (!ok) return;
-        if (store.storage.root) localStorage.setItem('kocpad.root', store.storage.root);
-        await restoreTabs();
-        if (!store.activeDoc) {
-          const first = store.flatFiles()[0];
-          if (first) await store.openNote(first.path);
-        }
-        showToast(`Папка подключена · ${store.rootName}`, 'success');
-      } catch (error) {
-        showToast(`Не удалось открыть папку: ${(error as Error).message}`, 'error');
-      }
-    })();
+    void chooseWorkspace();
+  },
+
+  closeWorkspace: () => {
+    void closeCurrentWorkspace();
   },
 
   createNote: (parentDir) => {
-    void (async () => {
-      const dir = parentDir ?? targetDirectory();
-      const name = await promptText({
-        title: 'Новая заметка',
-        label: dir ? `Папка: ${basename(dir) || store.rootName}` : `Папка: ${store.rootName}`,
-        value: 'Новая заметка',
-        placeholder: 'Имя заметки',
-        confirmLabel: 'Создать',
-        validate: (value) => (value.trim() ? null : 'Введите имя заметки'),
-      });
-      if (name) await store.createNote(dir, name);
-    })();
+    void createNoteNow(parentDir);
   },
 
   createFolder: (parentDir) => {
@@ -540,6 +579,12 @@ function palette(): void {
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
     { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
+    ...(store.storage.root
+      ? [{
+          label: store.storage.kind === 'demo' ? 'Сбросить демо-заметки' : 'Закрыть папку с заметками',
+          run: actions.closeWorkspace,
+        }]
+      : []),
     { label: 'Панель: контур заметки', hint: 'Ctrl+Shift+O', run: () => actions.setSidebarTab('outline') },
     { label: 'Панель: дерево заметок', run: () => actions.setSidebarTab('notes') },
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
@@ -576,6 +621,7 @@ function mountToolbar(): void {
   });
 
   document.getElementById('btn-open-folder')?.addEventListener('click', () => actions.openFolder());
+  document.getElementById('btn-close-folder')?.addEventListener('click', () => actions.closeWorkspace());
   document.getElementById('btn-new-note')?.addEventListener('click', () => actions.createNote());
   document.getElementById('btn-new-folder')?.addEventListener('click', () => actions.createFolder());
   document.getElementById('btn-search')?.addEventListener('click', () => actions.openGlobalSearch());
@@ -587,6 +633,13 @@ function mountToolbar(): void {
     const rect = target.getBoundingClientRect();
     showMenu({ x: rect.left - 180, y: rect.bottom + 6 }, [
       { label: 'Настройки…', hint: 'Ctrl+,', onClick: actions.openSettings },
+      ...(store.storage.root
+        ? [{
+            label: store.storage.kind === 'demo' ? 'Сбросить демо-заметки' : 'Закрыть папку',
+            danger: store.storage.kind === 'demo',
+            onClick: actions.closeWorkspace,
+          }]
+        : []),
       { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', onClick: actions.exportHtml },
       { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
       { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
@@ -871,6 +924,7 @@ async function boot(): Promise<void> {
   store.on('root', () => {
     dom.workspaceName.textContent = store.rootName;
     dom.workspaceName.title = store.storage.root ?? '';
+    applyWorkspaceChrome();
   });
   store.on('settings', () => applyLayout());
   store.on('status', () => {

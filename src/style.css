@@ -393,6 +393,10 @@ button {
   padding: 0;
 }
 
+.tb-btn[hidden] {
+  display: none;
+}
+
 .tb-btn--sm {
   width: 24px;
   height: 24px;
