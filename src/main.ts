@@ -15,17 +15,21 @@ import { TreeView } from './ui/tree';
 import { TabsView } from './ui/tabs';
 import { StatusBar } from './ui/statusbar';
 import { GlobalSearchPanel } from './ui/gsearch';
+import { OutlineView } from './ui/outline';
 import { openPalette, type Command } from './ui/palette';
+import { openSettings } from './ui/settings';
 import { confirmAction, promptText, showMenu, showToast } from './ui/dialog';
 import { icon, type IconName } from './ui/icons';
 import type { AppActions } from './ui/actions';
-import type { ViewMode } from './types';
-import { basename, dirname, joinPath } from './path';
+import { ImageStore } from './images';
+import type { PreviewFont, SidebarTab, ViewMode } from './types';
+import { basename, dirname, isTextFile, joinPath } from './path';
 import { clamp, debounce } from './util';
 
 const TABS_KEY = 'kocpad.tabs';
 
 const store = new Store(createStorage());
+const imageStore = new ImageStore(store.storage);
 
 /** Typed element lookup, throws early when the shell markup drifts. */
 function must<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -41,6 +45,9 @@ const dom = {
   sidebar: must('sidebar'),
   sidebarResizer: must('sidebar-resizer'),
   sidebarCount: must('sidebar-count'),
+  tree: must('tree'),
+  treeFilter: must<HTMLInputElement>('tree-filter'),
+  outline: must('outline'),
   tabs: must('tabs'),
   panes: must('panes'),
   editorHost: must('editor'),
@@ -79,6 +86,37 @@ media.addEventListener('change', () => {
 
 // -------------------------------------------------------------------- layout
 
+/** Font stacks offered by the settings screen. */
+const PREVIEW_FONT_STACK: Record<PreviewFont, string> = {
+  serif: 'var(--font-read)',
+  sans: 'var(--font-ui)',
+  mono: 'var(--font-mono)',
+};
+
+function applyTypography(): void {
+  const settings = store.settings;
+  const root = document.documentElement;
+  root.dataset.accent = settings.accent;
+  root.style.setProperty('--editor-font-size', `${settings.editorFontSize}px`);
+  root.style.setProperty('--font-editor', settings.editorFontFamily || 'var(--font-mono)');
+  root.style.setProperty('--preview-font-size', `${settings.previewFontSize}px`);
+  root.style.setProperty('--preview-font', PREVIEW_FONT_STACK[settings.previewFontFamily]);
+}
+
+function applySidebarTab(): void {
+  const tab = store.settings.sidebarTab;
+  document.querySelectorAll<HTMLButtonElement>('.sidebar__tab').forEach((button) => {
+    const isActive = button.dataset.tab === tab;
+    button.classList.toggle('sidebar__tab--active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  const notesVisible = tab === 'notes';
+  dom.tree.hidden = !notesVisible;
+  dom.treeFilter.hidden = !notesVisible;
+  dom.outline.hidden = notesVisible;
+  if (!notesVisible) outline.render();
+}
+
 function applyLayout(): void {
   const settings = store.settings;
   dom.sidebar.classList.toggle('sidebar--collapsed', !settings.sidebarOpen);
@@ -95,6 +133,8 @@ function applyLayout(): void {
     button.setAttribute('aria-pressed', String(button.dataset.mode === settings.mode));
   });
   applyTheme();
+  applyTypography();
+  applySidebarTab();
 }
 
 // -------------------------------------------------------------------- editor
@@ -110,9 +150,12 @@ const editor = new MarkdownEditor(
       store.updateContent(path, text);
     },
     onScrollRatio: (ratio) => syncFromEditor(ratio),
-    onCursor: (line, column, selectionLength) => statusBar.setCursor({ line, column, selectionLength }),
+    onCursor: (line, column, selectionLength) => {
+      statusBar.setCursor({ line, column, selectionLength });
+      outline.setCursor(line);
+    },
   },
-  { fontSize: store.settings.editorFontSize, showLineNumbers: store.settings.showLineNumbers },
+  { showLineNumbers: store.settings.showLineNumbers },
 );
 
 // ---------------------------------------------------------------- preview
@@ -135,6 +178,7 @@ const renderPreviewNow = (): void => {
   dom.preview.classList.remove('markdown--empty');
   dom.preview.innerHTML = renderMarkdown(source);
   decoratePreview(dom.preview);
+  void imageStore.decorate(dom.preview, doc.path).catch(() => undefined);
 };
 
 const schedulePreview = debounce(() => {
@@ -224,7 +268,6 @@ function syncActive(): void {
   }
 
   editor.open(doc.path, doc.content);
-  editor.setFontSize(store.settings.editorFontSize);
   editor.setLineNumbers(store.settings.showLineNumbers);
   if (doc.content !== lastPreviewSource) schedulePreview();
   updateTitle();
@@ -440,6 +483,18 @@ const actions: AppActions = {
     applyLayout();
   },
 
+  setSidebarTab: (tab: SidebarTab) => {
+    store.patchSettings({ sidebarTab: tab });
+    if (!store.settings.sidebarOpen) store.patchSettings({ sidebarOpen: true });
+    applyLayout();
+  },
+
+  jumpToLine: (line: number) => {
+    editor.scrollToLine(line);
+  },
+
+  openSettings: () => openSettings(store),
+
   openGlobalSearch: () => searchPanel.open(),
   openPalette: () => palette(),
   openFind: () => {
@@ -449,7 +504,6 @@ const actions: AppActions = {
   adjustFontSize: (delta) => {
     const size = clamp(store.settings.editorFontSize + delta, 11, 24);
     store.patchSettings({ editorFontSize: size });
-    editor.setFontSize(size);
     showToast(`Размер текста: ${size}px`);
   },
 
@@ -476,6 +530,7 @@ const tree = new TreeView(must('tree'), store, actions);
 const tabsView = new TabsView(dom.tabs, store, actions);
 const statusBar = new StatusBar(store);
 const searchPanel = new GlobalSearchPanel(store, actions);
+const outline = new OutlineView(dom.outline, store, actions);
 
 function palette(): void {
   const commands: Command[] = [
@@ -484,6 +539,9 @@ function palette(): void {
     { label: 'Новая папка', hint: 'Ctrl+Shift+N', run: () => actions.createFolder() },
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
+    { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
+    { label: 'Панель: контур заметки', hint: 'Ctrl+Shift+O', run: () => actions.setSidebarTab('outline') },
+    { label: 'Панель: дерево заметок', run: () => actions.setSidebarTab('notes') },
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
     { label: 'Перечитать файл с диска', run: actions.reloadActive },
     {
@@ -528,6 +586,7 @@ function mountToolbar(): void {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     showMenu({ x: rect.left - 180, y: rect.bottom + 6 }, [
+      { label: 'Настройки…', hint: 'Ctrl+,', onClick: actions.openSettings },
       { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', onClick: actions.exportHtml },
       { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
       { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
@@ -550,6 +609,13 @@ function mountToolbar(): void {
     button.addEventListener('click', () => {
       const mode = button.dataset.mode as ViewMode | undefined;
       if (mode) setMode(mode);
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.sidebar__tab').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tab = button.dataset.tab as SidebarTab | undefined;
+      if (tab) actions.setSidebarTab(tab);
     });
   });
 
@@ -639,7 +705,8 @@ function mountShortcuts(): void {
 
     const handlers: Record<string, () => void> = {
       n: () => (event.shiftKey ? actions.createFolder() : actions.createNote()),
-      o: () => actions.openFolder(),
+      o: () => (event.shiftKey ? actions.setSidebarTab('outline') : actions.openFolder()),
+      ',': () => actions.openSettings(),
       s: () => {
         if (event.shiftKey) actions.saveAll();
         else void store.saveDoc(store.activePath ?? '');
@@ -666,7 +733,6 @@ function mountShortcuts(): void {
       '-': () => actions.adjustFontSize(-1),
       '0': () => {
         store.patchSettings({ editorFontSize: 14 });
-        editor.setFontSize(14);
       },
     };
 
@@ -675,6 +741,102 @@ function mountShortcuts(): void {
     event.preventDefault();
     handler();
   });
+}
+
+// ------------------------------------------------------- images and dropping
+
+function imageFilesFrom(files: (File | null)[] | FileList | null | undefined): File[] {
+  return Array.from(files ?? []).filter((file): file is File => Boolean(file) && file!.type.startsWith('image/'));
+}
+
+async function insertImages(files: File[]): Promise<void> {
+  const doc = store.activeDoc;
+  if (!doc) {
+    showToast('Откройте заметку, чтобы вставить изображение', 'error');
+    return;
+  }
+  let added = 0;
+  for (const file of files) {
+    const saved = await imageStore.save(doc.path, file, file.name.replace(/\.[^.]+$/, ''));
+    if (!saved) continue;
+    editor.insertBlock(saved.markdown);
+    added += 1;
+  }
+  if (added === 0) showToast('Не удалось сохранить изображение', 'error');
+  else showToast(added === 1 ? 'Изображение сохранено в assets/' : `Изображений добавлено: ${added}`, 'success');
+}
+
+async function handleDroppedFiles(files: File[]): Promise<void> {
+  const images = imageFilesFrom(files);
+  if (images.length) await insertImages(images);
+
+  const notes = files.filter((file) => !file.type.startsWith('image/') && isTextFile(file.name));
+  for (const file of notes) {
+    const content = await file.text();
+    await store.importTextFile(store.importDir, file.name, content);
+  }
+
+  const ignored = files.filter((file) => !file.type.startsWith('image/') && !isTextFile(file.name));
+  if (ignored.length) {
+    showToast(`Пропущено: ${ignored.length} — KOCPAD открывает markdown и текстовые файлы`, 'error');
+  }
+}
+
+function hasFiles(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+}
+
+function mountPaste(): void {
+  // Capture phase: images must not be pasted as base64 text by CodeMirror.
+  dom.editorHost.addEventListener(
+    'paste',
+    (event) => {
+      const items = Array.from(event.clipboardData?.items ?? []).filter((item) => item.kind === 'file');
+      const files = imageFilesFrom(items.map((item) => item.getAsFile()));
+      if (!files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void insertImages(files);
+    },
+    true,
+  );
+}
+
+function mountDragAndDrop(): void {
+  let depth = 0;
+  const reset = (): void => {
+    depth = 0;
+    document.body.classList.remove('is-dragging');
+  };
+
+  document.addEventListener('dragenter', (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    depth += 1;
+    document.body.classList.add('is-dragging');
+  });
+
+  document.addEventListener('dragover', (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  });
+
+  document.addEventListener('dragleave', (event) => {
+    if (!hasFiles(event)) return;
+    depth = Math.max(0, depth - 1);
+    if (depth === 0) document.body.classList.remove('is-dragging');
+  });
+
+  document.addEventListener('drop', (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    reset();
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length) void handleDroppedFiles(files);
+  });
+
+  window.addEventListener('blur', reset);
 }
 
 // ------------------------------------------------------------------ startup
@@ -691,9 +853,12 @@ async function boot(): Promise<void> {
   mountToolbar();
   mountResizers();
   mountShortcuts();
+  mountPaste();
+  mountDragAndDrop();
   tree.mount();
   tabsView.mount();
   statusBar.mount();
+  outline.mount();
 
   store.on('active', () => {
     syncActive();

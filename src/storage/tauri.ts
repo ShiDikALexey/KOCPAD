@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { NoteNode } from '../types';
+import { base64ToBytes, bytesToBase64 } from '../util';
 import type { Storage } from './types';
 
 /** Shape returned by the Rust `fs_list_tree` command. */
@@ -78,6 +79,16 @@ export class TauriStorage implements Storage {
 
   async writeText(path: string, text: string): Promise<void> {
     await invoke('fs_write_text', { path, contents: text });
+  }
+
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
+    // Binary crosses the IPC boundary as base64: JSON arrays of bytes are far slower.
+    const encoded = await invoke<string>('fs_read_binary', { path });
+    return base64ToBytes(encoded);
+  }
+
+  async writeBinary(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    await invoke('fs_write_binary', { path, data: bytesToBase64(bytes) });
   }
 
   async createFile(path: string, text = ''): Promise<void> {

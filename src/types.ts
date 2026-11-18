@@ -4,6 +4,12 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type ViewMode = 'editor' | 'split' | 'preview';
 
+export type SidebarTab = 'notes' | 'outline';
+
+export type AccentName = 'marker' | 'azure' | 'jade' | 'iris' | 'rose';
+
+export type PreviewFont = 'serif' | 'sans' | 'mono';
+
 export type StorageKind = 'tauri' | 'browser' | 'demo';
 
 /** A node of the workspace tree. Directories carry `children`. */
@@ -28,11 +34,18 @@ export interface Doc {
 
 export interface Settings {
   theme: ThemeMode;
+  accent: AccentName;
   mode: ViewMode;
   sidebarOpen: boolean;
+  sidebarTab: SidebarTab;
   sidebarWidth: number;
   splitRatio: number;
   editorFontSize: number;
+  /** Empty string means the built-in monospace stack. */
+  editorFontFamily: string;
+  previewFontSize: number;
+  previewFontFamily: PreviewFont;
+  autosaveDelay: number;
   showLineNumbers: boolean;
   lastRoot: string | null;
   syncScroll: boolean;
@@ -52,11 +65,17 @@ export interface SearchHit {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
+  accent: 'marker',
   mode: 'split',
   sidebarOpen: true,
+  sidebarTab: 'notes',
   sidebarWidth: 268,
   splitRatio: 0.5,
   editorFontSize: 14,
+  editorFontFamily: '',
+  previewFontSize: 16.5,
+  previewFontFamily: 'serif',
+  autosaveDelay: 700,
   showLineNumbers: false,
   lastRoot: null,
   syncScroll: true,

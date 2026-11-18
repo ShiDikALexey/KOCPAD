@@ -31,6 +31,9 @@ export interface Storage {
 
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
+  /** Reads a binary asset (images pasted into a note). */
+  readBinary(path: string): Promise<Uint8Array<ArrayBuffer>>;
+  writeBinary(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void>;
   createFile(path: string, text?: string): Promise<void>;
   createDir(path: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;

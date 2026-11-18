@@ -5,6 +5,7 @@
 //! links to the default browser. Everything runs outside the webview sandbox, so
 //! the JavaScript side only needs one `invoke` per operation.
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
@@ -124,6 +125,33 @@ pub fn fs_write_text(path: String, contents: String) -> Result<(), String> {
 #[tauri::command]
 pub fn fs_create_dir(path: String) -> Result<(), String> {
     fs::create_dir_all(&path).map_err(|error| format!("Не удалось создать папку: {error}"))
+}
+
+/// Reads a pasted image. Base64 keeps the IPC payload compact and valid UTF-8.
+#[tauri::command]
+pub fn fs_read_binary(path: String) -> Result<String, String> {
+    let bytes = fs::read(&path).map_err(|error| format!("Не удалось прочитать «{path}»: {error}"))?;
+    Ok(BASE64.encode(bytes))
+}
+
+#[tauri::command]
+pub fn fs_write_binary(path: String, data: String) -> Result<(), String> {
+    let bytes = BASE64
+        .decode(data.as_bytes())
+        .map_err(|error| format!("Некорректные данные файла: {error}"))?;
+
+    let target = Path::new(&path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Не удалось создать папку: {error}"))?;
+    }
+
+    let temp = target.with_extension("kocpad-tmp");
+    fs::write(&temp, &bytes).map_err(|error| format!("Не удалось записать «{path}»: {error}"))?;
+    fs::rename(&temp, target).map_err(|error| {
+        let _ = fs::remove_file(&temp);
+        format!("Не удалось сохранить «{path}»: {error}")
+    })
 }
 
 #[tauri::command]

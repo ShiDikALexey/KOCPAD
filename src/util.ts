@@ -99,3 +99,51 @@ export function titleFromPath(path: string): string {
   const name = path.split(/[\\/]/).filter(Boolean).pop() ?? path;
   return name.replace(/\.(md|markdown|mdown|txt)$/i, '');
 }
+
+/** `20261118-114233`, used for pasted image names. */
+export function timestampSlug(date = new Date()): string {
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    '-',
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join('');
+}
+
+const BASE64_CHUNK = 0x8000;
+
+/** Bytes → base64, chunked so large images do not blow the argument limit. */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += BASE64_CHUNK) {
+    const chunk = bytes.subarray(index, index + BASE64_CHUNK);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+export function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+/** File extension for an image MIME type. */
+export function extensionForMime(mime: string): string {
+  const map: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'image/avif': 'avif',
+    'image/bmp': 'bmp',
+  };
+  return map[mime.toLowerCase()] ?? 'png';
+}

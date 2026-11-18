@@ -43,7 +43,7 @@ const editorTheme = EditorView.theme({
     fontSize: 'var(--editor-font-size)',
   },
   '.cm-scroller': {
-    fontFamily: 'var(--font-mono)',
+    fontFamily: 'var(--font-editor, var(--font-mono))',
     lineHeight: '1.65',
     overflow: 'auto',
     padding: '14px 0 40vh',
@@ -64,7 +64,7 @@ const editorTheme = EditorView.theme({
     backgroundColor: 'transparent',
     color: 'var(--ink-faint)',
     border: 'none',
-    fontFamily: 'var(--font-mono)',
+    fontFamily: 'var(--font-editor, var(--font-mono))',
     fontSize: '0.85em',
     paddingLeft: '6px',
   },
@@ -148,11 +148,10 @@ export class MarkdownEditor {
   private states = new Map<string, EditorState>();
   private path: string | null = null;
   private callbacks: EditorCallbacks;
-  private fontSizeCompartment = new Compartment();
   private gutterCompartment = new Compartment();
   private suppressChange = false;
 
-  constructor(parent: HTMLElement, callbacks: EditorCallbacks, options: { fontSize: number; showLineNumbers: boolean }) {
+  constructor(parent: HTMLElement, callbacks: EditorCallbacks, options: { showLineNumbers: boolean }) {
     this.callbacks = callbacks;
     this.view = new EditorView({
       parent,
@@ -161,8 +160,7 @@ export class MarkdownEditor {
     this.view.scrollDOM.addEventListener('scroll', this.handleScroll, { passive: true });
   }
 
-  private createState(content: string, options?: { fontSize: number; showLineNumbers: boolean }): EditorState {
-    const fontSize = options?.fontSize ?? this.currentFontSize;
+  private createState(content: string, options?: { showLineNumbers: boolean }): EditorState {
     const showGutter = options?.showLineNumbers ?? this.currentShowGutter;
     return EditorState.create({
       doc: content,
@@ -179,14 +177,12 @@ export class MarkdownEditor {
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
         placeholder('Пишите здесь. Markdown понимается как в GitHub.'),
         editorTheme,
-        this.fontSizeCompartment.of(EditorView.theme({ '&': { fontSize: `${fontSize}px` } })),
         this.gutterCompartment.of(showGutter ? lineNumbers() : []),
         EditorView.updateListener.of((update) => this.handleUpdate(update)),
       ],
     });
   }
 
-  private currentFontSize = 14;
   private currentShowGutter = false;
 
   private handleUpdate(update: { docChanged: boolean; selectionSet: boolean; state: EditorState }): void {
@@ -265,13 +261,6 @@ export class MarkdownEditor {
     this.suppressChange = false;
   }
 
-  setFontSize(px: number): void {
-    this.currentFontSize = px;
-    this.view.dispatch({
-      effects: this.fontSizeCompartment.reconfigure(EditorView.theme({ '&': { fontSize: `${px}px` } })),
-    });
-  }
-
   setLineNumbers(show: boolean): void {
     this.currentShowGutter = show;
     this.view.dispatch({
@@ -321,13 +310,18 @@ export class MarkdownEditor {
     this.view.focus();
   }
 
+  /** Inserts a block on its own line(s), keeping surrounding lines intact. */
   insertBlock(block: string): void {
     const state = this.view.state;
     const range = state.selection.main;
     const line = state.doc.lineAt(range.from);
-    const prefix = line.from === range.from ? '' : '\n';
+    const needsLeadingBreak = line.from !== range.from;
+    const needsTrailingBreak = line.to !== range.to;
+    const prefix = needsLeadingBreak ? '\n' : '';
+    const suffix = needsTrailingBreak ? '\n' : '';
+    const insert = prefix + block + suffix;
     this.view.dispatch({
-      changes: { from: range.from, to: range.to, insert: prefix + block },
+      changes: { from: range.from, to: range.to, insert },
       selection: { anchor: range.from + prefix.length + block.length },
     });
     this.view.focus();

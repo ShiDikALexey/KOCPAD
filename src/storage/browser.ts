@@ -159,6 +159,19 @@ export class BrowserStorage implements Storage {
     await writable.close();
   }
 
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
+    const handle = await this.fileHandle(path);
+    const file = await handle.getFile();
+    return new Uint8Array(await file.arrayBuffer());
+  }
+
+  async writeBinary(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    const handle = await this.fileHandle(path, true);
+    const writable = await handle.createWritable();
+    await writable.write(bytes);
+    await writable.close();
+  }
+
   async createFile(path: string, text = ''): Promise<void> {
     await this.writeText(path, text);
   }

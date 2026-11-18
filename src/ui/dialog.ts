@@ -13,7 +13,8 @@ interface ModalHandle {
   root: HTMLElement;
 }
 
-function openModal(build: (close: () => void) => HTMLElement, onEscape?: () => void): ModalHandle {
+/** Opens a modal overlay and lets the caller render its content. */
+export function openModal(build: (close: () => void) => HTMLElement, onEscape?: () => void): ModalHandle {
   const root = overlayRoot();
   let closed = false;
   const close = (): void => {

@@ -230,6 +230,7 @@ export class DemoStorage implements Storage {
   readonly label = 'Демо';
   readonly canPersist = false;
   private files = new Map<string, string>(Object.entries(SEED));
+  private blobs = new Map<string, Uint8Array<ArrayBuffer>>();
   private dirs = new Set<string>(collectSeedDirs());
 
   get root(): string | null {
@@ -260,6 +261,24 @@ export class DemoStorage implements Storage {
 
   async writeText(path: string, text: string): Promise<void> {
     this.files.set(path, text);
+  }
+
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
+    const bytes = this.blobs.get(path);
+    if (!bytes) throw new Error(`Файл не найден: ${path}`);
+    return bytes;
+  }
+
+  async writeBinary(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    this.blobs.set(path, bytes);
+    const dir = path.split('/').slice(0, -1).join('/');
+    if (dir) {
+      let prefix = '';
+      for (const part of dir.split('/')) {
+        prefix = prefix ? `${prefix}/${part}` : part;
+        this.dirs.add(prefix);
+      }
+    }
   }
 
   async createFile(path: string, text = ''): Promise<void> {
@@ -305,8 +324,11 @@ export class DemoStorage implements Storage {
   }
 
   async exists(path: string): Promise<boolean> {
-    if (this.files.has(path)) return true;
-    return [...this.files.keys()].some((key) => key.startsWith(`${path}/`));
+    if (this.files.has(path) || this.blobs.has(path)) return true;
+    return (
+      [...this.files.keys()].some((key) => key.startsWith(`${path}/`))
+      || [...this.dirs].some((dir) => dir === path || dir.startsWith(`${path}/`))
+    );
   }
 
   async saveAs(defaultName: string, content: string): Promise<string | null> {

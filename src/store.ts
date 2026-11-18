@@ -17,7 +17,6 @@ export type Topic =
 type Handler = () => void;
 
 const SETTINGS_KEY = 'kocpad.settings';
-const AUTOSAVE_DELAY = 700;
 
 /**
  * Single source of truth for the app: settings, workspace tree, open tabs and
@@ -111,7 +110,7 @@ export class Store {
 
   async refreshTree(): Promise<void> {
     try {
-      this.tree = await this.storage.listTree();
+      this.tree = pruneAssetFolders(await this.storage.listTree());
       this.emit('tree');
     } catch (error) {
       this.report(error, 'Не удалось прочитать папку');
@@ -205,7 +204,7 @@ export class Store {
       window.setTimeout(() => {
         this.saveTimers.delete(path);
         void this.saveDoc(path);
-      }, AUTOSAVE_DELAY),
+      }, this.settings.autosaveDelay),
     );
   }
 
@@ -330,8 +329,39 @@ export class Store {
     }
   }
 
-  async renameEntry(node: NoteNode, rawName: string): Promise<boolean> {
-    const trimmed = rawName.trim();
+  /**
+   * Folder used for imported files: next to the active note, otherwise the
+   * workspace root (an absolute path in the native build).
+   */
+  get importDir(): string {
+    const doc = this.activeDoc;
+    if (doc) return dirname(doc.path);
+    return this.storage.kind === 'tauri' ? this.storage.root ?? '' : '';
+  }
+
+  /** Copies text content into the workspace and opens it. */
+  async importTextFile(dir: string, rawName: string, content: string): Promise<string | null> {
+    const name = ensureMarkdownName(rawName);
+    if (!name) return null;
+    const target = joinPath(dir, name);
+    try {
+      if (await this.storage.exists(target)) {
+        await this.openNote(target);
+        this.setStatus(`Уже в папке · ${name}`);
+        return target;
+      }
+      await this.storage.writeText(target, content);
+      await this.refreshTree();
+      await this.openNote(target);
+      this.setStatus(`Добавлено · ${name}`);
+      return target;
+    } catch (error) {
+      this.report(error, `Не удалось добавить ${name}`);
+      return null;
+    }
+  }
+
+  async renameEntry(node: NoteNode, rawName: string): Promise<boolean> {    const trimmed = rawName.trim();
     if (!trimmed || trimmed === node.name) return false;
     const base = dirname(node.path);
     const nextName = node.kind === 'file' ? ensureMarkdownName(trimmed) : trimmed.replace(/[\\/:*?"<>|]/g, '');
@@ -449,6 +479,30 @@ function ensureMarkdownName(raw: string): string {
   const name = raw.trim().replace(/[\\/:*?"<>|]/g, '');
   if (!name) return '';
   return isTextFile(name) ? name : `${name}.md`;
+}
+
+/**
+ * Hides the `assets/` folder that pasted images create, unless it also holds
+ * notes. Keeping image files out of the notes tree removes a confusing entry
+ * that would always look empty.
+ */
+function pruneAssetFolders(nodes: NoteNode[]): NoteNode[] {
+  const result: NoteNode[] = [];
+  for (const node of nodes) {
+    if (node.kind !== 'dir') {
+      result.push(node);
+      continue;
+    }
+    const children = pruneAssetFolders(node.children ?? []);
+    const isAssetsFolder = node.name.toLowerCase() === 'assets';
+    if (isAssetsFolder && !containsFile(children)) continue;
+    result.push({ ...node, children });
+  }
+  return result;
+}
+
+function containsFile(nodes: NoteNode[]): boolean {
+  return nodes.some((node) => node.kind === 'file' || containsFile(node.children ?? []));
 }
 
 function escapeRegExp(text: string): string {

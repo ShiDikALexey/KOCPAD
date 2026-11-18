@@ -9,6 +9,8 @@ pub fn run() {
             fs_ops::fs_list_tree,
             fs_ops::fs_read_text,
             fs_ops::fs_write_text,
+            fs_ops::fs_read_binary,
+            fs_ops::fs_write_binary,
             fs_ops::fs_create_dir,
             fs_ops::fs_rename,
             fs_ops::fs_remove,

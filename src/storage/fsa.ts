@@ -16,7 +16,7 @@ export interface FsaFileHandle {
 }
 
 export interface FsaWritable {
-  write(data: string): Promise<void>;
+  write(data: string | BufferSource): Promise<void>;
   close(): Promise<void>;
 }
 

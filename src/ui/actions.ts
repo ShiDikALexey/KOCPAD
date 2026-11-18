@@ -1,4 +1,4 @@
-import type { NoteNode, ThemeMode, ViewMode } from '../types';
+import type { NoteNode, SidebarTab, ThemeMode, ViewMode } from '../types';
 
 /** Callbacks the UI modules need from the app shell. Implemented in main.ts. */
 export interface AppActions {
@@ -19,6 +19,9 @@ export interface AppActions {
   cycleMode(): void;
   setMode(mode: ViewMode): void;
   toggleSidebar(): void;
+  setSidebarTab(tab: SidebarTab): void;
+  jumpToLine(line: number): void;
+  openSettings(): void;
   openGlobalSearch(): void;
   openPalette(): void;
   openFind(): void;

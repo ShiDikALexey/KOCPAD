@@ -46,8 +46,13 @@
               <button id="btn-refresh" class="tb-btn tb-btn--icon tb-btn--sm" type="button" data-icon="refresh" data-icon-size="14" title="Обновить дерево (F5)"></button>
             </span>
           </div>
+          <div class="sidebar__tabs" role="tablist" aria-label="Панель">
+            <button id="tab-notes" class="sidebar__tab sidebar__tab--active" type="button" role="tab" aria-selected="true" data-tab="notes">Заметки</button>
+            <button id="tab-outline" class="sidebar__tab" type="button" role="tab" aria-selected="false" data-tab="outline">Контур</button>
+          </div>
           <input id="tree-filter" class="sidebar__filter" type="text" placeholder="Фильтр по имени" spellcheck="false" />
           <div id="tree" class="tree"></div>
+          <div id="outline" class="outline" hidden></div>
           <div class="sidebar__foot"><span id="sidebar-count">0</span> заметок</div>
         </aside>
 
