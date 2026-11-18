@@ -57,14 +57,12 @@
 - [ ] Code-sign the exe and installer — CI plumbing is in place (optional
       `WINDOWS_CERTIFICATE` secret), blocked on buying a certificate
 
-## 0.3.2 — ship signed installers
+## 0.3.2 — signed installers
 
-- [ ] Verify `tauri build` on a clean Windows machine and attach the installer to a release
-- [ ] Code-sign the exe and installer (avoids SmartScreen warnings)
-- [ ] Remember window size and position between launches
-- [ ] “Recent folders” list in the palette
-- [ ] First-run onboarding: pick a folder in one step
-- [ ] Configurable tab width and a Vim / Emacs keymap option
+- [ ] Buy or obtain an OV/EV code-signing certificate and add the two CI secrets
+- [ ] Verify the release on a clean Windows machine (fresh profile, no WebView2
+      cache) and document the first launch
+- [ ] Attach a checksum file (`SHA256SUMS`) to the release assets
 
 ## 0.4.0 — larger libraries
 
