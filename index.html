@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="KOCPAD — блокнот для markdown-заметок: .md файлы на диске, вкладки, автосохранение, живой предпросмотр." />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>KOCPAD</title>
+  </head>
+  <body>
+    <div id="app" class="app">
+      <header class="titlebar">
+        <div class="titlebar__left">
+          <button id="btn-sidebar" class="tb-btn tb-btn--icon" type="button" data-icon="sidebar" title="Боковая панель (Ctrl+\)"></button>
+          <span class="brand" aria-label="KOCPAD">KOCPAD</span>
+        </div>
+
+        <div class="titlebar__center">
+          <span id="doc-title" class="titlebar__doc">Без названия</span>
+        </div>
+
+        <div class="titlebar__right">
+          <button id="btn-open-folder" class="tb-btn" type="button" title="Открыть папку с заметками (Ctrl+O)">Открыть папку</button>
+          <button id="btn-new-note" class="tb-btn tb-btn--icon" type="button" data-icon="plus" title="Новая заметка (Ctrl+N)"></button>
+          <button id="btn-search" class="tb-btn tb-btn--icon" type="button" data-icon="search" title="Поиск по всем заметкам (Ctrl+Shift+F)"></button>
+          <button id="btn-palette" class="tb-btn tb-btn--icon" type="button" data-icon="command" title="Палитра команд (Ctrl+K)"></button>
+
+          <div class="segmented" role="group" aria-label="Режим просмотра">
+            <button class="segmented__item" type="button" data-mode="editor" data-icon="pencil" title="Только редактор (Ctrl+E)" aria-pressed="false"></button>
+            <button class="segmented__item" type="button" data-mode="split" data-icon="split" title="Редактор и предпросмотр" aria-pressed="true"></button>
+            <button class="segmented__item" type="button" data-mode="preview" data-icon="eye" title="Только предпросмотр" aria-pressed="false"></button>
+          </div>
+
+          <button id="btn-theme" class="tb-btn tb-btn--icon" type="button" title="Тема"></button>
+          <button id="btn-more" class="tb-btn tb-btn--icon" type="button" data-icon="dots" title="Ещё"></button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside id="sidebar" class="sidebar" aria-label="Заметки">
+          <div class="sidebar__head">
+            <span id="workspace-name" class="sidebar__title">Папка не выбрана</span>
+            <span class="sidebar__actions">
+              <button id="btn-new-folder" class="tb-btn tb-btn--icon tb-btn--sm" type="button" data-icon="folderPlus" data-icon-size="14" title="Новая папка (Ctrl+Shift+N)"></button>
+              <button id="btn-refresh" class="tb-btn tb-btn--icon tb-btn--sm" type="button" data-icon="refresh" data-icon-size="14" title="Обновить дерево (F5)"></button>
+            </span>
+          </div>
+          <input id="tree-filter" class="sidebar__filter" type="text" placeholder="Фильтр по имени" spellcheck="false" />
+          <div id="tree" class="tree"></div>
+          <div class="sidebar__foot"><span id="sidebar-count">0</span> заметок</div>
+        </aside>
+
+        <div id="sidebar-resizer" class="resizer resizer--sidebar" role="separator" aria-orientation="vertical" aria-label="Ширина панели"></div>
+
+        <main class="main">
+          <div id="tabs" class="tabs" role="tablist" aria-label="Открытые заметки"></div>
+
+          <div id="panes" class="panes" data-mode="split">
+            <section class="pane pane--editor">
+              <div id="editor" class="editor-host"></div>
+            </section>
+            <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-label="Граница редактора и предпросмотра"></div>
+            <section class="pane pane--preview">
+              <article id="preview" class="markdown"></article>
+            </section>
+          </div>
+
+          <div id="empty-state" class="empty" hidden>
+            <div class="empty__inner">
+              <p class="empty__eyebrow">KOCPAD</p>
+              <h1 class="empty__title">Блокнот, который не мешает</h1>
+              <p class="empty__lead">
+                Markdown-заметки в обычных <code>.md</code> файлах. Вкладки, автосохранение,
+                живой предпросмотр и поиск по всей папке.
+              </p>
+              <div class="empty__actions">
+                <button id="empty-open" class="btn btn--primary" type="button">Открыть папку</button>
+                <button id="empty-new" class="btn" type="button">Создать заметку</button>
+              </div>
+              <dl class="empty__keys">
+                <div class="empty__key"><dt><kbd>Ctrl</kbd><kbd>N</kbd></dt><dd>новая заметка</dd></div>
+                <div class="empty__key"><dt><kbd>Ctrl</kbd><kbd>F</kbd></dt><dd>поиск в заметке</dd></div>
+                <div class="empty__key"><dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></dt><dd>поиск по папке</dd></div>
+                <div class="empty__key"><dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>все команды</dd></div>
+                <div class="empty__key"><dt><kbd>Ctrl</kbd><kbd>E</kbd></dt><dd>режим просмотра</dd></div>
+                <div class="empty__key"><dt><kbd>Ctrl</kbd><kbd>P</kbd></dt><dd>печать и PDF</dd></div>
+              </dl>
+              <p class="empty__hint">Папка запомнится при следующем запуске. Файлы остаются обычными файлами.</p>
+              <p class="empty__hint empty__hint--demo">
+                Это демо-режим: заметки живут только во вкладке браузера. Чтобы писать на диск —
+                нажмите «Открыть папку».
+              </p>
+            </div>
+          </div>
+
+          <footer class="statusbar">
+            <span id="status-message" class="statusbar__message"></span>
+            <span id="status-stats" class="statusbar__stats"></span>
+            <span class="statusbar__spacer"></span>
+            <span id="status-saved" class="statusbar__saved"></span>
+            <span id="status-mode" class="statusbar__mode"></span>
+            <span id="status-backend" class="statusbar__backend" title="Хранилище"></span>
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <div id="overlay" class="overlay"></div>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
