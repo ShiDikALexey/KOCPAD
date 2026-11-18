@@ -144,6 +144,39 @@ imported into the active note's folder and opened; an existing note with the sam
 name is opened instead of overwritten. Dropped images follow the image pipeline
 above.
 
+## Drafts
+
+A note does not need a folder to exist. Documents without a file are represented
+by a `draft:<id>` path inside the same `Doc` list, so tabs, the editor, the
+outline, search and export treat them exactly like files.
+
+- `src/drafts.ts` owns the `kocpad.drafts` localStorage record:
+  `{ id, title, content, updatedAt }[]`.
+- The autosave path for a draft writes to localStorage instead of the storage
+  backend; a draft is never a reason to touch the disk.
+- «Сохранить в папку…» writes the content into the chosen folder and rewrites the
+  document in place: `path` becomes the real file, the editor state is dropped by
+  its old key, and the draft record disappears.
+- Closing a folder keeps drafts open, because they are not attached to it.
+
+## Closing the window
+
+A notepad should not quit silently with unsaved drafts, but the webview cannot
+block the OS close by itself in a way that survives a broken frontend. The split:
+
+1. The frontend calls `kocpad_ready` once it is interactive.
+2. Rust's `on_window_event` sees `CloseRequested`, and only if that flag is set it
+   calls `prevent_close()` and evaluates `window.__kocpadRequestClose()`.
+3. The handler saves pending file changes, then asks about drafts:
+   «Сохранить в папку…» / «Оставить черновиками» / «Удалить и закрыть»
+   (three-button `choiceDialog`; `Esc` cancels and keeps the window open).
+4. The final close goes through the `kocpad_close_window` command, which destroys
+   the webview window. Custom commands need no extra ACL permissions, and if the
+   `eval` itself fails Rust destroys the window, so the app can never become
+   unclosable.
+
+File changes that failed to reach the disk take a separate, simpler confirmation.
+
 ## Preview and export
 
 `renderMarkdown()` runs `marked` (GFM) and then DOMPurify with an explicit

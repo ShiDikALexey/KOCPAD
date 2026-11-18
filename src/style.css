@@ -1231,6 +1231,18 @@ button {
   color: var(--accent);
 }
 
+.statusbar__saved--draft {
+  color: var(--ink-muted);
+}
+
+.dialog__details {
+  margin: -8px 0 16px;
+  padding-left: 1.2em;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
 .statusbar__mode {
   padding-left: 12px;
   border-left: 1px solid var(--line);
@@ -1455,6 +1467,14 @@ body[data-backend="demo"] .empty__hint--demo {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 14px;
+}
+
+.dialog__actions--trio {
+  flex-wrap: wrap;
+}
+
+.dialog__actions--trio .btn {
+  white-space: nowrap;
 }
 
 /* menu */

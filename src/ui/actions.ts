@@ -9,6 +9,10 @@ export interface AppActions {
   renameEntry(node: NoteNode): void;
   deleteEntry(node: NoteNode): void;
   openNote(path: string, options?: { line?: number; column?: number }): void;
+  /** Closes a tab: drafts are deleted, files are saved and closed. */
+  closeTab(path: string): void;
+  /** Saves the active draft into a folder as a real `.md` file. */
+  saveDraftAsFile(): void;
   revealEntry(node: NoteNode): void;
   copyPath(node: NoteNode): void;
   saveAll(): void;

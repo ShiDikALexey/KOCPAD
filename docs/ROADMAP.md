@@ -34,7 +34,17 @@
 - [x] CI guard against UTF-8 BOM in `package.json`, `tauri.conf.json`, `Cargo.toml`
 - [x] `scripts/bump-version.cjs` so the three version fields cannot drift
 
-## 0.3.0 — ship a real installer
+## 0.3.0 — draft notes (done)
+
+- [x] `Ctrl+N` creates an untitled note without a folder; content persists in
+      localStorage and comes back after a restart
+- [x] «Сохранить в папку…» turns a draft into a real `.md` file; `F2` renames it
+- [x] Closing the window asks what to do with drafts: save into a folder, keep
+      them as drafts, or delete them (Rust-side close interception)
+- [x] Drafts appear in tabs, workspace search and restore with their titles
+- [x] Closing a folder keeps drafts open
+
+## 0.3.1 — ship a real installer
 
 - [ ] Verify `tauri build` on a clean Windows machine and attach the installer to a release
 - [ ] Code-sign the exe and installer (avoids SmartScreen warnings)

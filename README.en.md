@@ -50,7 +50,8 @@ does not need administrator rights.
 
 | Area | What works today |
 | --- | --- |
-| Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name. A new note (`Ctrl+N`) appears immediately as «Новая заметка» — rename it later with `F2` |
+| Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
+| Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: its text is kept locally and comes back after a restart. «Сохранить в папку…» (`Ctrl+S`) turns a draft into a real `.md` file, `F2` renames it. On exit the app asks whether to save drafts into a folder, keep them as drafts, or delete them |
 | Workspace | Open a folder, close it, connect another one; the last folder is remembered between launches and open tabs are restored |
 | Writing | CodeMirror 6 editor, markdown syntax highlighting, soft wrap, per-tab undo history, bold/italic shortcuts |
 | Preview | Live GFM render: headings, tables, task lists, code with highlighting, quotes, links; synchronized scrolling |
@@ -114,7 +115,7 @@ npm run build          # typecheck + production frontend build
 | `Ctrl+N` | New note (created immediately, no name dialog) |
 | `Ctrl+Shift+N` | New folder |
 | `Ctrl+O` | Open folder |
-| `Ctrl+S` | Save now |
+| `Ctrl+S` | Save now (for a draft: «Сохранить в папку…») |
 | `Ctrl+W` | Close tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+F` | Find in note |
@@ -155,6 +156,7 @@ KOCPAD
 ├─ src/
 │  ├─ main.ts            wiring: theme, layout, shortcuts, actions, autosave
 │  ├─ store.ts           single source of truth: settings, tree, tabs, saves
+│  ├─ drafts.ts          untitled notes kept in localStorage
 │  ├─ images.ts          pasted images → assets/, relative images → blob URLs
 │  ├─ storage/           three backends behind one interface
 │  │  ├─ tauri.ts        native build → Rust commands

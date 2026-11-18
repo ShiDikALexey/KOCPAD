@@ -167,6 +167,69 @@ export function confirmAction(options: ConfirmOptions): Promise<boolean> {
   });
 }
 
+export interface ChoiceOption {
+  id: string;
+  label: string;
+  kind?: 'primary' | 'secondary' | 'danger';
+}
+
+export interface ChoiceOptions {
+  title: string;
+  message: string;
+  options: ChoiceOption[];
+  /** Optional lines under the message, e.g. what exactly will happen. */
+  details?: string[];
+}
+
+/**
+ * A dialog with more than two answers — used for the "save before closing"
+ * question, which has three real options and a cancel.
+ * Resolves to the chosen id, or null when dismissed.
+ */
+export function choiceDialog(options: ChoiceOptions): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: string | null, close: () => void): void => {
+      if (settled) return;
+      settled = true;
+      close();
+      resolve(value);
+    };
+
+    const modal = openModal((close) => {
+      const actions = h(
+        'div',
+        { class: 'dialog__actions dialog__actions--trio' },
+        ...options.options.map((option) =>
+          h(
+            'button',
+            {
+              class: `btn ${option.kind === 'primary' ? 'btn--primary' : option.kind === 'danger' ? 'btn--danger' : ''}`,
+              type: 'button',
+              onclick: () => finish(option.id, close),
+            },
+            option.label,
+          ),
+        ),
+      );
+      window.setTimeout(() => actions.querySelector<HTMLButtonElement>('.btn--primary')?.focus(), 20);
+
+      return h(
+        'div',
+        { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': options.title },
+        h('h2', { class: 'dialog__title' }, options.title),
+        h('p', { class: 'dialog__message' }, options.message),
+        options.details?.length
+          ? h('ul', { class: 'dialog__details' }, ...options.details.map((line) => h('li', null, line)))
+          : null,
+        actions,
+      );
+    }, () => finish(null, modal.close));
+
+    void modal;
+  });
+}
+
 export interface MenuItem {
   label: string;
   hint?: string;

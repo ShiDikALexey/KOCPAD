@@ -3,6 +3,15 @@ import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
 import { titleFromPath } from './util';
+import {
+  draftIdOf,
+  draftPathOf,
+  isDraftPath,
+  loadDrafts,
+  newDraftId,
+  nextDraftTitle,
+  persistDrafts,
+} from './drafts';
 
 export type Topic =
   | 'tree'
@@ -144,6 +153,129 @@ export class Store {
 
   // ------------------------------------------------------------------ docs
 
+  /** Notes with no file on disk. */
+  get draftDocs(): Doc[] {
+    return this.docs.filter((doc) => isDraftPath(doc.path));
+  }
+
+  get hasDrafts(): boolean {
+    return this.draftDocs.length > 0;
+  }
+
+  /** Restores drafts saved in the previous session. */
+  restoreDrafts(): void {
+    const stored = loadDrafts();
+    for (const draft of stored) {
+      const path = draftPathOf(draft.id);
+      if (this.docs.some((doc) => doc.path === path)) continue;
+      this.docs.push({
+        path,
+        name: draft.title,
+        content: draft.content,
+        savedContent: draft.content,
+      });
+    }
+    if (this.docs.length && !this.activePath) this.activePath = this.docs[0].path;
+    if (stored.length) this.emit('docs', 'active');
+  }
+
+  /** Creates an untitled note immediately — the notepad behaviour, no folder needed. */
+  async createDraftDoc(): Promise<Doc> {
+    const taken = [...this.docs.map((doc) => doc.name), ...this.draftDocs.map((doc) => doc.name)];
+    const doc: Doc = {
+      path: draftPathOf(newDraftId()),
+      name: nextDraftTitle(taken),
+      content: '',
+      savedContent: '',
+    };
+    this.docs = [...this.docs, doc];
+    this.activePath = doc.path;
+    this.persistDraftDocs();
+    this.emit('docs', 'active');
+    return doc;
+  }
+
+  private persistDraftDocs(): boolean {
+    return persistDrafts(
+      this.draftDocs.map((doc) => ({
+        id: draftIdOf(doc.path),
+        title: doc.name,
+        content: doc.content,
+        updatedAt: Date.now(),
+      })),
+    );
+  }
+
+  renameDraft(path: string, rawTitle: string): boolean {
+    const doc = this.docs.find((item) => item.path === path);
+    const title = rawTitle.trim();
+    if (!doc || !isDraftPath(path) || !title) return false;
+    doc.name = title;
+    this.persistDraftDocs();
+    this.emit('docs', 'active');
+    this.setStatus(`Переименовано · ${title}`);
+    return true;
+  }
+
+  async deleteDraftDoc(path: string): Promise<void> {
+    if (!isDraftPath(path)) return;
+    await this.closeDoc(path, true);
+    this.persistDraftDocs();
+    this.setStatus('Черновик удалён');
+  }
+
+  /** Turns a draft into a real file in `dir`. Returns the new path. */
+  async saveDraftAsFile(draftPath: string, dir: string, rawName: string): Promise<string | null> {
+    const doc = this.docs.find((item) => item.path === draftPath);
+    if (!doc || !isDraftPath(draftPath)) return null;
+    const name = ensureMarkdownName(rawName);
+    if (!name) {
+      this.onError('Имя файла не может быть пустым');
+      return null;
+    }
+    const target = joinPath(dir, name);
+    try {
+      if (await this.storage.exists(target)) {
+        this.onError(`Файл «${name}» уже существует`);
+        return null;
+      }
+      await this.storage.writeText(target, doc.content);
+    } catch (error) {
+      this.report(error, `Не удалось сохранить ${name}`);
+      return null;
+    }
+
+    doc.path = target;
+    doc.name = name;
+    doc.savedContent = doc.content;
+    if (this.activePath === draftPath) this.activePath = target;
+    this.persistDraftDocs();
+    await this.refreshTree();
+    this.emit('docs', 'active');
+    this.setStatus(`Сохранено · ${name}`);
+    return target;
+  }
+
+  /** Saves every non-empty draft into a folder with names derived from titles. */
+  async saveAllDraftsAsFiles(dir: string): Promise<number> {
+    let saved = 0;
+    for (const doc of [...this.draftDocs]) {
+      if (!doc.content.trim()) continue;
+      const name = await this.uniqueDraftFileName(dir, doc.name);
+      if (await this.saveDraftAsFile(doc.path, dir, name)) saved += 1;
+    }
+    return saved;
+  }
+
+  private async uniqueDraftFileName(dir: string, title: string): Promise<string> {
+    const base = title.replace(/[\\/:*?"<>|]/g, '').trim() || 'Заметка';
+    for (let index = 1; index < 1000; index += 1) {
+      const name = index === 1 ? `${base}.md` : `${base} ${index}.md`;
+      if (!(await this.storage.exists(joinPath(dir, name)))) return name;
+    }
+    return `${base} ${Date.now()}.md`;
+  }
+
   get activeDoc(): Doc | null {
     if (!this.activePath) return null;
     return this.docs.find((doc) => doc.path === this.activePath) ?? null;
@@ -211,13 +343,30 @@ export class Store {
   /** Writes one document to disk. Serialized per path so writes cannot interleave. */
   async saveDoc(path: string): Promise<boolean> {
     const doc = this.docs.find((item) => item.path === path);
-    if (!doc || !this.isDirty(doc)) return true;
+    if (!doc) return true;
 
     const pendingTimer = this.saveTimers.get(path);
     if (pendingTimer !== undefined) {
       window.clearTimeout(pendingTimer);
       this.saveTimers.delete(path);
     }
+
+    // A draft never reaches the disk: it is persisted locally instead.
+    if (isDraftPath(path)) {
+      const stored = this.persistDraftDocs();
+      doc.savedContent = doc.content;
+      this.emit('docs');
+      if (!stored) {
+        this.report(
+          new Error('Локальное хранилище переполнено'),
+          'Не удалось сохранить черновик',
+        );
+        return false;
+      }
+      return true;
+    }
+
+    if (!this.isDirty(doc)) return true;
 
     const previous = this.writes.get(path) ?? Promise.resolve();
     const write = previous.then(async () => {
@@ -326,8 +475,11 @@ export class Store {
     this.writes.clear();
 
     await this.storage.closeRoot();
-    this.docs = [];
-    this.activePath = null;
+
+    // Drafts are not tied to a folder: they stay open when the folder is detached.
+    const drafts = this.docs.filter((doc) => isDraftPath(doc.path));
+    this.docs = drafts;
+    this.activePath = drafts[0]?.path ?? null;
     this.tree = [];
     this.patchSettings({ lastRoot: null });
     this.emit('docs', 'active');
@@ -392,7 +544,7 @@ export class Store {
    */
   get importDir(): string {
     const doc = this.activeDoc;
-    if (doc) return dirname(doc.path);
+    if (doc && !isDraftPath(doc.path)) return dirname(doc.path);
     return this.storage.kind === 'tauri' ? this.storage.root ?? '' : '';
   }
 
@@ -475,7 +627,7 @@ export class Store {
   // ---------------------------------------------------------------- search
 
   /**
-   * Case-insensitive search across every note in the workspace.
+   * Case-insensitive search across every note in the workspace plus open drafts.
    * Reads files lazily and stops at `limit` hits to stay responsive.
    */
   async searchAll(query: string, limit = 300): Promise<SearchHit[]> {
@@ -483,6 +635,12 @@ export class Store {
     if (needle.length < 2) return [];
     const pattern = new RegExp(escapeRegExp(needle), 'iu');
     const hits: SearchHit[] = [];
+
+    for (const doc of this.draftDocs) {
+      collectHits(doc.path, doc.name, doc.content, pattern, hits, limit);
+      if (hits.length >= limit) break;
+    }
+
     for (const file of this.flatFiles()) {
       if (hits.length >= limit) break;
       let text: string;
@@ -491,34 +649,7 @@ export class Store {
       } catch {
         continue;
       }
-      const lines = text.split(/\r?\n/);
-      for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index];
-        const match = pattern.exec(line);
-        if (!match) continue;
-
-        const padding = 40;
-        let sliceStart = Math.max(0, match.index - padding);
-        let snippet = line.slice(sliceStart, Math.min(line.length, match.index + match[0].length + 80));
-        // Drop leading markdown markers so list and heading lines read naturally.
-        const lead = snippet.match(/^(?:[>#\s]|[-*+]\s|\d+\.\s)+/);
-        if (lead) {
-          sliceStart += lead[0].length;
-          snippet = snippet.slice(lead[0].length);
-        }
-        snippet = snippet.trimEnd();
-
-        hits.push({
-          path: file.path,
-          name: file.name,
-          line: index + 1,
-          column: match.index + 1,
-          text: snippet,
-          matchStart: Math.max(0, match.index - sliceStart),
-          matchLength: match[0].length,
-        });
-        if (hits.length >= limit) break;
-      }
+      collectHits(file.path, file.name, text, pattern, hits, limit);
     }
     return hits;
   }
@@ -537,6 +668,45 @@ function ensureMarkdownName(raw: string): string {
   const name = raw.trim().replace(/[\\/:*?"<>|]/g, '');
   if (!name) return '';
   return isTextFile(name) ? name : `${name}.md`;
+}
+
+/** Appends snippet hits for one document, shared by files and drafts. */
+function collectHits(
+  path: string,
+  name: string,
+  text: string,
+  pattern: RegExp,
+  hits: SearchHit[],
+  limit: number,
+): void {
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    if (hits.length >= limit) return;
+    const line = lines[index];
+    const match = pattern.exec(line);
+    if (!match) continue;
+
+    const padding = 40;
+    let sliceStart = Math.max(0, match.index - padding);
+    let snippet = line.slice(sliceStart, Math.min(line.length, match.index + match[0].length + 80));
+    // Drop leading markdown markers so list and heading lines read naturally.
+    const lead = snippet.match(/^(?:[>#\s]|[-*+]\s|\d+\.\s)+/);
+    if (lead) {
+      sliceStart += lead[0].length;
+      snippet = snippet.slice(lead[0].length);
+    }
+    snippet = snippet.trimEnd();
+
+    hits.push({
+      path,
+      name,
+      line: index + 1,
+      column: match.index + 1,
+      text: snippet,
+      matchStart: Math.max(0, match.index - sliceStart),
+      matchLength: match[0].length,
+    });
+  }
 }
 
 /**

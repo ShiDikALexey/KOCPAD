@@ -7,9 +7,11 @@
 
 | Keys | Action |
 | --- | --- |
-| `Ctrl+N` | New note in the current folder, created immediately as «Новая заметка» (rename with `F2`) |
+| `Ctrl+N` | New note: a draft appears immediately, no folder and no name dialog |
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
+| `Ctrl+S` | Save now; for a draft this opens «Сохранить в папку…» |
+| `F2` | Rename the current note or draft title |
 | — | Close the folder: the folder button in the sidebar header or «Ещё» → «Закрыть папку» |
 | `Ctrl+S` | Save the current note now |
 | `Ctrl+W` | Close the current tab (autosaves first) |

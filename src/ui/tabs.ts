@@ -83,7 +83,7 @@ export class TabsView {
     );
   }
 
-  private async close(path: string): Promise<void> {
-    await this.store.closeDoc(path);
+  private close(path: string): void {
+    this.actions.closeTab(path);
   }
 }

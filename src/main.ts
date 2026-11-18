@@ -18,10 +18,13 @@ import { GlobalSearchPanel } from './ui/gsearch';
 import { OutlineView } from './ui/outline';
 import { openPalette, type Command } from './ui/palette';
 import { openSettings } from './ui/settings';
-import { confirmAction, promptText, showMenu, showToast } from './ui/dialog';
+import { choiceDialog, confirmAction, promptText, showMenu, showToast } from './ui/dialog';
 import { icon, type IconName } from './ui/icons';
 import type { AppActions } from './ui/actions';
 import { ImageStore } from './images';
+import { isDraftPath } from './drafts';
+import { isTauriRuntime } from './storage';
+import { invoke } from '@tauri-apps/api/core';
 import type { PreviewFont, SidebarTab, ViewMode } from './types';
 import { basename, dirname, isTextFile, joinPath } from './path';
 import { clamp, debounce } from './util';
@@ -307,7 +310,8 @@ async function restoreTabs(): Promise<void> {
     if (!raw) return;
     const parsed = JSON.parse(raw) as { paths?: string[]; active?: string | null };
     const available = new Set(store.flatFiles().map((node) => node.path));
-    const paths = (parsed.paths ?? []).filter((path) => available.has(path));
+    // Drafts are restored from their own storage, so only real files are reopened here.
+    const paths = (parsed.paths ?? []).filter((path) => !isDraftPath(path) && available.has(path));
     for (const path of paths) {
       await store.openNote(path, { focus: false });
     }
@@ -348,13 +352,75 @@ async function chooseWorkspace(): Promise<boolean> {
 
 /**
  * A new note appears immediately with an automatic name — no dialog in the way.
- * Renaming stays on F2 if the person cares about the title.
+ * Without a folder it becomes an untitled draft stored locally, exactly like the
+ * Windows notepad opens an empty buffer.
  */
 async function createNoteNow(parentDir?: string): Promise<void> {
-  if (!store.storage.root && !(await chooseWorkspace())) return;
+  if (!store.storage.root) {
+    await store.createDraftDoc();
+    window.setTimeout(() => editor.focus(), 60);
+    return;
+  }
   const dir = parentDir ?? targetDirectory();
   const path = await store.createNoteAuto(dir);
   if (path) window.setTimeout(() => editor.focus(), 60);
+}
+
+/** Closing a tab: drafts are thrown away (after a confirmation), files are saved. */
+async function closeTabNow(path: string): Promise<void> {
+  const doc = store.docs.find((item) => item.path === path);
+  if (!doc) return;
+  if (isDraftPath(path)) {
+    if (doc.content.trim()) {
+      const ok = await confirmAction({
+        title: 'Удалить черновик?',
+        message: `«${doc.name}» ещё не сохранён в файл. При удалении текст пропадёт.`,
+        confirmLabel: 'Удалить',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    await store.deleteDraftDoc(path);
+    return;
+  }
+  await store.closeDoc(path);
+}
+
+/** Turns the active draft into a real .md file: folder picker (if needed) + name. */
+async function saveDraftToFolder(): Promise<void> {
+  const doc = store.activeDoc;
+  if (!doc || !isDraftPath(doc.path)) {
+    showToast('Активная заметка уже сохранена в файл', 'info');
+    return;
+  }
+  if (!store.storage.root && !(await chooseWorkspace())) return;
+  const dir = store.importDir;
+  const name = await promptText({
+    title: 'Сохранить в папку',
+    label: `Папка: ${store.rootName}${dir ? ` / ${basename(dir)}` : ''}`,
+    value: `${doc.name}.md`,
+    confirmLabel: 'Сохранить',
+    validate: (value) => (value.trim() ? null : 'Введите имя файла'),
+  });
+  if (!name) return;
+  const previousPath = doc.path;
+  const saved = await store.saveDraftAsFile(doc.path, dir, name);
+  if (saved) {
+    editor.forget(previousPath);
+    showToast(`Сохранено · ${basename(saved)}`, 'success');
+  }
+}
+
+async function renameDraftNow(): Promise<void> {
+  const doc = store.activeDoc;
+  if (!doc || !isDraftPath(doc.path)) return;
+  const title = await promptText({
+    title: 'Переименовать черновик',
+    label: 'Название',
+    value: doc.name,
+    confirmLabel: 'Переименовать',
+  });
+  if (title) store.renameDraft(doc.path, title);
 }
 
 async function closeCurrentWorkspace(): Promise<void> {
@@ -437,6 +503,14 @@ const actions: AppActions = {
         window.setTimeout(() => editor.scrollToLine(options.line!, options.column ?? 1), 30);
       }
     })();
+  },
+
+  closeTab: (path) => {
+    void closeTabNow(path);
+  },
+
+  saveDraftAsFile: () => {
+    void saveDraftToFolder();
   },
 
   revealEntry: (node) => {
@@ -579,6 +653,9 @@ function palette(): void {
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
     { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
+    ...(store.activeDoc && isDraftPath(store.activeDoc.path)
+      ? [{ label: 'Сохранить черновик в папку…', hint: 'Ctrl+S', run: actions.saveDraftAsFile }]
+      : []),
     ...(store.storage.root
       ? [{
           label: store.storage.kind === 'demo' ? 'Сбросить демо-заметки' : 'Закрыть папку с заметками',
@@ -632,6 +709,9 @@ function mountToolbar(): void {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     showMenu({ x: rect.left - 180, y: rect.bottom + 6 }, [
+      ...(store.activeDoc && isDraftPath(store.activeDoc.path)
+        ? [{ label: 'Сохранить черновик в папку…', hint: 'Ctrl+S', onClick: actions.saveDraftAsFile }]
+        : []),
       { label: 'Настройки…', hint: 'Ctrl+,', onClick: actions.openSettings },
       ...(store.storage.root
         ? [{
@@ -740,7 +820,8 @@ function mountShortcuts(): void {
       const doc = store.activeDoc;
       if (doc) {
         event.preventDefault();
-        actions.renameEntry({ name: doc.name, path: doc.path, kind: 'file' });
+        if (isDraftPath(doc.path)) void renameDraftNow();
+        else actions.renameEntry({ name: doc.name, path: doc.path, kind: 'file' });
       }
       return;
     }
@@ -762,10 +843,11 @@ function mountShortcuts(): void {
       ',': () => actions.openSettings(),
       s: () => {
         if (event.shiftKey) actions.saveAll();
+        else if (store.activeDoc && isDraftPath(store.activeDoc.path)) actions.saveDraftAsFile();
         else void store.saveDoc(store.activePath ?? '');
       },
       w: () => {
-        if (store.activePath) void store.closeDoc(store.activePath);
+        if (store.activePath) actions.closeTab(store.activePath);
       },
       f: () => (event.shiftKey ? actions.openGlobalSearch() : actions.openFind()),
       h: () => actions.openFind(),
@@ -806,6 +888,10 @@ async function insertImages(files: File[]): Promise<void> {
   const doc = store.activeDoc;
   if (!doc) {
     showToast('Откройте заметку, чтобы вставить изображение', 'error');
+    return;
+  }
+  if (isDraftPath(doc.path)) {
+    showToast('Черновик пока не файл: сохраните его в папку (Ctrl+S), чтобы вставлять картинки', 'error');
     return;
   }
   let added = 0;
@@ -892,6 +978,90 @@ function mountDragAndDrop(): void {
   window.addEventListener('blur', reset);
 }
 
+// ------------------------------------------------------- closing the window
+
+let closeInProgress = false;
+
+async function forceCloseWindow(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  try {
+    await invoke('kocpad_close_window');
+  } catch {
+    // The window is already going away; nothing else to do from the webview.
+  }
+}
+
+/**
+ * Notepad-style exit. Drafts are already saved locally, so the question is what
+ * to do with them: put them into a folder, keep them for next launch, or drop.
+ */
+async function handleCloseRequest(): Promise<void> {
+  if (closeInProgress) return;
+  closeInProgress = true;
+  try {
+    await store.saveAll();
+
+    if (store.dirtyCount > 0) {
+      const proceed = await confirmAction({
+        title: 'Закрыть KOCPAD?',
+        message: `Не удалось сохранить изменения в ${store.dirtyCount} заметке(ах). Закрыть без сохранения?`,
+        confirmLabel: 'Закрыть',
+        danger: true,
+      });
+      if (proceed) await forceCloseWindow();
+      return;
+    }
+
+    const drafts = store.draftDocs.filter((doc) => doc.content.trim().length > 0);
+    if (!drafts.length) {
+      await forceCloseWindow();
+      return;
+    }
+
+    const choice = await choiceDialog({
+      title: 'Черновики без файла',
+      message: `Черновиков без файла: ${drafts.length}. Они сохранены локально и вернутся при следующем запуске.`,
+      details: drafts.slice(0, 5).map((doc) => `«${doc.name}»`),
+      options: [
+        { id: 'save', label: 'Сохранить в папку…', kind: 'primary' },
+        { id: 'keep', label: 'Оставить черновиками' },
+        { id: 'delete', label: 'Удалить и закрыть', kind: 'danger' },
+      ],
+    });
+    if (choice === null) return;
+
+    if (choice === 'save') {
+      if (!store.storage.root && !(await chooseWorkspace())) return;
+      const saved = await store.saveAllDraftsAsFiles(store.importDir);
+      if (saved > 0) showToast(`Сохранено в папку · ${saved}`, 'success');
+      await forceCloseWindow();
+      return;
+    }
+    if (choice === 'keep') {
+      await forceCloseWindow();
+      return;
+    }
+    if (choice === 'delete') {
+      for (const doc of [...store.draftDocs]) await store.deleteDraftDoc(doc.path);
+      await forceCloseWindow();
+    }
+  } finally {
+    closeInProgress = false;
+  }
+}
+
+/**
+ * The Rust side prevents the OS close and asks the webview to run this handler,
+ * but only after the frontend signalled it is alive (see `kocpad_ready`).
+ */
+function mountCloseInterception(): void {
+  if (!isTauriRuntime()) return;
+  (window as unknown as { __kocpadRequestClose?: () => void }).__kocpadRequestClose = () => {
+    void handleCloseRequest();
+  };
+  void invoke('kocpad_ready').catch(() => undefined);
+}
+
 // ------------------------------------------------------------------ startup
 
 function applySettings(): void {
@@ -908,6 +1078,7 @@ async function boot(): Promise<void> {
   mountShortcuts();
   mountPaste();
   mountDragAndDrop();
+  mountCloseInterception();
   tree.mount();
   tabsView.mount();
   statusBar.mount();
@@ -937,6 +1108,9 @@ async function boot(): Promise<void> {
   });
 
   store.onError = (message) => showToast(message, 'error');
+
+  // Untitled notes from the previous session come back before any folder is read.
+  store.restoreDrafts();
 
   dom.workspaceName.textContent = store.rootName;
   const restored = await store.storage.restoreRoot().catch(() => false);
@@ -983,7 +1157,12 @@ async function boot(): Promise<void> {
 
   // Development-only handle for debugging and end-to-end checks.
   if (import.meta.env.DEV) {
-    (window as unknown as Record<string, unknown>).__kocpad = { store, editor, actions };
+    (window as unknown as Record<string, unknown>).__kocpad = {
+      store,
+      editor,
+      actions,
+      closeFlow: handleCloseRequest,
+    };
   }
 }
 

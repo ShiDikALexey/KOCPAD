@@ -1,6 +1,7 @@
 import type { Store } from '../store';
 import { countWords, formatBytes, plural } from '../util';
 import { basename, dirname } from '../path';
+import { isDraftPath } from '../drafts';
 
 export interface CursorInfo {
   line: number;
@@ -54,6 +55,12 @@ export class StatusBar {
       return;
     }
     const doc = this.store.activeDoc;
+    if (doc && isDraftPath(doc.path)) {
+      this.message.textContent = 'Черновик · без файла';
+      this.message.className = 'statusbar__message';
+      this.message.title = 'Черновик хранится локально. «Сохранить в папку» — Ctrl+S';
+      return;
+    }
     const location = doc ? dirname(doc.path) : '';
     const text = doc
       ? `${this.store.rootName}${location ? ` / ${basename(location)}` : ''}`
@@ -84,12 +91,17 @@ export class StatusBar {
 
     const dirty = doc ? this.store.isDirty(doc) : false;
     const saving = this.store.dirtyCount;
+    const draft = doc ? isDraftPath(doc.path) : false;
     this.saved.textContent = !doc
       ? ''
-      : dirty
-        ? `Изменения не сохранены${saving > 1 ? ` (${saving})` : ''}`
-        : 'Сохранено';
-    this.saved.className = `statusbar__saved${dirty ? ' statusbar__saved--dirty' : ''}`;
+      : draft
+        ? dirty
+          ? 'Черновик: сохраняю…'
+          : 'Черновик сохранён локально'
+        : dirty
+          ? `Изменения не сохранены${saving > 1 ? ` (${saving})` : ''}`
+          : 'Сохранено';
+    this.saved.className = `statusbar__saved${draft ? ' statusbar__saved--draft' : ''}${dirty && !draft ? ' statusbar__saved--dirty' : ''}`;
 
     const kindLabel = this.store.storage.kind === 'tauri'
       ? 'Windows'

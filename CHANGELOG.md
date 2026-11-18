@@ -4,6 +4,29 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.0] — 2026-11-18
+
+Notepad semantics: a note no longer needs a folder to exist.
+
+### Added
+
+- **Drafts.** `Ctrl+N` creates an untitled note immediately, with no folder and no
+  dialog. The text is persisted in `localStorage` on every autosave, so it comes
+  back after a restart or a crash, and it is listed in workspace search.
+- **Draft → file.** «Сохранить в папку…» (`Ctrl+S` on a draft, the «Ещё» menu or the
+  command palette) writes the draft as a real `.md` file; `F2` renames a draft.
+- **Closing asks.** Intercepting the window close in Rust, KOCPAD now asks what to
+  do with drafts before quitting: save them into a folder, keep them as local
+  drafts, or delete them. The window only closes after an explicit choice, and a
+  stale or crashed webview can never trap the window.
+- Drafts appear in tabs, restore with their titles, and are searched like files.
+
+### Changed
+
+- Creating a note without a workspace no longer opens the folder picker first.
+- Closing a folder keeps drafts open: they are not tied to a folder.
+- Image paste in a draft explains that the note has to become a file first.
+
 ## [0.2.2] — 2026-11-18
 
 Feedback fixes: fewer interruptions, and a way out of a folder.
