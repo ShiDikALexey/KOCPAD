@@ -287,7 +287,19 @@ export class Store {
 
   // ------------------------------------------------------------------- CRUD
 
+  /**
+   * Writes must never happen without a workspace. Without this guard a relative
+   * path would be resolved against the process working directory, which puts a
+   * note somewhere the user never chose.
+   */
+  private requireWorkspace(): boolean {
+    if (this.storage.root) return true;
+    this.onError('Сначала подключите папку с заметками — «Открыть папку»');
+    return false;
+  }
+
   async createNote(parentDir: string, rawName: string): Promise<string | null> {
+    if (!this.requireWorkspace()) return null;
     const name = ensureMarkdownName(rawName);
     if (!name) {
       this.onError('Имя заметки не может быть пустым');
@@ -312,6 +324,7 @@ export class Store {
   }
 
   async createFolder(parentDir: string, rawName: string): Promise<boolean> {
+    if (!this.requireWorkspace()) return false;
     const name = rawName.trim().replace(/[\\/:*?"<>|]/g, '').trim();
     if (!name) {
       this.onError('Имя папки не может быть пустым');
@@ -341,6 +354,7 @@ export class Store {
 
   /** Copies text content into the workspace and opens it. */
   async importTextFile(dir: string, rawName: string, content: string): Promise<string | null> {
+    if (!this.requireWorkspace()) return null;
     const name = ensureMarkdownName(rawName);
     if (!name) return null;
     const target = joinPath(dir, name);
