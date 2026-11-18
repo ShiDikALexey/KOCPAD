@@ -10,9 +10,10 @@ import {
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { HighlightStyle, bracketMatching, syntaxHighlighting } from '@codemirror/language';
+import { HighlightStyle, bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
 import { tags } from '@lezer/highlight';
+import type { EditorKeymap } from './types';
 
 /**
  * Markdown syntax colours. They are expressed as CSS variables so a single
@@ -149,7 +150,12 @@ export class MarkdownEditor {
   private path: string | null = null;
   private callbacks: EditorCallbacks;
   private gutterCompartment = new Compartment();
+  private indentCompartment = new Compartment();
+  private keymapCompartment = new Compartment();
   private suppressChange = false;
+  private currentTabSize = 4;
+  private currentKeymap: EditorKeymap = 'default';
+  private vimExtension: Extension | null = null;
 
   constructor(parent: HTMLElement, callbacks: EditorCallbacks, options: { showLineNumbers: boolean }) {
     this.callbacks = callbacks;
@@ -178,6 +184,11 @@ export class MarkdownEditor {
         placeholder('Пишите здесь. Markdown понимается как в GitHub.'),
         editorTheme,
         this.gutterCompartment.of(showGutter ? lineNumbers() : []),
+        this.indentCompartment.of([
+          EditorState.tabSize.of(this.currentTabSize),
+          indentUnit.of(' '.repeat(this.currentTabSize)),
+        ]),
+        this.keymapCompartment.of(this.currentKeymap === 'vim' && this.vimExtension ? this.vimExtension : []),
         EditorView.updateListener.of((update) => this.handleUpdate(update)),
       ],
     });
@@ -266,6 +277,45 @@ export class MarkdownEditor {
     this.view.dispatch({
       effects: this.gutterCompartment.reconfigure(show ? lineNumbers() : []),
     });
+  }
+
+  /** Tab width and indentation, applied to the live state and future documents. */
+  setTabSize(size: number): void {
+    const width = [2, 4, 8].includes(size) ? size : 4;
+    if (width === this.currentTabSize) return;
+    this.currentTabSize = width;
+    this.view.dispatch({
+      effects: this.indentCompartment.reconfigure([
+        EditorState.tabSize.of(width),
+        indentUnit.of(' '.repeat(width)),
+      ]),
+    });
+    // Cached states of inactive tabs were built with the old width.
+    this.states.clear();
+  }
+
+  /** Switches between the default keymap and Vim mode (loaded on demand). */
+  async setKeymap(mode: EditorKeymap): Promise<void> {
+    if (mode === this.currentKeymap && (mode === 'default' || this.vimExtension)) return;
+    this.currentKeymap = mode;
+    if (mode === 'default') {
+      this.applyKeymap([]);
+      return;
+    }
+    try {
+      const { vim } = await import('@replit/codemirror-vim');
+      this.vimExtension = vim();
+      if (this.currentKeymap === 'vim') this.applyKeymap(this.vimExtension);
+    } catch {
+      // The package is optional at runtime; keep the default keymap on failure.
+      this.currentKeymap = 'default';
+      this.applyKeymap([]);
+    }
+  }
+
+  private applyKeymap(extension: Extension): void {
+    this.view.dispatch({ effects: this.keymapCompartment.reconfigure(extension) });
+    this.states.clear();
   }
 
   focus(): void {

@@ -55,6 +55,20 @@ export class TauriStorage implements Storage {
     return true;
   }
 
+  async mountRoot(path: string): Promise<boolean> {
+    const isDirectory = await invoke<boolean>('fs_exists', { path }).catch(() => false);
+    if (!isDirectory) return false;
+    // Listing throws when the path is a file rather than a folder.
+    try {
+      await invoke('fs_list_tree', { path });
+    } catch {
+      return false;
+    }
+    this.currentRoot = path;
+    localStorage.setItem('kocpad.root', path);
+    return true;
+  }
+
   async restoreRoot(): Promise<boolean> {
     const remembered = localStorage.getItem('kocpad.root');
     if (!remembered) return false;

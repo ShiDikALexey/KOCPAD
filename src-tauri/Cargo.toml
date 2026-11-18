@@ -1,6 +1,6 @@
 [package]
 name = "kocpad"
-version = "0.3.0"
+version = "0.3.1"
 description = "KOCPAD вЂ” a markdown notepad for Windows"
 authors = ["KOCPAD contributors"]
 edition = "2021"
@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"

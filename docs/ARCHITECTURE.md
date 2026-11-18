@@ -107,7 +107,24 @@ CodeMirror 6 with:
 
 Editor font family and size are CSS variables (`--font-editor`,
 `--editor-font-size`), so the settings screen changes them without touching the
-editor instance.
+editor instance. Tab width and keymap are CodeMirror compartments instead:
+`EditorState.tabSize` + `indentUnit` for indentation, and the Vim extension from
+`@replit/codemirror-vim`, which is imported dynamically — the 122 kB chunk is only
+fetched when Vim mode is turned on. Changing either clears the cached states of
+inactive tabs, because those were built with the old settings.
+
+## Window and workspace memory
+
+- `tauri-plugin-window-state` (Rust side) saves the window size, position and
+  maximized flag and restores them on the next launch; no frontend code or ACL
+  permission is involved.
+- The last workspace root lives in `localStorage` (`kocpad.root`) and in
+  `settings.lastRoot`; `settings.recentFolders` keeps the last eight native
+  folders for the command palette. Recent folders reopen through
+  `Storage.mountRoot()`, which only the native backend implements — a browser
+  cannot reopen a folder from a path string.
+- The very first launch shows a two-option onboarding dialog (draft or folder) and
+  stores `onboarded: true` afterwards.
 
 ## Outline
 

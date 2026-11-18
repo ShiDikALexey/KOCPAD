@@ -65,6 +65,17 @@
 | Drop an image file onto the window | Same as paste |
 | Drop a `.md` / `.txt` file from Explorer | Imported into the current note's folder and opened (an existing note with that name is opened instead) |
 
+## Vim mode
+
+Settings → Редактор → Раскладка клавиш → **Vim** switches the editor to a Vim
+keymap, loaded on demand so it costs nothing when unused: normal and insert modes,
+`hjkl`, `dd`, `ciw`, counts, `/` search and the rest of what
+`@replit/codemirror-vim` implements. The status bar shows `· Vim` while it is on,
+and the global shortcuts (`Ctrl+N`, `Ctrl+F`, `Ctrl+K`, …) keep working.
+
+Tab width is a separate setting (2 / 4 / 8 spaces); it affects how existing tab
+characters are displayed and how `Tab` indents.
+
 ## Mouse
 
 | Gesture | Action |

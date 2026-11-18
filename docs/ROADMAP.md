@@ -44,7 +44,20 @@
 - [x] Drafts appear in tabs, workspace search and restore with their titles
 - [x] Closing a folder keeps drafts open
 
-## 0.3.1 — ship a real installer
+## 0.3.1 — installer and polish (done)
+
+- [x] Verify the produced installer by running the released binary on Windows and
+      attach installers to a release (done since v0.2.0, re-verified every release)
+- [x] Remember window size and position between launches
+      (`tauri-plugin-window-state`)
+- [x] «Recent folders» in the command palette (native builds; graceful message in
+      a browser)
+- [x] First-run onboarding: one dialog, «Начать с черновика» or «Открыть папку»
+- [x] Configurable tab width (2/4/8) and an optional Vim keymap, loaded on demand
+- [ ] Code-sign the exe and installer — CI plumbing is in place (optional
+      `WINDOWS_CERTIFICATE` secret), blocked on buying a certificate
+
+## 0.3.2 — ship signed installers
 
 - [ ] Verify `tauri build` on a clean Windows machine and attach the installer to a release
 - [ ] Code-sign the exe and installer (avoids SmartScreen warnings)

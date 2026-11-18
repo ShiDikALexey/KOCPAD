@@ -3,6 +3,7 @@ import type { NoteNode, SidebarTab, ThemeMode, ViewMode } from '../types';
 /** Callbacks the UI modules need from the app shell. Implemented in main.ts. */
 export interface AppActions {
   openFolder(): void;
+  openRecentFolder(path: string): void;
   closeWorkspace(): void;
   createNote(parentDir?: string): void;
   createFolder(parentDir?: string): void;

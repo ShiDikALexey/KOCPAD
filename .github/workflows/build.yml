@@ -45,6 +45,11 @@ jobs:
   windows:
     name: Build Windows installers
     runs-on: windows-latest
+    env:
+      # Optional code signing. Set both secrets and the binaries are signed; with
+      # no certificate the step is skipped and the build stays unsigned.
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +81,30 @@ jobs:
 
       - name: Build Tauri app
         run: npm run tauri:build
+
+      - name: Sign binaries
+        if: env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'kocpad-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe not found on the runner' }
+
+          $targets = @('src-tauri\target\release\kocpad.exe') +
+            (Get-ChildItem 'src-tauri\target\release\bundle\nsis\*.exe').FullName +
+            (Get-ChildItem 'src-tauri\target\release\bundle\msi\*.msi').FullName
+
+          foreach ($target in $targets) {
+            Write-Host "Signing $target"
+            & $signtool.FullName sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD `
+              /tr http://timestamp.digicert.com /td sha256 /fd sha256 $target
+            if ($LASTEXITCODE -ne 0) { throw "Signing failed for $target" }
+          }
+
+          Remove-Item $pfx -Force
 
       - name: Upload installers
         uses: actions/upload-artifact@v4

@@ -104,6 +104,12 @@ export class BrowserStorage implements Storage {
     return true;
   }
 
+  async mountRoot(): Promise<boolean> {
+    // A browser cannot reopen a folder from a path string: the handle must be
+    // picked by the user (or restored from IndexedDB).
+    return false;
+  }
+
   async closeRoot(): Promise<void> {
     this.handle = null;
     await forgetBrowserRoot();

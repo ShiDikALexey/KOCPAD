@@ -1,4 +1,4 @@
-import type { AccentName, PreviewFont, Settings, ThemeMode } from '../types';
+import type { AccentName, EditorKeymap, PreviewFont, Settings, ThemeMode } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import type { Store } from '../store';
 import { h } from '../util';
@@ -36,6 +36,17 @@ const AUTOSAVE: { value: number; label: string }[] = [
   { value: 300, label: 'Сразу (0,3 с)' },
   { value: 700, label: 'Обычно (0,7 с)' },
   { value: 1500, label: 'Не спеша (1,5 с)' },
+];
+
+const TAB_SIZES: { value: string; label: string }[] = [
+  { value: '2', label: '2 пробела' },
+  { value: '4', label: '4 пробела' },
+  { value: '8', label: '8 пробелов' },
+];
+
+const KEYMAPS: { id: EditorKeymap; label: string }[] = [
+  { id: 'default', label: 'Обычная' },
+  { id: 'vim', label: 'Vim' },
 ];
 
 function row(label: string, control: HTMLElement, hint?: string): HTMLElement {
@@ -203,6 +214,15 @@ export function openSettings(store: Store): void {
               ),
             ),
             row('Номера строк', toggle('Показывать', settings.showLineNumbers, (showLineNumbers) => patch({ showLineNumbers }))),
+            row(
+              'Ширина таба',
+              select(TAB_SIZES, String(settings.editorTabSize), (value) => patch({ editorTabSize: Number(value) })),
+            ),
+            row(
+              'Раскладка клавиш',
+              segmented(KEYMAPS, settings.editorKeymap, (editorKeymap) => patch({ editorKeymap })),
+              'Vim: режимы команд и вставки, hjkl',
+            ),
           ),
           section(
             'Предпросмотр',

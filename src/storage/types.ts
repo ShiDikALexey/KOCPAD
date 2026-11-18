@@ -24,6 +24,8 @@ export interface Storage {
 
   /** Opens the folder picker and mounts the chosen folder. */
   chooseRoot(): Promise<boolean>;
+  /** Mounts a known absolute path without a picker (native backend only). */
+  mountRoot(path: string): Promise<boolean>;
   /** Re-mounts the folder used last time. Returns false when it is gone. */
   restoreRoot(): Promise<boolean>;
   /** Detaches the workspace: after this `root` is null until a folder is picked. */

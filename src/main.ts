@@ -25,7 +25,7 @@ import { ImageStore } from './images';
 import { isDraftPath } from './drafts';
 import { isTauriRuntime } from './storage';
 import { invoke } from '@tauri-apps/api/core';
-import type { PreviewFont, SidebarTab, ViewMode } from './types';
+import type { EditorKeymap, PreviewFont, SidebarTab, ViewMode } from './types';
 import { basename, dirname, isTextFile, joinPath } from './path';
 import { clamp, debounce } from './util';
 
@@ -129,6 +129,22 @@ function applyWorkspaceChrome(): void {
   button.setAttribute('aria-label', button.title);
 }
 
+let appliedTabSize = 0;
+let appliedKeymap: EditorKeymap = 'default';
+
+/** Tab width and keymap live in the editor instance, not only in CSS. */
+function applyEditorSettings(): void {
+  const settings = store.settings;
+  if (settings.editorTabSize !== appliedTabSize) {
+    appliedTabSize = settings.editorTabSize;
+    editor.setTabSize(settings.editorTabSize);
+  }
+  if (settings.editorKeymap !== appliedKeymap) {
+    appliedKeymap = settings.editorKeymap;
+    void editor.setKeymap(settings.editorKeymap);
+  }
+}
+
 function applyLayout(): void {
   const settings = store.settings;
   dom.sidebar.classList.toggle('sidebar--collapsed', !settings.sidebarOpen);
@@ -136,11 +152,17 @@ function applyLayout(): void {
   document.documentElement.style.setProperty('--sidebar-width', `${clamp(settings.sidebarWidth, 180, 520)}px`);
   dom.panes.dataset.mode = settings.mode;
   document.documentElement.style.setProperty('--split-left', `${clamp(settings.splitRatio, 0.15, 0.85) * 100}%`);
-  dom.statusMode.textContent = {
-    editor: 'Редактор',
-    split: 'Разделить',
-    preview: 'Просмотр',
-  }[settings.mode];
+  dom.statusMode.textContent = settings.editorKeymap === 'vim'
+    ? `${{
+        editor: 'Редактор',
+        split: 'Разделить',
+        preview: 'Просмотр',
+      }[settings.mode]} · Vim`
+    : {
+        editor: 'Редактор',
+        split: 'Разделить',
+        preview: 'Просмотр',
+      }[settings.mode];
   document.querySelectorAll<HTMLButtonElement>('.segmented__item').forEach((button) => {
     button.setAttribute('aria-pressed', String(button.dataset.mode === settings.mode));
   });
@@ -148,6 +170,7 @@ function applyLayout(): void {
   applyTypography();
   applySidebarTab();
   applyWorkspaceChrome();
+  applyEditorSettings();
 }
 
 // -------------------------------------------------------------------- editor
@@ -423,8 +446,39 @@ async function renameDraftNow(): Promise<void> {
   if (title) store.renameDraft(doc.path, title);
 }
 
-async function closeCurrentWorkspace(): Promise<void> {
-  const demo = store.storage.kind === 'demo';
+/** Reopens a folder from the recent list — native builds only, browsers cannot. */
+async function openRecentFolderNow(path: string): Promise<void> {
+  const ok = await store.openWorkspaceByPath(path);
+  if (!ok) {
+    showToast('Папка недоступна по этому пути — выберите её через «Открыть папку»', 'error');
+    return;
+  }
+  localStorage.setItem('kocpad.root', path);
+  await restoreTabs();
+  if (!store.activeDoc) {
+    const first = store.flatFiles()[0];
+    if (first) await store.openNote(first.path);
+  }
+  showToast(`Папка подключена · ${store.rootName}`, 'success');
+}
+
+/** One screen on the very first launch: start with a draft or pick a folder. */
+async function runOnboarding(): Promise<void> {
+  if (store.settings.onboarded) return;
+  store.patchSettings({ onboarded: true });
+  const choice = await choiceDialog({
+    title: 'Добро пожаловать в KOCPAD',
+    message: 'Блокнот для markdown-заметок. Начать можно сразу с чистого листа или подключить готовую папку с заметками.',
+    options: [
+      { id: 'draft', label: 'Начать с черновика', kind: 'primary' },
+      { id: 'folder', label: 'Открыть папку заметок' },
+    ],
+  });
+  if (choice === 'draft') await createNoteNow();
+  else if (choice === 'folder') await chooseWorkspace();
+}
+
+async function closeCurrentWorkspace(): Promise<void> {  const demo = store.storage.kind === 'demo';
   const confirmed = demo
     ? await confirmAction({
         title: 'Сбросить демо-заметки?',
@@ -445,6 +499,10 @@ async function closeCurrentWorkspace(): Promise<void> {
 const actions: AppActions = {
   openFolder: () => {
     void chooseWorkspace();
+  },
+
+  openRecentFolder: (path) => {
+    void openRecentFolderNow(path);
   },
 
   closeWorkspace: () => {
@@ -648,6 +706,11 @@ const outline = new OutlineView(dom.outline, store, actions);
 function palette(): void {
   const commands: Command[] = [
     { label: 'Открыть папку с заметками', hint: 'Ctrl+O', run: actions.openFolder },
+    ...store.recentFolders.map((path) => ({
+      label: `Недавняя папка: ${basename(path)}`,
+      hint: path,
+      run: () => actions.openRecentFolder(path),
+    })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
     { label: 'Новая папка', hint: 'Ctrl+Shift+N', run: () => actions.createFolder() },
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
@@ -1132,6 +1195,8 @@ async function boot(): Promise<void> {
     dom.emptyState.hidden = false;
   }
   document.body.dataset.backend = store.storage.kind;
+
+  if (store.storage.kind !== 'demo') void runOnboarding();
 
   window.addEventListener('beforeunload', (event) => {
     if (store.dirtyCount > 0) {

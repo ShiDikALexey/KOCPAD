@@ -102,9 +102,38 @@ export class Store {
     const ok = await this.storage.chooseRoot();
     if (!ok) return false;
     this.patchSettings({ lastRoot: this.storage.root });
-    this.docs = [];
-    this.activePath = null;
+    if (this.storage.kind === 'tauri' && this.storage.root) this.addRecentFolder(this.storage.root);
+    // Drafts are not tied to a folder and stay open across a switch.
+    const drafts = this.docs.filter((doc) => isDraftPath(doc.path));
+    this.docs = drafts;
+    this.activePath = drafts[0]?.path ?? null;
     await this.refreshTree();
+    this.emit('docs', 'active', 'root');
+    return true;
+  }
+
+  /** Recent folders, newest first, capped at eight entries. */
+  get recentFolders(): string[] {
+    return this.settings.recentFolders;
+  }
+
+  addRecentFolder(path: string): void {
+    if (!path) return;
+    const list = [path, ...this.settings.recentFolders.filter((item) => item !== path)].slice(0, 8);
+    this.patchSettings({ recentFolders: list });
+  }
+
+  /** Mounts a folder from the recent list without opening the picker. */
+  async openWorkspaceByPath(path: string): Promise<boolean> {
+    await this.saveAll();
+    const ok = await this.storage.mountRoot(path);
+    if (!ok) return false;
+    this.patchSettings({ lastRoot: path });
+    const drafts = this.docs.filter((doc) => isDraftPath(doc.path));
+    this.docs = drafts;
+    this.activePath = drafts[0]?.path ?? null;
+    await this.refreshTree();
+    this.addRecentFolder(path);
     this.emit('docs', 'active', 'root');
     return true;
   }

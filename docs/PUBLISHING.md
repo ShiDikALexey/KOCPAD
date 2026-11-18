@@ -72,8 +72,17 @@ git push origin main v0.2.2
 
 ## Notes
 
-- Code signing is not configured. Unsigned installers trigger a SmartScreen
-  warning; adding an OV/EV certificate is on the roadmap.
+- **Code signing.** The Windows job has an optional signing step. Add two
+  repository secrets and the portable exe, the NSIS installer and the MSI are
+  signed with `signtool` plus a DigiCert timestamp:
+
+  | Secret | Value |
+  | --- | --- |
+  | `WINDOWS_CERTIFICATE` | base64 of the `.pfx` file (`[Convert]::ToBase64String([IO.File]::ReadAllBytes('cert.pfx'))`) |
+  | `WINDOWS_CERTIFICATE_PASSWORD` | the `.pfx` password |
+
+  Without the secrets the step is skipped and the build stays unsigned. An
+  OV/EV certificate is required to remove the SmartScreen warning.
 - Committer identity is set locally in this checkout
   (`git config user.name`, `git config user.email`). Set it to your own before
   pushing so the history is attributed correctly.

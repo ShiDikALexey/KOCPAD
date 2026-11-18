@@ -4,6 +4,29 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.1] — 2026-11-18
+
+Installer and polish milestone from the roadmap.
+
+### Added
+
+- Window size and position are remembered between launches
+  (`tauri-plugin-window-state`, Rust side only).
+- «Recent folders» in the command palette: the last eight native folders can be
+  reopened without the picker. Browsers get an explanatory message instead.
+- First-run onboarding: a single dialog offering «Начать с черновика» or
+  «Открыть папку заметок»; the choice is remembered.
+- Settings → Редактор: tab width (2 / 4 / 8 spaces) and an optional Vim keymap.
+  The Vim extension is loaded on demand, so it does not cost anything until it is
+  turned on; the status bar shows `· Vim`.
+- CI: optional code-signing step. Setting `WINDOWS_CERTIFICATE` and
+  `WINDOWS_CERTIFICATE_PASSWORD` secrets signs the portable exe, the NSIS
+  installer and the MSI with `signtool` and a DigiCert timestamp.
+
+### Changed
+
+- Switching folders keeps drafts open instead of closing every tab.
+
 ## [0.3.0] — 2026-11-18
 
 Notepad semantics: a note no longer needs a folder to exist.

@@ -35,6 +35,10 @@ PC" on first launch: **More info** → **Run anyway**. Signing the installer is 
 the roadmap ([docs/ROADMAP.md](docs/ROADMAP.md)). The installer is per-user and
 does not need administrator rights.
 
+Everything lives in the settings screen (`Ctrl+,`): theme, accent, editor and preview fonts and sizes, tab width, keymap, autosave delay.
+
+On the first launch KOCPAD offers one choice: **start with a draft** (write right away, no folder) or **open a notes folder**. It can be changed at any time.
+
 ## Why another markdown editor
 
 - **Local-first.** A folder of `.md` files is the whole storage format. Back it up
@@ -52,8 +56,9 @@ does not need administrator rights.
 | --- | --- |
 | Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
 | Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: its text is kept locally and comes back after a restart. «Сохранить в папку…» (`Ctrl+S`) turns a draft into a real `.md` file, `F2` renames it. On exit the app asks whether to save drafts into a folder, keep them as drafts, or delete them |
-| Workspace | Open a folder, close it, connect another one; the last folder is remembered between launches and open tabs are restored |
-| Writing | CodeMirror 6 editor, markdown syntax highlighting, soft wrap, per-tab undo history, bold/italic shortcuts |
+| Workspace | Open a folder, close it, connect another one; the last folder is remembered between launches, recent folders are in the palette (`Ctrl+K`), open tabs are restored |
+| Window | Window size and position are remembered between launches |
+| Writing | CodeMirror 6 editor, markdown syntax highlighting, soft wrap, per-tab undo history, bold/italic shortcuts, configurable tab width (2/4/8), Vim keymap |
 | Preview | Live GFM render: headings, tables, task lists, code with highlighting, quotes, links; synchronized scrolling |
 | Structure | Outline panel listing every heading of the current note, click to jump, current section highlighted |
 | Images | Paste or drop an image: it is written to `assets/` next to the note and inserted as markdown; relative images render in the preview |

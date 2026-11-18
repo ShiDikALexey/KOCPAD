@@ -10,6 +10,8 @@ export type AccentName = 'marker' | 'azure' | 'jade' | 'iris' | 'rose';
 
 export type PreviewFont = 'serif' | 'sans' | 'mono';
 
+export type EditorKeymap = 'default' | 'vim';
+
 export type StorageKind = 'tauri' | 'browser' | 'demo';
 
 /** A node of the workspace tree. Directories carry `children`. */
@@ -46,6 +48,10 @@ export interface Settings {
   previewFontSize: number;
   previewFontFamily: PreviewFont;
   autosaveDelay: number;
+  editorTabSize: number;
+  editorKeymap: EditorKeymap;
+  recentFolders: string[];
+  onboarded: boolean;
   showLineNumbers: boolean;
   lastRoot: string | null;
   syncScroll: boolean;
@@ -76,6 +82,10 @@ export const DEFAULT_SETTINGS: Settings = {
   previewFontSize: 16.5,
   previewFontFamily: 'serif',
   autosaveDelay: 700,
+  editorTabSize: 4,
+  editorKeymap: 'default',
+  recentFolders: [],
+  onboarded: false,
   showLineNumbers: false,
   lastRoot: null,
   syncScroll: true,

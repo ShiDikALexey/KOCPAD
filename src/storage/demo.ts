@@ -245,6 +245,10 @@ export class DemoStorage implements Storage {
     return true;
   }
 
+  async mountRoot(): Promise<boolean> {
+    return false;
+  }
+
   async restoreRoot(): Promise<boolean> {
     return true;
   }
