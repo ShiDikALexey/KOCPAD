@@ -1,0 +1,28 @@
+# Logs and local files
+node_modules/
+dist/
+dist-ssr/
+.tmp/
+*.local
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Rust / Tauri build output
+src-tauri/target/
+src-tauri/gen/
+
+# Local notes used while developing
+scratch/
