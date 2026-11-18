@@ -48,9 +48,19 @@
 | --- | --- |
 | `Ctrl+E` | Cycle editor → split → preview |
 | `Ctrl+K` | Command palette |
+| `Ctrl+,` | Settings |
+| `Ctrl+Shift+O` | Outline panel (headings of the current note) |
 | `Ctrl+\` | Show or hide the sidebar |
 | `Ctrl+Shift+L` | Switch between light and dark theme |
 | `Esc` | Close any dialog, palette or overlay |
+
+## Images and files
+
+| Action | Result |
+| --- | --- |
+| `Ctrl+V` with an image in the clipboard | Image saved to `assets/` next to the note, `![](...)` inserted at the caret |
+| Drop an image file onto the window | Same as paste |
+| Drop a `.md` / `.txt` file from Explorer | Imported into the current note's folder and opened (an existing note with that name is opened instead) |
 
 ## Mouse
 
@@ -58,6 +68,7 @@
 | --- | --- |
 | Click a folder | Expand or collapse it |
 | Click a note | Open it in a tab |
+| Click a heading in the outline | Jump to that line |
 | Middle click a tab | Close it |
 | Drag the sidebar edge | Resize the sidebar |
 | Drag the divider between panes | Change the editor / preview split |

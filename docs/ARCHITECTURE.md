@@ -37,6 +37,8 @@ interface Storage {
   listTree(): Promise<NoteNode[]>;
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
+  readBinary(path: string): Promise<Uint8Array<ArrayBuffer>>;
+  writeBinary(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void>;
   createFile(path: string, text?: string): Promise<void>;
   createDir(path: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;
@@ -61,8 +63,13 @@ The rest of the app treats paths as opaque strings and only uses the helpers in
 
 **Why Rust commands instead of `tauri-plugin-fs`:** the plugin needs a configured
 allow-list scope per directory, which is awkward for a user-picked folder at
-runtime. Nine small commands keep permissions simple and let the native side
+runtime. Eleven small commands keep permissions simple and let the native side
 decide which files are notes (`.md`, `.markdown`, `.mdown`, `.txt`).
+
+Binary assets cross the Tauri IPC boundary as base64 (`fs_read_binary` /
+`fs_write_binary`), because a JSON array of bytes is dramatically slower for a
+few-megabyte image. The browser backend writes an `ArrayBuffer` straight into the
+File System Access stream.
 
 ## Document lifecycle
 
@@ -98,6 +105,45 @@ CodeMirror 6 with:
 - a single `HighlightStyle` whose colours are CSS variables — one style, both themes;
 - per-document `EditorState` stored in a `Map<path, EditorState>`.
 
+Editor font family and size are CSS variables (`--font-editor`,
+`--editor-font-size`), so the settings screen changes them without touching the
+editor instance.
+
+## Outline
+
+`parseHeadings()` walks the active document line by line, tracks fenced code
+blocks (` ``` ` / `~~~`) so a `# comment` inside a snippet is not mistaken for a
+section, and collects ATX headings with their line number. Inline markdown is
+stripped for display. The outline highlights the last heading at or above the
+caret, which gives a sense of position in long notes; clicking an entry dispatches
+`editor.scrollToLine()`.
+
+## Images
+
+Pasted and dropped images go through `ImageStore` (`src/images.ts`):
+
+1. bytes are written to `assets/` next to the note (name collisions get a numeric
+   suffix, `screen.png` → `screen-1.png`);
+2. `![](assets/screen.png)` is inserted on its own line at the caret;
+3. when the preview renders, every relative `img[src]` is resolved against the
+   note's folder, the bytes are read through the storage backend and turned into a
+   blob URL. Remote schemes (`http`, `data`, `blob`) pass through untouched, and a
+   missing file becomes a readable placeholder instead of a broken image icon.
+
+Because resolution goes through `Storage.readBinary`, images work identically for
+native files, a browser folder and the in-memory demo.
+
+`assets/` folders that contain no notes are pruned from the notes tree so the
+sidebar stays a list of notes.
+
+## Dropped files
+
+HTML5 drag & drop is enabled in the Tauri window (`dragDropEnabled: false`), which
+hands the webview the actual `File` objects. Dropped markdown and text files are
+imported into the active note's folder and opened; an existing note with the same
+name is opened instead of overwritten. Dropped images follow the image pipeline
+above.
+
 ## Preview and export
 
 `renderMarkdown()` runs `marked` (GFM) and then DOMPurify with an explicit
@@ -118,12 +164,19 @@ re-render from state; there is no virtual DOM and no diffing. Settings live in
 `localStorage` (`kocpad.settings`), the last workspace root in `kocpad.root`, and
 open tabs in `kocpad.tabs`.
 
+The settings screen writes through `store.patchSettings()`, so a control never
+mutates the DOM directly: the change is persisted, a `settings` event fires, and
+`applyLayout()` / `applyTypography()` / `applySidebarTab()` re-apply tokens and
+layout from state.
+
 ## Theming
 
 Two themes, tokens only (`src/style.css`): a graphite “paper” chrome with one
-marker-yellow accent. The editor, the preview and every dialog read the same CSS
-variables, so adding a theme means adding one token block. `system` follows
-`prefers-color-scheme` and reacts to runtime changes.
+accent. The accent is chosen from five presets (`marker`, `azure`, `jade`, `iris`,
+`rose`) which override `--accent`, selection and quote-bar variables per theme.
+Editor, preview and every dialog read the same CSS variables, so adding a theme
+means adding one token block. `system` follows `prefers-color-scheme` and reacts to
+runtime changes.
 
 ## Security notes
 
