@@ -1,180 +1,187 @@
 # KOCPAD
 
-**A markdown notepad for Windows — like Notepad, but it remembers everything.**
+**Русский** · [English](README.en.md)
 
-KOCPAD keeps your notes as plain `.md` files in a folder you choose. It opens
-instantly, autosaves as you type, and shows the rendered result next to the
-source. No accounts, no database, no proprietary format — just files you can
-open in any other editor.
+[![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> Status: early alpha (`0.2.0`). The writing workflow works end to end; packaging
-> and polish are the next milestone. See [ROADMAP.md](docs/ROADMAP.md).
+**Блокнот для markdown-заметок на Windows — как «Блокнот», но ничего не теряет.**
 
-![KOCPAD in split mode, light theme](docs/screenshots/light.png)
+KOCPAD хранит заметки обычными файлами `.md` в папке, которую вы выбрали.
+Открывается мгновенно, сохраняет на диск по мере печати и показывает готовый
+результат рядом с исходником. Без аккаунтов, баз данных и своего формата — только
+файлы, которые открываются в любом редакторе.
 
-## Why another markdown editor
+> Статус: ранняя альфа (`0.2.0`). Рабочий сценарий работает целиком, установщик и
+> полировка — следующий шаг. План: [docs/ROADMAP.md](docs/ROADMAP.md).
+>
+> Скачать: [установщик из последнего релиза](https://github.com/ShiDikALexey/KOCPAD/releases)
+> или артефакт `kocpad-windows` из [последней сборки](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml).
 
-- **Local-first.** A folder of `.md` files is the whole storage format. Back it up
-  with OneDrive, Git, or a USB stick — nothing is locked in.
-- **Notepad speed, editor comfort.** Tabs with independent undo history, markdown
-  syntax highlighting, find and replace, live preview.
-- **Nothing is lost.** Autosave on every pause, tabs restored on the next launch,
-  a warning before closing with nothing written.
-- **Honest desktop app.** Tauri 2: a small native window using the system WebView2,
-  not a browser tab pretending to be an app.
+![KOCPAD в режиме «Разделить», светлая тема](docs/screenshots/light.png)
 
-## Features
+## Зачем ещё один markdown-редактор
 
-| Area | What works today |
+- **Локально и без заложников.** Папка с `.md` файлами — это и есть всё хранилище.
+  Бэкапьте OneDrive, Git или флешкой: ничего не заблокировано.
+- **Скорость «Блокнота», удобство редактора.** Вкладки с собственной историей
+  отмены, подсветка markdown, поиск и замена, живой предпросмотр.
+- **Ничего не теряется.** Автосохранение на каждой паузе, вкладки восстанавливаются
+  при следующем запуске, предупреждение при закрытии с несохранёнными правками.
+- **Честное настольное приложение.** Tauri 2: небольшое нативное окно на системном
+  WebView2, а не вкладка браузера, которая притворяется программой.
+
+## Возможности
+
+| Область | Что уже работает |
 | --- | --- |
-| Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
-| Writing | CodeMirror 6 editor, markdown syntax highlighting, soft wrap, per-tab undo history, bold/italic shortcuts |
-| Preview | Live GFM render: headings, tables, task lists, code with highlighting, quotes, links; synchronized scrolling |
-| Structure | Outline panel listing every heading of the current note, click to jump, current section highlighted |
-| Images | Paste or drop an image: it is written to `assets/` next to the note and inserted as markdown; relative images render in the preview |
-| Saving | Debounced autosave (0.3 s / 0.7 s / 1.5 s, configurable), explicit `Ctrl+S`, flush on tab switch, window blur and app close |
-| Search | In-note find & replace (`Ctrl+F`, `Ctrl+H`), workspace-wide search with match snippets (`Ctrl+Shift+F`) |
-| Interface | Light / dark / follow-Windows themes, five accent colours, configurable editor and preview fonts, editor-only and preview-only modes, draggable sidebar and split, Russian UI |
-| Files in | Drag `.md` or `.txt` files from Explorer into the window to import and open them |
-| Commands | Command palette (`Ctrl+K`) over every action; settings screen (`Ctrl+,`) |
-| Export | Standalone HTML file, print-to-PDF through the system print dialog |
-| Tasks | Click a checkbox in the preview to toggle `- [ ]` in the source |
+| Заметки | Папка с файлами `.md` / `.markdown` / `.mdown` / `.txt`, дерево в боковой панели, создание, переименование и удаление заметок и папок, фильтр по имени |
+| Письмо | Редактор CodeMirror 6, подсветка markdown, перенос строк, своя история отмены на вкладку, `Ctrl+B` / `Ctrl+I` |
+| Предпросмотр | Живой GFM: заголовки, таблицы, чеклисты, код с подсветкой, цитаты, ссылки; синхронная прокрутка |
+| Структура | Панель «Контур»: все заголовки текущей заметки, переход по клику, подсветка текущего раздела |
+| Картинки | Вставка из буфера или перетаскиванием: файл пишется в `assets/` рядом с заметкой, в текст вставляется markdown, относительные картинки рендерятся в предпросмотре |
+| Сохранение | Автосохранение с задержкой (0,3 / 0,7 / 1,5 с, настраивается), явное `Ctrl+S`, сброс при переключении вкладки, потере фокуса и закрытии |
+| Поиск | Поиск и замена в заметке (`Ctrl+F`, `Ctrl+H`), поиск по всей папке с фрагментами строк (`Ctrl+Shift+F`) |
+| Интерфейс | Светлая, тёмная и «как в Windows» темы, пять акцентов, настраиваемые шрифты редактора и предпросмотра, режимы «редактор / разделить / просмотр», перетаскиваемые панели |
+| Файлы извне | Перетащите `.md` или `.txt` из проводника в окно — заметка импортируется в текущую папку и откроется |
+| Команды | Палитра команд (`Ctrl+K`) для любого действия, экран настроек (`Ctrl+,`) |
+| Экспорт | Отдельный HTML-файл, печать в PDF через системный диалог |
+| Задачи | Клик по чекбоксу в предпросмотре переключает `- [ ]` в исходнике |
 
-## Quick start
+## Быстрый старт
 
-### Browser preview (no Rust needed)
+### Посмотреть в браузере (Rust не нужен)
 
 ```bash
 npm install
 npm run dev          # http://localhost:1420
-npm run dev -- --open
 ```
 
-Open `http://localhost:1420/?demo=1` for a self-contained demo workspace that
-needs no folder permission. In Chromium, “Открыть папку” connects a real folder
-through the File System Access API.
+Откройте `http://localhost:1420/?demo=1` — демо-папка, доступ к диску не
+запрашивается. В Chromium кнопка «Открыть папку» подключает настоящую папку через
+File System Access API.
 
-### Desktop app (Windows)
+### Настольное приложение (Windows)
 
-Requirements:
+Что нужно:
 
 - [Node.js](https://nodejs.org/) 20+
-- [Rust](https://rustup.rs/) stable with the MSVC toolchain
-- Visual Studio Build Tools with the **Desktop development with C++** workload
-- [WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) —
-  preinstalled on Windows 11 and up-to-date Windows 10
+- [Rust](https://rustup.rs/) stable с тулчейном MSVC
+- Visual Studio Build Tools с нагрузкой **«Разработка классических приложений на C++»**
+- [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) — уже есть в
+  Windows 11 и в актуальной Windows 10
 
 ```bash
 npm install
-npm run tauri:dev      # dev window with hot reload
-npm run tauri:build    # installers in src-tauri/target/release/bundle
+npm run tauri:dev      # окно с горячей перезагрузкой
+npm run tauri:build    # установщики в src-tauri/target/release/bundle
 ```
 
-The release build produces an NSIS installer and an MSI under
-`src-tauri/target/release/bundle/`, plus the portable exe in
-`src-tauri/target/release/kocpad.exe`.
+Сборка кладёт NSIS-установщик и MSI в `src-tauri/target/release/bundle/`, а
+портативный exe — в `src-tauri/target/release/kocpad.exe`.
 
-> Nothing is installed system-wide by KOCPAD itself: the NSIS bundle uses
-> per-user install mode.
+> KOCPAD ничего не ставит в систему: NSIS-сборка ставится для текущего
+> пользователя.
 
-### Checks
+### Проверки
 
 ```bash
-npm run typecheck      # TypeScript, no emit
-npm run build          # typecheck + production frontend build
+npm run typecheck      # типы TypeScript, без сборки
+npm run build          # типы + прод-сборка фронтенда
 ```
 
-## Keyboard shortcuts
+## Горячие клавиши
 
-| Keys | Action |
+| Клавиши | Действие |
 | --- | --- |
-| `Ctrl+N` | New note |
-| `Ctrl+Shift+N` | New folder |
-| `Ctrl+O` | Open folder |
-| `Ctrl+S` | Save now |
-| `Ctrl+W` | Close tab |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
-| `Ctrl+F` | Find in note |
-| `Ctrl+H` | Find and replace |
-| `Ctrl+Shift+F` | Search the whole workspace |
-| `Ctrl+K` | Command palette |
-| `Ctrl+,` | Settings |
-| `Ctrl+Shift+O` | Outline panel |
-| `Ctrl+E` | Cycle editor → split → preview |
-| `Ctrl+B` / `Ctrl+I` | Bold / italic |
-| `Ctrl+P` | Print (save as PDF) |
-| `Ctrl+Shift+E` | Export to HTML |
-| `Ctrl+Shift+L` | Toggle dark theme |
-| `Ctrl+\` | Toggle sidebar |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Editor font size |
-| `F2` | Rename current note |
-| `F5` | Refresh the tree |
+| `Ctrl+N` | Новая заметка |
+| `Ctrl+Shift+N` | Новая папка |
+| `Ctrl+O` | Открыть папку |
+| `Ctrl+S` | Сохранить сейчас |
+| `Ctrl+W` | Закрыть вкладку |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Следующая / предыдущая вкладка |
+| `Ctrl+F` | Поиск в заметке |
+| `Ctrl+H` | Поиск и замена |
+| `Ctrl+Shift+F` | Поиск по всей папке |
+| `Ctrl+K` | Палитра команд |
+| `Ctrl+,` | Настройки |
+| `Ctrl+Shift+O` | Панель «Контур» |
+| `Ctrl+E` | Переключить редактор → разделить → просмотр |
+| `Ctrl+B` / `Ctrl+I` | Жирный / курсив |
+| `Ctrl+P` | Печать (сохранить в PDF) |
+| `Ctrl+Shift+E` | Экспорт в HTML |
+| `Ctrl+Shift+L` | Переключить тёмную тему |
+| `Ctrl+\` | Показать или скрыть боковую панель |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Размер текста в редакторе |
+| `F2` | Переименовать текущую заметку |
+| `F5` | Обновить дерево заметок |
 
-Full list with context: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
+Полный список с контекстом: [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
 
-## Screenshots
+## Скриншоты
 
-| Light | Dark |
+| Светлая тема | Тёмная тема |
 | --- | --- |
-| ![Light theme](docs/screenshots/light.png) | ![Dark theme](docs/screenshots/dark.png) |
+| ![Светлая тема](docs/screenshots/light.png) | ![Тёмная тема](docs/screenshots/dark.png) |
 
-| Outline panel | Settings |
+| Панель «Контур» | Настройки |
 | --- | --- |
-| ![Outline panel](docs/screenshots/outline.png) | ![Settings](docs/screenshots/settings.png) |
+| ![Контур заметки](docs/screenshots/outline.png) | ![Настройки](docs/screenshots/settings.png) |
 
-![Workspace search](docs/screenshots/search.png)
+![Поиск по всем заметкам](docs/screenshots/search.png)
 
-## How it is built
+## Как устроено
 
 ```
 KOCPAD
-├─ index.html            app shell (static markup, filled by src/main.ts)
+├─ index.html            оболочка приложения (разметка, наполняется из src/main.ts)
 ├─ src/
-│  ├─ main.ts            wiring: theme, layout, shortcuts, actions, autosave
-│  ├─ store.ts           single source of truth: settings, tree, tabs, saves
-│  ├─ images.ts          pasted images → assets/, relative images → blob URLs
-│  ├─ storage/           three backends behind one interface
-│  │  ├─ tauri.ts        native build → Rust commands
-│  │  ├─ browser.ts      File System Access API + IndexedDB handle
-│  │  └─ demo.ts         in-memory sample workspace
-│  ├─ editor.ts          CodeMirror 6 wrapper, per-document EditorState
-│  ├─ markdown.ts        GFM render, sanitizing, syntax highlight, print/export
-│  ├─ ui/                tree, outline, tabs, status bar, dialogs, palette,
-│  │                     search, settings
-│  ├─ path.ts, util.ts   path and DOM helpers
-│  └─ style.css          design tokens, themes, accents, components
-├─ src-tauri/            Tauri 2 shell
-│  ├─ src/fs_ops.rs      list / read / write / rename / delete / reveal
-│  ├─ tauri.conf.json    window, CSP, bundle config
-│  └─ capabilities/      dialog permissions for the main window
-└─ docs/                 architecture, keybindings, roadmap
+│  ├─ main.ts            связка: темы, раскладка, горячие клавиши, автосохранение
+│  ├─ store.ts           единственный владелец состояния: настройки, дерево, вкладки
+│  ├─ images.ts          картинки в assets/, относительные пути → blob-URL
+│  ├─ storage/           три бэкенда за одним интерфейсом
+│  │  ├─ tauri.ts        нативная сборка → команды Rust
+│  │  ├─ browser.ts      File System Access API + дескриптор папки в IndexedDB
+│  │  └─ demo.ts         демо-папка в памяти
+│  ├─ editor.ts          обёртка CodeMirror 6, свой EditorState на документ
+│  ├─ markdown.ts        GFM-рендер, санитайзинг, подсветка кода, печать
+│  ├─ ui/                дерево, контур, вкладки, статусбар, диалоги, палитра,
+│  │                     поиск, настройки
+│  ├─ path.ts, util.ts   помощники для путей и DOM
+│  └─ style.css          токены дизайна, темы, акценты, компоненты
+├─ src-tauri/            оболочка Tauri 2
+│  ├─ src/fs_ops.rs      список / чтение / запись / переименование / удаление
+│  ├─ tauri.conf.json    окно, CSP, сборка установщиков
+│  └─ capabilities/      права на диалоги для главного окна
+└─ docs/                 архитектура, клавиши, план развития
 ```
 
-Design decisions worth knowing:
+Решения, которые полезно знать:
 
-- **The storage interface is the seam.** UI code never touches `fs`; swapping a
-  backend (or adding WebDAV later) touches one file.
-- **Documents own their editor state.** Each tab keeps a CodeMirror `EditorState`,
-  so undo history and caret survive tab switches.
-- **Writes are serialized per path.** Autosave and explicit saves cannot
-  interleave; a snapshot is only marked clean after it reached the disk.
-- **The Rust side is small on purpose.** Eleven commands, no plugin scopes to
-  maintain, one place that decides which files count as notes.
+- **Интерфейс хранилища — это шов.** UI никогда не трогает `fs`; чтобы заменить
+  бэкенд (или добавить WebDAV), достаточно одного файла.
+- **Документ владеет состоянием редактора.** Каждая вкладка хранит свой
+  `EditorState` CodeMirror, поэтому история отмены и каретка переживают
+  переключение.
+- **Запись сериализуется по пути.** Автосохранение и явное сохранение не
+  переплетаются; снимок считается сохранённым только после записи на диск.
+- **Rust-сторона намеренно маленькая.** Одиннадцать команд, никаких scope-ов
+  плагинов, одно место, где решается, какие файлы считаются заметками.
 
-More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Roadmap
+## План развития
 
-Near-term: verify the local `.exe` build on a clean machine, code-sign the
-installer, and remember window geometry between launches. The full list lives in
+Ближайшее: проверить `.exe` на чистой машине, подписать установщик, запоминать
+размер и положение окна между запусками. Полный список —
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## Contributing
+## Участие
 
-Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md)
-first — it is short: run the typecheck, keep the UI strings Russian and the code
-English, and do not add a framework without a discussion.
+Issues и pull request'ы приветствуются. Сначала прочитайте
+[CONTRIBUTING.md](CONTRIBUTING.md): запускать typecheck, интерфейс и README — по-русски,
+код и комментарии — по-английски, фреймворк без обсуждения не добавлять.
 
-## License
+## Лицензия
 
-[MIT](LICENSE) © KOCPAD contributors
+[MIT](LICENSE) © участники KOCPAD

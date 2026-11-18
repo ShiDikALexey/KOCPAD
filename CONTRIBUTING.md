@@ -19,8 +19,9 @@ npm run build
 
 ## Conventions
 
-- **Code, comments, commits and docs are English. UI strings are Russian.** The app
-  targets Russian-speaking Windows users; the codebase stays readable for anyone.
+- **UI strings and the README are Russian; code, comments, commits and `docs/` are English.**
+  `README.md` is the Russian version and `README.en.md` mirrors it — keep both in
+  sync when you change user-facing documentation.
 - **No UI framework.** The frontend is plain TypeScript and direct DOM. If you
   think a framework is needed, open an issue with the case first.
 - **Respect the storage seam.** Anything that touches files goes through

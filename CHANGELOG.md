@@ -34,6 +34,8 @@ Writing comfort: structure, images and settings.
 - `assets/` folders that contain no notes are hidden from the notes tree.
 - The Tauri window disables native drag & drop so the webview receives HTML5 file
   drops with the actual file contents.
+- The README is now Russian, with an English mirror in `README.en.md`; both link to
+  the CI build and to the release installers.
 
 ### Fixed
 

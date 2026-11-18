@@ -1,5 +1,10 @@
 # Publishing KOCPAD on GitHub
 
+> **Status:** the repository is live at
+> <https://github.com/ShiDikALexey/KOCPAD>, branch `main`, with CI building the
+> Windows installers on every push. The steps below are kept for reference — how
+> the repo was created and how to cut the next release.
+
 The repository is ready to push; only the remote is missing. Nothing in the code
 refers to a hard-coded GitHub account, so pick your own name.
 
