@@ -62,6 +62,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check configuration files for a BOM
+        shell: pwsh
+        run: |
+          $files = @('package.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml')
+          foreach ($file in $files) {
+            $bytes = [System.IO.File]::ReadAllBytes((Join-Path $PWD $file))
+            if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+              throw "UTF-8 BOM found in $file — Tauri's JSON/TOML parsers reject it. Write the file as UTF-8 without BOM."
+            }
+          }
+          Write-Host 'No BOM in configuration files'
+
       - name: Build Tauri app
         run: npm run tauri:build
 
