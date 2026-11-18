@@ -57,7 +57,13 @@
 - [ ] Code-sign the exe and installer — CI plumbing is in place (optional
       `WINDOWS_CERTIFICATE` secret), blocked on buying a certificate
 
-## 0.3.2 — signed installers
+## 0.3.2 — localization pass (done)
+
+- [x] Russian strings for the CodeMirror find & replace panel and editor tooltips
+      (`EditorState.phrases`)
+- [x] Panel layout tightened for the longer labels (one row in editor mode)
+
+## 0.3.3 — signed installers
 
 - [ ] Buy or obtain an OV/EV code-signing certificate and add the two CI secrets
 - [ ] Verify the release on a clean Windows machine (fresh profile, no WebView2

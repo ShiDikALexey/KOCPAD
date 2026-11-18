@@ -4,6 +4,21 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.2] — 2026-11-18
+
+Localization pass: the editor's built-in panels were the last English UI left.
+
+### Fixed
+
+- Find & replace panel is Russian now: «Найти», «Заменить», «далее», «назад»,
+  «все», «регистр», «рег. выр.», «слово», «заменить», «заменить все». Strings come
+  from `EditorState.phrases`, so the CodeMirror panels stay consistent with the
+  rest of the interface. «Перейти к строке», «текущее совпадение», «заменено
+  совпадений» and the tooltips are translated too.
+- The panel is tightened for the longer Russian labels: narrower inputs, smaller
+  gaps, the close button pinned to the corner; it fits on one row in editor-only
+  mode and on two compact rows in split mode.
+
 ## [0.3.1] — 2026-11-18
 
 Installer and polish milestone from the roadmap.

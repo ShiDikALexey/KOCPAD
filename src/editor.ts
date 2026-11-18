@@ -35,7 +35,33 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.invalid, color: 'var(--danger)' },
 ]);
 
-/** Editor chrome: everything visual, wired to the same CSS variables as the app. */
+/**
+ * Russian UI strings for the CodeMirror built-in panels (find & replace,
+ * go-to-line, tooltips). The keys are the English phrases the packages pass to
+ * `EditorState.phrases`.
+ */
+const EDITOR_PHRASES: Record<string, string> = {
+  Find: 'Найти',
+  Replace: 'Заменить',
+  next: 'далее',
+  previous: 'назад',
+  all: 'все',
+  'match case': 'регистр',
+  regexp: 'рег. выр.',
+  'by word': 'слово',
+  replace: 'заменить',
+  'replace all': 'заменить все',
+  close: 'закрыть',
+  'current match': 'текущее совпадение',
+  'on line': 'в строке',
+  'replaced $ matches': 'заменено совпадений: $',
+  'replaced match on line $': 'заменено совпадение в строке $',
+  'Go to line': 'Перейти к строке',
+  go: 'перейти',
+  'Control character': 'управляющий символ',
+  'Selection deleted': 'выделение удалено',
+};
+
 const editorTheme = EditorView.theme({
   '&': {
     height: '100%',
@@ -77,13 +103,14 @@ const editorTheme = EditorView.theme({
     borderBottom: '1px solid var(--line)',
   },
   '.cm-panel.cm-search': {
-    padding: '8px 10px',
+    padding: '7px 30px 7px 9px',
     fontFamily: 'var(--font-ui)',
     fontSize: '13px',
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: '6px',
+    gap: '5px 6px',
+    position: 'relative',
   },
   '.cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label': {
     fontFamily: 'var(--font-ui)',
@@ -95,7 +122,8 @@ const editorTheme = EditorView.theme({
     border: '1px solid var(--line-strong)',
     borderRadius: '5px',
     padding: '4px 7px',
-    minWidth: '160px',
+    minWidth: '118px',
+    maxWidth: '190px',
     outline: 'none',
   },
   '.cm-panel.cm-search input[type=text]:focus': {
@@ -107,17 +135,20 @@ const editorTheme = EditorView.theme({
     color: 'var(--ink)',
     border: '1px solid var(--line-strong)',
     borderRadius: '5px',
-    padding: '4px 9px',
+    padding: '4px 8px',
     cursor: 'pointer',
   },
   '.cm-panel.cm-search button:hover': { backgroundColor: 'var(--bg-hover)' },
   '.cm-panel.cm-search button[name=close]': {
+    position: 'absolute',
+    top: '3px',
+    right: '3px',
     border: 'none',
     background: 'transparent',
-    fontSize: '16px',
+    fontSize: '17px',
     lineHeight: '1',
     padding: '2px 6px',
-    marginLeft: 'auto',
+    marginLeft: '0',
   },
   '.cm-panel.cm-search label': { color: 'var(--ink-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' },
   '.cm-searchMatch': { backgroundColor: 'var(--accent-soft)', outline: '1px solid var(--accent)' },
@@ -182,6 +213,7 @@ export class MarkdownEditor {
         search({ top: true }),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
         placeholder('Пишите здесь. Markdown понимается как в GitHub.'),
+        EditorState.phrases.of(EDITOR_PHRASES),
         editorTheme,
         this.gutterCompartment.of(showGutter ? lineNumbers() : []),
         this.indentCompartment.of([
