@@ -4,6 +4,22 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.2.1] — 2026-11-18
+
+First patch release, from smoke-testing the 0.2.0 binary on Windows.
+
+### Fixed
+
+- Creating a note or folder without a connected workspace is now refused with a
+  clear message. Previously the write resolved a relative path against the process
+  working directory, so the file could land next to the executable instead of in a
+  folder the user chose.
+
+### Changed
+
+- README is Russian (`README.md`) with an English mirror (`README.en.md`); both
+  link to the release installers and the CI build.
+
 ## [0.2.0] — 2026-11-18
 
 Writing comfort: structure, images and settings.
@@ -34,8 +50,6 @@ Writing comfort: structure, images and settings.
 - `assets/` folders that contain no notes are hidden from the notes tree.
 - The Tauri window disables native drag & drop so the webview receives HTML5 file
   drops with the actual file contents.
-- The README is now Russian, with an English mirror in `README.en.md`; both link to
-  the CI build and to the release installers.
 
 ### Fixed
 

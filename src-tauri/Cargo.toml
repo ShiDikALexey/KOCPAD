@@ -1,7 +1,7 @@
-[package]
+﻿[package]
 name = "kocpad"
-version = "0.2.0"
-description = "KOCPAD — a markdown notepad for Windows"
+version = "0.2.1"
+description = "KOCPAD вЂ” a markdown notepad for Windows"
 authors = ["KOCPAD contributors"]
 edition = "2021"
 rust-version = "1.77.2"
