@@ -12,6 +12,8 @@ export type PreviewFont = 'serif' | 'sans' | 'mono';
 
 export type EditorKeymap = 'default' | 'vim';
 
+export type ExportTheme = 'light' | 'dark';
+
 export type StorageKind = 'tauri' | 'browser' | 'demo';
 
 /** A node of the workspace tree. Directories carry `children`. */
@@ -50,6 +52,7 @@ export interface Settings {
   autosaveDelay: number;
   editorTabSize: number;
   editorKeymap: EditorKeymap;
+  exportTheme: ExportTheme;
   recentFolders: string[];
   onboarded: boolean;
   showLineNumbers: boolean;
@@ -84,6 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autosaveDelay: 700,
   editorTabSize: 4,
   editorKeymap: 'default',
+  exportTheme: 'light',
   recentFolders: [],
   onboarded: false,
   showLineNumbers: false,

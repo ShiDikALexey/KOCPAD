@@ -12,10 +12,11 @@ to disk as you type and shows the rendered result next to the source. Notes are
 plain `.md` files: no accounts, no database, no proprietary format — they open in
 any other editor.
 
-> Status: working alpha **`0.4.1`**. Writing, saving, searching, tagging, linking
-> notes with `[[…]]`, bulk selection and closing without data loss all work today;
-> installer signing and thousands-of-notes scale are next. Plan:
-> [docs/ROADMAP.md](docs/ROADMAP.md), history: [CHANGELOG.md](CHANGELOG.md).
+> Status: **`1.0.0`** — first stable release. Notes, tags, links, drafts, search,
+> export and closing without data loss all work; 11 automated UI tests run in CI on
+> every push. What is left is external: installer signing (needs a certificate) and
+> a clean-machine check. Plan: [docs/ROADMAP.md](docs/ROADMAP.md), history:
+> [CHANGELOG.md](CHANGELOG.md).
 >
 > Download: [installers from the latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 > or the `kocpad-windows` artifact of the [latest build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml).
@@ -41,12 +42,23 @@ is per-user and needs no administrator rights.
 Every release also ships `SHA256SUMS.txt`, so a download can be verified:
 
 ```powershell
-Get-FileHash .\KOCPAD_0.4.1_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.0.0_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
-## What's new
+## What's new in 1.0
 
+- **Quick capture.** `Ctrl+Alt+N` works from any application: the window comes
+  forward and starts a new note immediately.
+- **Front matter.** A leading `---` block (`title`, `date`, `tags`, any `key: value`)
+  is shown as a compact metadata card, and its tags join the tags panel.
+- **Export theme.** Settings → «Экспорт»: light or dark background for saved HTML
+  and print/PDF output.
+- **Scale.** Note text is cached after the first read, so search, tags and links no
+  longer re-read the folder each time; large folders render in 150-row chunks with
+  «Показать ещё».
+- **Automated tests.** 11 Playwright scenarios cover workspace, editor, tags, links,
+  front matter, settings and drafts — and run in CI.
 - **`[[note]]` links.** Autocomplete after `[[`, clickable links in the preview and
   a «Связи» panel: what links to this note and where it links to. Aliases work:
   `[[Note|custom text]]`.
@@ -87,6 +99,9 @@ Get-FileHash .\KOCPAD_0.4.1_x64-setup.exe -Algorithm SHA256
 | Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
 | Tags | Inline `#tag` and `#work/project`: a «Теги» panel with counts and per-tag note lists; tags inside code blocks are ignored |
 | Links | `[[note]]` and `[[note\|custom text]]`: autocomplete after `[[`, a click in the preview opens the note, and the «Связи» panel lists outgoing and backlinks. Missing targets get a dashed underline |
+| Front matter | A `---` block with `title`, `date`, `tags` and any `key: value`: metadata card in the preview, tags land in the tags panel |
+| Quick capture | Global `Ctrl+Alt+N` from any application: window to the front, new note |
+| Scale | Cached note text for search, tags and links; folders render in 150-row chunks and the filter caps at 300 results with a hint |
 | Bulk actions | `Ctrl+Click` adds a note to the selection, `Shift+Click` takes a range, `Esc` clears it. «Переместить» into any workspace folder, or «Удалить» the whole batch |
 | Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: the text is stored locally and restored after a restart. «Сохранить в папку…» (`Ctrl+S`) turns it into a real `.md` file, `F2` renames it |
 | Closing | On exit: save drafts into a folder, keep them as drafts, or delete them. If the page stops responding, the window still closes |
@@ -101,7 +116,7 @@ Get-FileHash .\KOCPAD_0.4.1_x64-setup.exe -Algorithm SHA256
 | Interface | Light / dark / follow-Windows themes, five accents, configurable editor and preview fonts, editor / split / preview modes, draggable panels |
 | Files in | Drag `.md` or `.txt` files from Explorer into the window: imported into the current folder and opened |
 | Commands | Command palette (`Ctrl+K`) over every action, settings screen (`Ctrl+,`) |
-| Export | Standalone HTML file, print-to-PDF through the system dialog |
+| Export | Standalone HTML file in a light or dark theme, print-to-PDF through the system dialog |
 | Tasks | Click a checkbox in the preview to toggle `- [ ]` in the source |
 
 ## Quick start
@@ -145,6 +160,7 @@ The release build produces an NSIS installer and an MSI under
 ```bash
 npm run typecheck      # TypeScript, no emit
 npm run build          # typecheck + production frontend build
+npm run test:e2e       # 11 Playwright scenarios (starts the dev server itself)
 ```
 
 ## Keyboard shortcuts
@@ -152,6 +168,7 @@ npm run build          # typecheck + production frontend build
 | Keys | Action |
 | --- | --- |
 | `Ctrl+N` | New note (created immediately, no name dialog) |
+| `Ctrl+Alt+N` | Quick capture: global, works even when the KOCPAD window is in the background |
 | `Ctrl+Shift+N` | New folder |
 | `Ctrl+O` | Open folder |
 | `Ctrl+S` | Save now (for a draft: «Сохранить в папку…») |
@@ -199,11 +216,13 @@ the closing brackets.
 | --- | --- |
 | ![Links panel](docs/screenshots/links.png) | ![Wiki links](docs/screenshots/wikilinks.png) |
 
+| Front matter | Settings |
+| --- | --- |
+| ![Front matter](docs/screenshots/frontmatter.png) | ![Settings](docs/screenshots/settings.png) |
+
 | First launch | Draft without a folder |
 | --- | --- |
 | ![First launch](docs/screenshots/onboarding.png) | ![Draft without a folder](docs/screenshots/draft.png) |
-
-![Settings](docs/screenshots/settings.png)
 
 ## How it is built
 
@@ -216,6 +235,7 @@ KOCPAD
 │  ├─ drafts.ts          untitled notes kept in localStorage
 │  ├─ tags.ts            inline #tag parser (code blocks excluded)
 │  ├─ wikilinks.ts       [[note]] parser and preview decoration
+│  ├─ frontmatter.ts     --- block parser and metadata card
 │  ├─ images.ts          pasted images → assets/, relative images → blob URLs
 │  ├─ storage/           three backends behind one interface
 │  │  ├─ tauri.ts        native build → Rust commands
@@ -228,6 +248,7 @@ KOCPAD
 │  ├─ path.ts, util.ts   path and DOM helpers
 │  └─ style.css          design tokens, themes, accents, components
 ├─ scripts/              bump-version.cjs — keeps the three version fields in sync
+├─ tests/                11 Playwright UI scenarios (smoke suite)
 ├─ src-tauri/            Tauri 2 shell
 │  ├─ src/fs_ops.rs      list / read / write / rename / delete / reveal
 │  ├─ src/lib.rs         window, geometry memory, close interception
@@ -254,8 +275,8 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Roadmap
 
 Near-term: sign the installer (needs an OV/EV certificate — the CI step is ready)
-and verify on a clean machine. Then scale: a search index instead of reading every
-file per query, and lazy tree loading for thousands of notes. The full list is in
+and verify it on a clean machine. The post-1.0 backlog holds two notes side by
+side, optional workspace encryption and a mobile build. The full list is in
 [docs/ROADMAP.md](docs/ROADMAP.md), the history in [CHANGELOG.md](CHANGELOG.md),
 all builds in [Releases](https://github.com/ShiDikALexey/KOCPAD/releases).
 

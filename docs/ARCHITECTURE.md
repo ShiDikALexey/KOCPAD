@@ -257,6 +257,45 @@ Export reuses the same rendered HTML inside a standalone document with its own
 stylesheet (`buildExportHtml`). PDF output goes through the system print dialog
 (`printDocument`), which works both in the desktop window and in a browser.
 
+## Search index and large folders
+
+`Store` keeps `textCache: Map<path, string>` — the text of every note it has read.
+Search, tags and backlinks go through `readCached()` instead of `storage.readText()`,
+so the first query reads the workspace and later ones are in-memory. The cache is
+kept honest by construction:
+
+- `saveDoc` writes the snapshot into the cache after the disk write succeeds;
+- rename and move relocate the cached entry, delete removes it (including children
+  of a deleted folder);
+- `refreshTree` prunes entries for files that disappeared;
+- F5 / «Обновить» calls `clearTextCache()` so external edits are picked up.
+
+The tree renders at most 150 rows per folder (`DIR_PAGE_SIZE`) and appends a
+«Показать ещё» button; collapsing a folder resets its pagination. The name filter
+is a flat list capped at 300 matches with an explicit hint.
+
+## Front matter
+
+`src/frontmatter.ts` splits a leading `---` block and parses a deliberately small
+subset: `key: value`, `[a, b]` lists and comma lists. `renderMarkdown()` renders the
+metadata as a `.frontmatter` card and parses only the body, so the delimiters never
+reach the reader. `Store.indexTags()` merges front-matter tags with inline `#tags`;
+other keys are displayed as-is instead of being dropped.
+
+## Export themes
+
+`ExportTheme` is a setting (`light` / `dark`). `buildExportHtml()` takes it and
+appends a dark palette to the document stylesheet; `printDocument()` passes it
+through so print/PDF output matches the chosen paper.
+
+## Quick capture
+
+`tauri-plugin-global-shortcut` registers `CommandOrControl+Alt+N` in Rust. On press
+the handler shows, unminimizes and focuses the main window and evaluates
+`window.__kocpadQuickCapture()`, which the frontend installs next to the close
+handler. No ACL permission is involved: the hotkey lives entirely on the Rust side.
+
+
 ## UI state
 
 `Store` is the only mutable state owner and emits topic events (`tree`, `docs`,

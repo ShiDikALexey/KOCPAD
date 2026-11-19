@@ -5,6 +5,7 @@ import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from
 import { titleFromPath } from './util';
 import { extractTags, tagKey, type TagSummary } from './tags';
 import { extractWikiTargets, normalizeLinkTarget } from './wikilinks';
+import { frontMatterTags, splitFrontMatter } from './frontmatter';
 import {
   draftIdOf,
   draftPathOf,
@@ -46,6 +47,8 @@ export class Store {
   private listeners = new Map<Topic, Set<Handler>>();
   private saveTimers = new Map<string, number>();
   private writes = new Map<string, Promise<void>>();
+  /** Cached file text, so search/tags/links do not re-read the workspace. */
+  private textCache = new Map<string, string>();
   onError: (message: string) => void = () => undefined;
 
   constructor(storage: Storage) {
@@ -151,10 +154,34 @@ export class Store {
   async refreshTree(): Promise<void> {
     try {
       this.tree = pruneAssetFolders(await this.storage.listTree());
+      // Drop cached text for notes that are gone; keep the rest for fast search.
+      const available = new Set(this.flatFiles().map((file) => file.path));
+      for (const path of [...this.textCache.keys()]) {
+        if (!available.has(path)) this.textCache.delete(path);
+      }
       this.emit('tree');
     } catch (error) {
       this.report(error, 'Не удалось прочитать папку');
     }
+  }
+
+  /** Reads a note through the cache; used by search, tags and links. */
+  private async readCached(path: string): Promise<string> {
+    const cached = this.textCache.get(path);
+    if (cached !== undefined) return cached;
+    const text = await this.storage.readText(path);
+    this.textCache.set(path, text);
+    return text;
+  }
+
+  /** F5 / «Обновить»: forget cached text so external edits are picked up. */
+  clearTextCache(): void {
+    this.textCache.clear();
+  }
+
+  /** Notes that already have cached text, for diagnostics. */
+  get cachedNotes(): number {
+    return this.textCache.size;
   }
 
   /** All openable files in the workspace, flattened. */
@@ -279,6 +306,7 @@ export class Store {
     doc.path = target;
     doc.name = name;
     doc.savedContent = doc.content;
+    this.textCache.set(target, doc.content);
     if (this.activePath === draftPath) this.activePath = target;
     this.persistDraftDocs();
     await this.refreshTree();
@@ -331,7 +359,7 @@ export class Store {
       return null;
     }
     try {
-      const content = await this.storage.readText(path);
+      const content = await this.readCached(path);
       const doc: Doc = { path, name: basename(path), content, savedContent: content };
       this.docs = [...this.docs, doc];
       this.activePath = path;
@@ -410,6 +438,7 @@ export class Store {
       }
       // Edits that arrived while writing keep the document dirty.
       doc.savedContent = snapshot;
+      this.textCache.set(path, snapshot);
       if (doc.content === snapshot) this.setStatus(`Сохранено · ${doc.name}`);
       this.emit('docs');
     });
@@ -456,7 +485,8 @@ export class Store {
     const doc = this.docs.find((item) => item.path === path);
     if (!doc) return;
     try {
-      const content = await this.storage.readText(path);
+      this.textCache.delete(path);
+      const content = await this.readCached(path);
       doc.content = content;
       doc.savedContent = content;
       this.emit('docs', 'active');
@@ -506,6 +536,7 @@ export class Store {
     this.writes.clear();
 
     await this.storage.closeRoot();
+    this.textCache.clear();
 
     // Drafts are not tied to a folder: they stay open when the folder is detached.
     const drafts = this.docs.filter((doc) => isDraftPath(doc.path));
@@ -613,6 +644,7 @@ export class Store {
         return target;
       }
       await this.storage.writeText(target, content);
+      this.textCache.set(target, content);
       await this.refreshTree();
       await this.openNote(target);
       this.setStatus(`Добавлено · ${name}`);
@@ -634,6 +666,19 @@ export class Store {
     } catch (error) {
       this.report(error, `Не удалось переименовать ${node.name}`);
       return false;
+    }
+
+    // Cached text follows the file.
+    for (const cachedPath of [...this.textCache.keys()]) {
+      if (cachedPath === node.path) {
+        const text = this.textCache.get(cachedPath)!;
+        this.textCache.delete(cachedPath);
+        this.textCache.set(target, text);
+      } else if (isInside(cachedPath, node.path)) {
+        const text = this.textCache.get(cachedPath)!;
+        this.textCache.delete(cachedPath);
+        this.textCache.set(target + cachedPath.slice(node.path.length), text);
+      }
     }
 
     // Keep tabs pointing at the new paths.
@@ -665,6 +710,10 @@ export class Store {
     } catch (error) {
       this.report(error, `Не удалось удалить ${node.name}`);
       return false;
+    }
+    this.textCache.delete(node.path);
+    for (const cachedPath of [...this.textCache.keys()]) {
+      if (isInside(cachedPath, node.path)) this.textCache.delete(cachedPath);
     }
     for (const doc of [...this.docs]) {
       if (isInside(doc.path, node.path)) {
@@ -720,7 +769,7 @@ export class Store {
     }
     for (const file of this.flatFiles()) {
       try {
-        out.push({ path: file.path, name: file.name, targets: extractWikiTargets(await this.storage.readText(file.path)) });
+        out.push({ path: file.path, name: file.name, targets: extractWikiTargets(await this.readCached(file.path)) });
       } catch {
         // An unreadable file has no links to contribute.
       }
@@ -746,7 +795,9 @@ export class Store {
   async indexTags(): Promise<TagSummary[]> {
     const map = new Map<string, TagSummary>();
     const addText = (path: string, text: string): void => {
-      for (const tag of extractTags(text)) {
+      const { data, body } = splitFrontMatter(text);
+      const found = [...extractTags(body), ...frontMatterTags(data)];
+      for (const tag of found) {
         const key = tagKey(tag);
         let summary = map.get(key);
         if (!summary) {
@@ -761,7 +812,7 @@ export class Store {
     for (const doc of this.draftDocs) addText(doc.path, doc.content);
     for (const file of this.flatFiles()) {
       try {
-        addText(file.path, await this.storage.readText(file.path));
+        addText(file.path, await this.readCached(file.path));
       } catch {
         // An unreadable file simply contributes no tags.
       }
@@ -779,6 +830,7 @@ export class Store {
     for (const path of paths) {
       try {
         await this.storage.remove(path);
+        this.textCache.delete(path);
         deleted += 1;
       } catch {
         failed.push(basename(path));
@@ -812,6 +864,11 @@ export class Store {
         }
         await this.storage.rename(path, target);
         moved += 1;
+        const cachedText = this.textCache.get(path);
+        if (cachedText !== undefined) {
+          this.textCache.delete(path);
+          this.textCache.set(target, cachedText);
+        }
         this.docs = this.docs.map((doc) => (doc.path === path ? { ...doc, path: target, name } : doc));
         if (this.activePath === path) this.activePath = target;
       } catch {
@@ -844,7 +901,7 @@ export class Store {
       if (hits.length >= limit) break;
       let text: string;
       try {
-        text = await this.storage.readText(file.path);
+        text = await this.readCached(file.path);
       } catch {
         continue;
       }

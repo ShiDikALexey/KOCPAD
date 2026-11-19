@@ -6,16 +6,25 @@ import { icon } from './icons';
 import type { AppActions } from './actions';
 import { showMenu } from './dialog';
 
+/** Large folders render in chunks: 150 rows at a time. */
+const DIR_PAGE_SIZE = 150;
+/** Cap for the flat filter list. */
+const FILTER_LIMIT = 300;
+
 /**
  * Workspace tree in the sidebar.
  *
  * Renders folders and notes, keeps expansion state across refreshes, and offers
  * a context menu per node. A filter box turns the tree into a flat match list.
+ * Big folders are drawn in pages, so a library of thousands of notes does not
+ * stall the first paint.
  */
 export class TreeView {
   private expanded = new Set<string>();
   private filter = '';
   private filterInput: HTMLInputElement | null = null;
+  /** How many chunks of a folder are currently shown, keyed by dir path. */
+  private pages = new Map<string, number>();
   /** Selected note paths (files only): Ctrl+Click toggles, Shift+Click ranges. */
   private selection = new Set<string>();
   private anchor: string | null = null;
@@ -130,7 +139,11 @@ export class TreeView {
     this.store.on('tree', () => this.render());
     this.store.on('docs', () => this.render());
     this.store.on('active', () => this.render());
-    this.store.on('root', () => this.render());
+    this.store.on('root', () => {
+      this.pages.clear();
+      this.selection.clear();
+      this.render();
+    });
     this.render();
   }
 
@@ -185,7 +198,7 @@ export class TreeView {
     }
 
     const list = h('div', { class: 'tree__list', role: 'tree', 'aria-label': 'Заметки' });
-    this.renderNodes(this.store.tree, list, 0);
+    this.renderNodes(this.store.tree, list, 0, '');
     this.container.appendChild(list);
     if (this.selection.size) this.container.appendChild(this.renderSelectionBar());
   }
@@ -211,8 +224,9 @@ export class TreeView {
       return;
     }
 
+    const shown = matches.slice(0, FILTER_LIMIT);
     const list = h('div', { class: 'tree__list' });
-    for (const node of matches) {
+    for (const node of shown) {
       const folder = dirname(node.path);
       list.appendChild(
         h(
@@ -229,11 +243,20 @@ export class TreeView {
         ),
       );
     }
+    if (matches.length > shown.length) {
+      list.appendChild(
+        h('p', { class: 'tree__empty-text' }, `Показано ${shown.length} из ${matches.length} — уточните фильтр.`),
+      );
+    }
     this.container.appendChild(list);
   }
 
-  private renderNodes(nodes: NoteNode[], parent: HTMLElement, depth: number): void {
-    for (const node of nodes) {
+  private renderNodes(nodes: NoteNode[], parent: HTMLElement, depth: number, dirKey: string): void {
+    const page = this.pages.get(dirKey) ?? 1;
+    const limit = page * DIR_PAGE_SIZE;
+    const visible = nodes.length > limit ? nodes.slice(0, limit) : nodes;
+
+    for (const node of visible) {
       if (node.kind === 'dir') {
         const isOpen = this.expanded.has(node.path);
         const row = h(
@@ -266,7 +289,7 @@ export class TreeView {
         parent.appendChild(row);
         if (isOpen) {
           const children = h('div', { class: 'node__children', role: 'group' });
-          this.renderNodes(node.children ?? [], children, depth + 1);
+          this.renderNodes(node.children ?? [], children, depth + 1, node.path);
           parent.appendChild(children);
         }
         continue;
@@ -300,11 +323,36 @@ export class TreeView {
         ),
       );
     }
+
+    if (nodes.length > visible.length) {
+      const remaining = nodes.length - visible.length;
+      parent.appendChild(
+        h(
+          'button',
+          {
+            class: 'node tree__more',
+            type: 'button',
+            title: `Показать ещё ${Math.min(remaining, DIR_PAGE_SIZE)} из ${remaining}`,
+            onclick: () => {
+              this.pages.set(dirKey, page + 1);
+              this.render();
+            },
+          },
+          h('span', { class: 'node__twisty node__twisty--empty' }),
+          h('span', { class: 'node__name' }, `Показать ещё · ${remaining}`),
+        ),
+      );
+    }
   }
 
   private toggleDir(path: string): void {
-    if (this.expanded.has(path)) this.expanded.delete(path);
-    else this.expanded.add(path);
+    if (this.expanded.has(path)) {
+      this.expanded.delete(path);
+      // Re-opening a folder starts from the first page again.
+      this.pages.delete(path);
+    } else {
+      this.expanded.add(path);
+    }
     this.render();
   }
 
@@ -333,7 +381,7 @@ export class TreeView {
     showMenu({ x: event.clientX, y: event.clientY }, [
       { label: 'Новая заметка', hint: 'Ctrl+N', onClick: () => this.actions.createNote(this.targetDir()) },
       { label: 'Новая папка', hint: 'Ctrl+Shift+N', onClick: () => this.actions.createFolder(this.targetDir()) },
-      { label: 'Обновить дерево', hint: 'F5', onClick: () => void this.store.refreshTree() },
+      { label: 'Обновить дерево', hint: 'F5', onClick: () => this.actions.refreshWorkspace() },
     ]);
   }
 

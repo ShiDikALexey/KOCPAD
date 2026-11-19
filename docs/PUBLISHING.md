@@ -44,9 +44,11 @@ git push -u origin main
 `.github/workflows/build.yml` runs on the first push:
 
 - **frontend** (Ubuntu): `npm ci` → `npm run typecheck` → `vite build`
+- **e2e** (Ubuntu): `npm ci` → Playwright Chromium → `npm run test:e2e`
 - **windows**: `npm ci` → `npm run tauri:build` → uploads the NSIS installer, the
   MSI and the portable `kocpad.exe` as the `kocpad-windows` artifact
-- **release**: on a `v*` tag the installers are attached to a GitHub Release
+- **release**: on a `v*` tag the installers and `SHA256SUMS.txt` are attached to a
+  GitHub Release
 
 Give the Windows job 10–15 minutes the first time (Rust dependencies compile from
 scratch). Later runs reuse the cargo cache.

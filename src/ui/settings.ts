@@ -1,4 +1,4 @@
-import type { AccentName, EditorKeymap, PreviewFont, Settings, ThemeMode } from '../types';
+import type { AccentName, EditorKeymap, ExportTheme, PreviewFont, Settings, ThemeMode } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import type { Store } from '../store';
 import { h } from '../util';
@@ -47,6 +47,11 @@ const TAB_SIZES: { value: string; label: string }[] = [
 const KEYMAPS: { id: EditorKeymap; label: string }[] = [
   { id: 'default', label: 'Обычная' },
   { id: 'vim', label: 'Vim' },
+];
+
+const EXPORT_THEMES: { id: ExportTheme; label: string }[] = [
+  { id: 'light', label: 'Светлая' },
+  { id: 'dark', label: 'Тёмная' },
 ];
 
 function row(label: string, control: HTMLElement, hint?: string): HTMLElement {
@@ -245,6 +250,14 @@ export function openSettings(store: Store): void {
                 (value) => patch({ autosaveDelay: Number(value) }),
               ),
               'Задержка после последнего нажатия',
+            ),
+          ),
+          section(
+            'Экспорт',
+            row(
+              'Тема HTML и PDF',
+              segmented(EXPORT_THEMES, settings.exportTheme, (exportTheme) => patch({ exportTheme })),
+              'Подложка в сохранённом файле и при печати',
             ),
           ),
         ),

@@ -373,6 +373,14 @@ async function restoreTabs(): Promise<void> {
 
 // ------------------------------------------------------------------- actions
 
+/** Re-reads the workspace and drops cached text so external edits are visible. */
+function reloadWorkspace(): void {
+  store.clearTextCache();
+  void store.refreshTree().then(() => {
+    showToast(`Дерево обновлено · ${store.flatFiles().length} заметок`);
+  });
+}
+
 function targetDirectory(): string {
   const doc = store.activeDoc;
   return doc ? dirname(doc.path) : '';
@@ -530,6 +538,8 @@ const actions: AppActions = {
     void openRecentFolderNow(path);
   },
 
+  refreshWorkspace: () => reloadWorkspace(),
+
   closeWorkspace: () => {
     void closeCurrentWorkspace();
   },
@@ -680,7 +690,10 @@ const actions: AppActions = {
         return;
       }
       const title = documentTitle(doc.name);
-      const html = buildExportHtml(title, renderMarkdown(doc.content), { subtitle: doc.path });
+      const html = buildExportHtml(title, renderMarkdown(doc.content), {
+        subtitle: doc.path,
+        theme: store.settings.exportTheme,
+      });
       const saved = await store.storage.saveAs(`${title}.html`, html, 'text/html;charset=utf-8');
       if (saved) showToast(store.storage.kind === 'tauri' ? `Сохранено: ${saved}` : 'HTML-файл скачан', 'success');
     })();
@@ -692,7 +705,7 @@ const actions: AppActions = {
       showToast('Откройте заметку для печати', 'error');
       return;
     }
-    printDocument(documentTitle(doc.name), renderMarkdown(doc.content), doc.path);
+    printDocument(documentTitle(doc.name), renderMarkdown(doc.content), doc.path, store.settings.exportTheme);
     showToast('Выберите «Сохранить как PDF» в диалоге печати');
   },
 
@@ -815,7 +828,7 @@ function palette(): void {
     { label: `${store.settings.syncScroll ? 'Выключить' : 'Включить'} синхронную прокрутку`, run: actions.toggleSyncScroll },
     { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', run: actions.exportHtml },
     { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', run: actions.printPdf },
-    { label: 'Обновить дерево заметок', hint: 'F5', run: () => void store.refreshTree() },
+    { label: 'Обновить дерево заметок', hint: 'F5', run: () => actions.refreshWorkspace() },
   ];
   openPalette(commands);
 }
@@ -834,6 +847,7 @@ function mountToolbar(): void {
   document.getElementById('btn-close-folder')?.addEventListener('click', () => actions.closeWorkspace());
   document.getElementById('btn-new-note')?.addEventListener('click', () => actions.createNote());
   document.getElementById('btn-new-folder')?.addEventListener('click', () => actions.createFolder());
+  document.getElementById('btn-refresh')?.addEventListener('click', () => actions.refreshWorkspace());
   document.getElementById('btn-search')?.addEventListener('click', () => actions.openGlobalSearch());
   document.getElementById('btn-palette')?.addEventListener('click', () => actions.openPalette());
   document.getElementById('btn-theme')?.addEventListener('click', () => actions.toggleTheme());
@@ -866,7 +880,7 @@ function mountToolbar(): void {
         label: store.settings.syncScroll ? '✓ Синхронная прокрутка' : 'Синхронная прокрутка',
         onClick: actions.toggleSyncScroll,
       },
-      { label: 'Обновить дерево', hint: 'F5', onClick: () => void store.refreshTree() },
+      { label: 'Обновить дерево', hint: 'F5', onClick: () => actions.refreshWorkspace() },
       { label: `Папка: ${store.rootName}`, onClick: () => actions.openFolder() },
     ]);
   });
@@ -951,7 +965,7 @@ function mountShortcuts(): void {
 
     if (event.key === 'F5') {
       event.preventDefault();
-      void store.refreshTree();
+      actions.refreshWorkspace();
       return;
     }
     if (event.key === 'F2') {
@@ -1196,6 +1210,10 @@ function mountCloseInterception(): void {
   if (!isTauriRuntime()) return;
   (window as unknown as { __kocpadRequestClose?: () => void }).__kocpadRequestClose = () => {
     void handleCloseRequest();
+  };
+  // Global hotkey handled in Rust: focus the window and start a note.
+  (window as unknown as { __kocpadQuickCapture?: () => void }).__kocpadQuickCapture = () => {
+    void createNoteNow();
   };
   void invoke('kocpad_ready').catch(() => undefined);
 }

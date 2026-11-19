@@ -4,6 +4,33 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.0.0] — 2026-11-19
+
+First stable release. Everything from the roadmap that does not need a purchased
+certificate or a different platform is in.
+
+### Added
+
+- **Quick capture (Ctrl+Alt+N).** A global hotkey handled in Rust: KOCPAD comes to
+  the front from any application and starts a new note.
+- **Front matter.** A leading `---` block is parsed (`title`, `date`, `tags` and any
+  other `key: value`) and rendered as a compact metadata card above the note;
+  front-matter tags join the tags panel. The raw block disappears from the preview.
+- **Export themes.** Settings → Экспорт: light or dark background for saved HTML and
+  print/PDF output.
+- **Search index.** Note text is cached in memory after the first read and reused by
+  search, tags and links; writes, renames, deletes and F5 keep the cache honest.
+- **Large folders.** The tree renders 150 rows per folder chunk with «Показать ещё»,
+  and the name filter caps at 300 results with a hint to narrow it down.
+- **Automated smoke tests.** Eleven Playwright tests cover workspace, editor,
+  tags, links, front matter, settings, drafts and the reload path; CI runs them on
+  every push.
+
+### Fixed
+
+- The sidebar «Обновить» button existed in the markup but was never wired; it now
+  re-reads the tree and reports the note count.
+
 ## [0.4.1] — 2026-11-19
 
 Wiki links: notes can now point at each other.

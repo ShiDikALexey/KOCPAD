@@ -24,5 +24,11 @@ Desktop.ini
 src-tauri/target/
 src-tauri/gen/
 
+# Tests
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # Local notes used while developing
 scratch/

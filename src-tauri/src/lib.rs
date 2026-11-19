@@ -2,6 +2,7 @@ mod fs_ops;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
+use tauri_plugin_global_shortcut::ShortcutState;
 
 /// Set once the webview is alive and has registered its close handler.
 /// Before that the window closes normally instead of being held open.
@@ -27,6 +28,25 @@ pub fn run() {
         // Restores the window size and position from the previous run.
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
+        // Quick capture: Ctrl+Alt+N works even when KOCPAD is in the background.
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcut("CommandOrControl+Alt+N")
+                .expect("valid quick-capture shortcut")
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() != ShortcutState::Pressed {
+                        return;
+                    }
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
+                        let _ = window
+                            .eval("window.__kocpadQuickCapture && window.__kocpadQuickCapture();");
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             fs_ops::fs_list_tree,
             fs_ops::fs_read_text,

@@ -10,11 +10,12 @@ npm run dev            # browser build on http://localhost:1420
 npm run tauri:dev      # desktop window (needs Rust + MSVC Build Tools)
 ```
 
-Before pushing, both of these must pass:
+Before pushing, all of these must pass:
 
 ```bash
 npm run typecheck
 npm run build
+npm run test:e2e       # Playwright smoke suite (starts the dev server itself)
 ```
 
 ## Conventions

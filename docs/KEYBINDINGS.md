@@ -8,6 +8,7 @@
 | Keys | Action |
 | --- | --- |
 | `Ctrl+N` | New note: a draft appears immediately, no folder and no name dialog |
+| `Ctrl+Alt+N` | Quick capture — global hotkey: brings KOCPAD to the front and starts a note, works from any application |
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
 | `Ctrl+S` | Save now; for a draft this opens «Сохранить в папку…» |

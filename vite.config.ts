@@ -11,7 +11,13 @@ export default defineConfig({
     strictPort: true,
     host: host || false,
     watch: {
-      ignored: ['**/src-tauri/**'],
+      ignored: [
+        '**/src-tauri/**',
+        '**/.tmp/**',
+        '**/test-results/**',
+        '**/playwright-report/**',
+        '**/dist/**',
+      ],
     },
   },
   build: {

@@ -81,10 +81,29 @@
 - [x] Internal links `[[note]]` with autocomplete and a backlinks panel
       (outgoing links, reverse links, click navigation)
 
-## 0.4.2 — scale
+## 0.4.2 — scale (folded into 1.0.0)
 
-- [ ] Lazy tree loading for folders with thousands of notes
-- [ ] Incremental workspace search index (currently reads files on each query)
+- [x] Incremental workspace search index: note text is cached after the first read
+      and invalidated on write, rename, delete and F5
+- [x] Lazy tree loading: 150 rows per folder chunk with «Показать ещё», filter
+      capped at 300 results
+
+## 1.0.0 — stable (done)
+
+- [x] Quick capture on the global hotkey `Ctrl+Alt+N` (Rust global-shortcut)
+- [x] Front matter card (`title`, `date`, `tags`, arbitrary keys)
+- [x] Export theme setting for HTML and print/PDF
+- [x] Playwright smoke tests in CI (11 scenarios)
+- [x] Sidebar refresh button actually works
+- [ ] Code-sign the installer — still blocked on an OV/EV certificate; CI step ready
+- [ ] Verify the released installer on a clean Windows machine
+
+## After 1.0 (backlog)
+
+- [ ] Two notes side by side
+- [ ] Optional workspace encryption
+- [ ] Mobile build (Tauri 2 targets) — the storage seam already allows it
+- [ ] Sync server or cloud accounts are explicitly out of scope
 
 ## Later / ideas
 

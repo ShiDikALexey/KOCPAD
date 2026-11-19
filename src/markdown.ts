@@ -1,6 +1,8 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js/lib/common';
+import { renderFrontMatterCard, splitFrontMatter } from './frontmatter';
+import type { ExportTheme } from './types';
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -11,10 +13,13 @@ const SANITIZE_CONFIG = {
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'style'],
 };
 
-/** Renders markdown to sanitized HTML. */
+/** Renders markdown to sanitized HTML, with front matter as a metadata card. */
 export function renderMarkdown(source: string): string {
-  const raw = marked.parse(source) as string;
-  return DOMPurify.sanitize(raw, SANITIZE_CONFIG);
+  const { data, body } = splitFrontMatter(source);
+  const card = renderFrontMatterCard(data);
+  const raw = marked.parse(body) as string;
+  const clean = DOMPurify.sanitize(card + raw, SANITIZE_CONFIG);
+  return clean;
 }
 
 /**
@@ -128,18 +133,37 @@ del { color: var(--ink-muted); }
 }
 `;
 
+/** Extra palette for dark exports and printouts. */
+const DARK_DOCUMENT_CSS = `
+:root {
+  --ink: #e8eaed; --ink-muted: #9aa2ad; --line: #2a313b; --accent: #f0c243;
+  --code-bg: #1a1f26; --quote-bar: #f0c243;
+  --c-keyword: #c98fe8; --c-string: #86c9a4; --c-comment: #6f7783;
+  --c-number: #e2a06a; --c-title: #7fb4f2; --c-type: #7fb4f2;
+}
+body { background: #13161a; color: var(--ink); }
+th { background: #1a1f26; }
+a { color: #7fb4f2; }
+:not(pre) > code { background: var(--code-bg); color: #cda6ef; }
+`;
+
 /** Builds a standalone, self-contained HTML document for export or printing. */
-export function buildExportHtml(title: string, bodyHtml: string, options: { subtitle?: string } = {}): string {
+export function buildExportHtml(
+  title: string,
+  bodyHtml: string,
+  options: { subtitle?: string; theme?: ExportTheme } = {},
+): string {
   const subtitle = options.subtitle
     ? `<p class="doc-meta">${escapeText(options.subtitle)}</p>`
     : '';
+  const themeCss = options.theme === 'dark' ? DARK_DOCUMENT_CSS : '';
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeText(title)}</title>
-<style>${DOCUMENT_CSS}</style>
+<style>${DOCUMENT_CSS}${themeCss}</style>
 </head>
 <body>
 <article>
@@ -152,8 +176,13 @@ ${bodyHtml}
 }
 
 /** Prints the rendered document, which is how KOCPAD produces a PDF. */
-export function printDocument(title: string, bodyHtml: string, subtitle?: string): void {
-  const html = buildExportHtml(title, bodyHtml, { subtitle });
+export function printDocument(
+  title: string,
+  bodyHtml: string,
+  subtitle?: string,
+  theme: ExportTheme = 'light',
+): void {
+  const html = buildExportHtml(title, bodyHtml, { subtitle, theme });
   const frame = document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';

@@ -5,6 +5,8 @@ export interface AppActions {
   openFolder(): void;
   openRecentFolder(path: string): void;
   closeWorkspace(): void;
+  /** Re-reads the tree and forgets cached note text (F5). */
+  refreshWorkspace(): void;
   createNote(parentDir?: string): void;
   createFolder(parentDir?: string): void;
   renameEntry(node: NoteNode): void;
