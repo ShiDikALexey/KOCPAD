@@ -130,6 +130,20 @@ jobs:
           name: kocpad-windows
           path: artifacts
 
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem artifacts -Recurse -File | Sort-Object Name
+          if ($files.Count -eq 0) { throw 'No installers to checksum' }
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($file.Name)"
+          }
+          # LF line endings, UTF-8 without BOM: that is what sha256sum expects.
+          $text = ($lines -join "`n") + "`n"
+          [IO.File]::WriteAllText((Join-Path $PWD 'artifacts/SHA256SUMS.txt'), $text, (New-Object System.Text.UTF8Encoding($false)))
+          Get-Content artifacts/SHA256SUMS.txt
+
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:

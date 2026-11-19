@@ -53,6 +53,7 @@
 | `Ctrl+K` | Command palette |
 | `Ctrl+,` | Settings |
 | `Ctrl+Shift+O` | Outline panel (headings of the current note) |
+| — | Tags panel: palette (`Ctrl+K`) → «Панель: теги», or the «Теги» tab |
 | `Ctrl+\` | Show or hide the sidebar |
 | `Ctrl+Shift+L` | Switch between light and dark theme |
 | `Esc` | Close any dialog, palette or overlay |
@@ -64,6 +65,16 @@
 | `Ctrl+V` with an image in the clipboard | Image saved to `assets/` next to the note, `![](...)` inserted at the caret |
 | Drop an image file onto the window | Same as paste |
 | Drop a `.md` / `.txt` file from Explorer | Imported into the current note's folder and opened (an existing note with that name is opened instead) |
+
+## Multi-select in the tree
+
+| Keys | Action |
+| --- | --- |
+| `Ctrl+Click` | Add a note to the selection or remove it |
+| `Shift+Click` | Select the range from the last clicked note |
+| `Esc` | Clear the selection |
+| Selection bar → «Переместить» | Move every selected note into another workspace folder |
+| Selection bar → «Удалить» | Delete every selected note after one confirmation |
 
 ## Vim mode
 

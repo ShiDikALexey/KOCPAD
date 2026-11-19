@@ -59,7 +59,8 @@ git push origin v0.1.0
 ```
 
 The workflow builds the installers and publishes a release with generated notes.
-Bump the version with the script — it updates `package.json`,
+The release job also writes `SHA256SUMS.txt` next to the installers, so anyone can
+verify a download. Bump the version with the script — it updates `package.json`,
 `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` in one go and writes plain
 UTF-8 (PowerShell's `Set-Content` adds a BOM, which Tauri's config parser rejects):
 

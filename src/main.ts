@@ -16,9 +16,11 @@ import { TabsView } from './ui/tabs';
 import { StatusBar } from './ui/statusbar';
 import { GlobalSearchPanel } from './ui/gsearch';
 import { OutlineView } from './ui/outline';
+import { TagsView } from './ui/tags';
 import { openPalette, type Command } from './ui/palette';
 import { openSettings } from './ui/settings';
 import { choiceDialog, confirmAction, promptText, showMenu, showToast } from './ui/dialog';
+import { folderPicker } from './ui/pickers';
 import { icon, type IconName } from './ui/icons';
 import type { AppActions } from './ui/actions';
 import { ImageStore } from './images';
@@ -27,7 +29,7 @@ import { isTauriRuntime } from './storage';
 import { invoke } from '@tauri-apps/api/core';
 import type { EditorKeymap, PreviewFont, SidebarTab, ViewMode } from './types';
 import { basename, dirname, isTextFile, joinPath } from './path';
-import { clamp, debounce } from './util';
+import { clamp, debounce, plural } from './util';
 
 const TABS_KEY = 'kocpad.tabs';
 
@@ -51,6 +53,7 @@ const dom = {
   tree: must('tree'),
   treeFilter: must<HTMLInputElement>('tree-filter'),
   outline: must('outline'),
+  tags: must('tags'),
   tabs: must('tabs'),
   panes: must('panes'),
   editorHost: must('editor'),
@@ -115,8 +118,10 @@ function applySidebarTab(): void {  const tab = store.settings.sidebarTab;
   const notesVisible = tab === 'notes';
   dom.tree.hidden = !notesVisible;
   dom.treeFilter.hidden = !notesVisible;
-  dom.outline.hidden = notesVisible;
-  if (!notesVisible) outline.render();
+  dom.outline.hidden = tab !== 'outline';
+  dom.tags.hidden = tab !== 'tags';
+  if (tab === 'outline') outline.render();
+  if (tab === 'tags') tagsView.activate();
 }
 
 /** Close-folder control only exists while a workspace is connected. */
@@ -552,6 +557,47 @@ const actions: AppActions = {
     })();
   },
 
+  deleteSelected: (paths) => {
+    void (async () => {
+      if (!paths.length) return;
+      const ok = await confirmAction({
+        title: 'Удалить заметки?',
+        message: `Удалить ${paths.length} ${plural(paths.length, 'заметку', 'заметки', 'заметок')}? Файлы удаляются с диска, отменить это внутри KOCPAD нельзя.`,
+        confirmLabel: 'Удалить',
+        danger: true,
+      });
+      if (!ok) return;
+      const result = await store.deleteMany(paths);
+      tree.clearSelection();
+      showToast(
+        result.failed.length
+          ? `Удалено: ${result.deleted}, не удалось: ${result.failed.length}`
+          : `Удалено: ${result.deleted}`,
+        result.failed.length ? 'error' : 'success',
+      );
+    })();
+  },
+
+  moveSelected: (paths) => {
+    void (async () => {
+      if (!paths.length) return;
+      const folders = store.listFolders();
+      if (folders.length <= 1) {
+        showToast('В рабочей папке нет других папок — перемещать некуда', 'info');
+        return;
+      }
+      const target = await folderPicker({
+        title: `Переместить ${paths.length} ${plural(paths.length, 'заметку', 'заметки', 'заметок')}`,
+        folders,
+      });
+      if (target === null) return;
+      const result = await store.moveMany(paths, target);
+      tree.clearSelection();
+      const skipped = result.skipped.length ? `, пропущено: ${result.skipped.length}` : '';
+      showToast(`Перемещено: ${result.moved}${skipped}`, result.skipped.length ? 'info' : 'success');
+    })();
+  },
+
   openNote: (path, options) => {
     void (async () => {
       const doc = await store.openNote(path);
@@ -702,6 +748,7 @@ const tabsView = new TabsView(dom.tabs, store, actions);
 const statusBar = new StatusBar(store);
 const searchPanel = new GlobalSearchPanel(store, actions);
 const outline = new OutlineView(dom.outline, store, actions);
+const tagsView = new TagsView(dom.tags, store, actions);
 
 function palette(): void {
   const commands: Command[] = [
@@ -726,6 +773,7 @@ function palette(): void {
         }]
       : []),
     { label: 'Панель: контур заметки', hint: 'Ctrl+Shift+O', run: () => actions.setSidebarTab('outline') },
+    { label: 'Панель: теги', run: () => actions.setSidebarTab('tags') },
     { label: 'Панель: дерево заметок', run: () => actions.setSidebarTab('notes') },
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
     { label: 'Перечитать файл с диска', run: actions.reloadActive },
@@ -869,6 +917,11 @@ function overlayOpen(): boolean {
 
 function mountShortcuts(): void {
   window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !overlayOpen() && tree.hasSelection) {
+      event.preventDefault();
+      tree.clearSelection();
+      return;
+    }
     if (event.key === 'Escape' && overlayOpen()) return;
 
     const mod = event.ctrlKey || event.metaKey;
@@ -1146,6 +1199,7 @@ async function boot(): Promise<void> {
   tabsView.mount();
   statusBar.mount();
   outline.mount();
+  tagsView.mount();
 
   store.on('active', () => {
     syncActive();

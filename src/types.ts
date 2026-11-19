@@ -4,7 +4,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type ViewMode = 'editor' | 'split' | 'preview';
 
-export type SidebarTab = 'notes' | 'outline';
+export type SidebarTab = 'notes' | 'outline' | 'tags';
 
 export type AccentName = 'marker' | 'azure' | 'jade' | 'iris' | 'rose';
 

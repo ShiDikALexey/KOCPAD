@@ -161,6 +161,38 @@ imported into the active note's folder and opened; an existing note with the sam
 name is opened instead of overwritten. Dropped images follow the image pipeline
 above.
 
+## Tags
+
+`src/tags.ts` extracts inline tags from a document:
+
+- a tag is `#` at the start of a line or after whitespace/an opening bracket, then
+  letters, digits, `_`, `-` or `/` — so `#работа/проект` is one tag;
+- fenced code blocks and inline code spans are removed before matching, so a
+  `#fff` colour in a CSS snippet is not a tag;
+- comparison is case-insensitive (`toLocaleLowerCase('ru')`), display uses the
+  first spelling that was seen.
+
+`Store.indexTags()` walks drafts and every workspace file, reads the text and
+aggregates `{ tag, key, count, paths }`, sorted by count. There is no cache yet:
+the panel re-indexes when it is opened or when the tree changes, which is fine for
+hundreds of notes (an index is on the roadmap for thousands).
+
+## Bulk actions
+
+`TreeView` keeps a `Set<path>` of selected notes (files only; folders are not
+selectable). `Ctrl+Click` toggles, `Shift+Click` takes the range from the anchor in
+the rendered row order, `Esc` clears. The action bar calls `Store.deleteMany()` /
+`Store.moveMany()`:
+
+- both refresh the tree once instead of once per file;
+- `moveMany` skips a target that already exists and reports how many were moved and
+  skipped, instead of overwriting;
+- open tabs follow the moved files, because the store rewrites their paths;
+- selections are pruned on every render if the note no longer exists.
+
+The move target comes from `ui/pickers.ts`, a small folder chooser built from
+`Store.listFolders()` (the workspace root plus every directory in the tree).
+
 ## Drafts
 
 A note does not need a folder to exist. Documents without a file are represented

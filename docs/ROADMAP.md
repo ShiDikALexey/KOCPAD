@@ -54,8 +54,6 @@
       a browser)
 - [x] First-run onboarding: one dialog, «Начать с черновика» or «Открыть папку»
 - [x] Configurable tab width (2/4/8) and an optional Vim keymap, loaded on demand
-- [ ] Code-sign the exe and installer — CI plumbing is in place (optional
-      `WINDOWS_CERTIFICATE` secret), blocked on buying a certificate
 
 ## 0.3.2 — localization pass (done)
 
@@ -68,15 +66,21 @@
 - [ ] Buy or obtain an OV/EV code-signing certificate and add the two CI secrets
 - [ ] Verify the release on a clean Windows machine (fresh profile, no WebView2
       cache) and document the first launch
-- [ ] Attach a checksum file (`SHA256SUMS`) to the release assets
+- [x] Attach a checksum file (`SHA256SUMS`) to the release assets — done in the CI
+      release job since v0.4.0
 
-## 0.4.0 — larger libraries
+## 0.4.0 — tags and bulk actions (done)
+
+- [x] Tags `#tag`: sidebar panel with counts and per-tag note lists; code blocks
+      and inline code are ignored
+- [x] Multi-select in the tree (`Ctrl+Click`, `Shift+Click`) with bulk move to a
+      folder and bulk delete
+
+## 0.4.1 — links and scale
 
 - [ ] Lazy tree loading for folders with thousands of notes
 - [ ] Incremental workspace search index (currently reads files on each query)
 - [ ] Internal links `[[note]]` with autocomplete and backlinks
-- [ ] Tags `#tag` and a tag filter
-- [ ] Multi-select in the tree for bulk move/delete
 
 ## Later / ideas
 

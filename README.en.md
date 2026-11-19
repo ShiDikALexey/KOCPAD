@@ -12,10 +12,10 @@ to disk as you type and shows the rendered result next to the source. Notes are
 plain `.md` files: no accounts, no database, no proprietary format — they open in
 any other editor.
 
-> Status: working alpha **`0.3.2`**. Writing, saving, searching, pasting images and
-> closing without data loss all work today; installer signing and large-library
-> features are next. Plan: [docs/ROADMAP.md](docs/ROADMAP.md), history:
-> [CHANGELOG.md](CHANGELOG.md).
+> Status: working alpha **`0.4.0`**. Writing, saving, searching, tagging, bulk
+> selection and closing without data loss all work today; installer signing,
+> `[[note]]` links and thousands-of-notes scale are next. Plan:
+> [docs/ROADMAP.md](docs/ROADMAP.md), history: [CHANGELOG.md](CHANGELOG.md).
 >
 > Download: [installers from the latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 > or the `kocpad-windows` artifact of the [latest build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml).
@@ -38,8 +38,19 @@ PC" on first launch: **More info** → **Run anyway**. CI already has a signing 
 only the certificate is missing ([docs/ROADMAP.md](docs/ROADMAP.md)). The installer
 is per-user and needs no administrator rights.
 
-## What's new in 0.3.x
+Every release also ships `SHA256SUMS.txt`, so a download can be verified:
 
+```powershell
+Get-FileHash .\KOCPAD_0.4.0_x64-setup.exe -Algorithm SHA256
+# compare with the matching line in SHA256SUMS.txt
+```
+
+## What's new
+
+- **Tags `#tag`.** A «Теги» sidebar panel: every tag with a note count and the
+  list of notes that use it. Code blocks are not treated as tags.
+- **Bulk actions.** `Ctrl+Click` and `Shift+Click` select several notes, then
+  «Переместить» moves them into another folder or «Удалить» deletes them at once.
 - **Drafts without a folder.** `Ctrl+N` opens a blank page instantly: the text is
   kept locally and comes back after a restart, and «Сохранить в папку…» turns the
   draft into a real `.md` file.
@@ -71,6 +82,8 @@ is per-user and needs no administrator rights.
 | Area | What works today |
 | --- | --- |
 | Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
+| Tags | Inline `#tag` and `#work/project`: a «Теги» panel with counts and per-tag note lists; tags inside code blocks are ignored |
+| Bulk actions | `Ctrl+Click` adds a note to the selection, `Shift+Click` takes a range, `Esc` clears it. «Переместить» into any workspace folder, or «Удалить» the whole batch |
 | Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: the text is stored locally and restored after a restart. «Сохранить в папку…» (`Ctrl+S`) turns it into a real `.md` file, `F2` renames it |
 | Closing | On exit: save drafts into a folder, keep them as drafts, or delete them. If the page stops responding, the window still closes |
 | Workspace | Open a folder, close it, connect another one; the last folder is remembered, recent folders live in the palette (`Ctrl+K`), open tabs are restored |
@@ -158,6 +171,9 @@ npm run build          # typecheck + production frontend build
 
 Full list with context (and the Vim section): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md).
 
+In the notes tree: `Ctrl+Click` adds a note to the selection, `Shift+Click` takes a
+range, `Esc` clears the selection.
+
 ## Screenshots
 
 | Light | Dark |
@@ -167,6 +183,10 @@ Full list with context (and the Vim section): [docs/KEYBINDINGS.md](docs/KEYBIND
 | Workspace search | Outline panel |
 | --- | --- |
 | ![Workspace search](docs/screenshots/search.png) | ![Outline panel](docs/screenshots/outline.png) |
+
+| Tags panel | Bulk actions |
+| --- | --- |
+| ![Tags panel](docs/screenshots/tags.png) | ![Bulk actions](docs/screenshots/selection.png) |
 
 | First launch | Draft without a folder |
 | --- | --- |
@@ -183,6 +203,7 @@ KOCPAD
 │  ├─ main.ts            wiring: theme, layout, shortcuts, autosave
 │  ├─ store.ts           single source of truth: settings, tree, tabs, saves
 │  ├─ drafts.ts          untitled notes kept in localStorage
+│  ├─ tags.ts            inline #tag parser (code blocks excluded)
 │  ├─ images.ts          pasted images → assets/, relative images → blob URLs
 │  ├─ storage/           three backends behind one interface
 │  │  ├─ tauri.ts        native build → Rust commands
@@ -190,8 +211,8 @@ KOCPAD
 │  │  └─ demo.ts         in-memory sample workspace
 │  ├─ editor.ts          CodeMirror 6 wrapper, per-document EditorState
 │  ├─ markdown.ts        GFM render, sanitizing, syntax highlight, print/export
-│  ├─ ui/                tree, outline, tabs, status bar, dialogs, palette,
-│  │                     search, settings
+│  ├─ ui/                tree, outline, tags, tabs, status bar, dialogs, folder
+│  │                     picker, palette, search, settings
 │  ├─ path.ts, util.ts   path and DOM helpers
 │  └─ style.css          design tokens, themes, accents, components
 ├─ scripts/              bump-version.cjs — keeps the three version fields in sync
@@ -221,11 +242,10 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Roadmap
 
 Near-term: sign the installer (needs an OV/EV certificate — the CI step is ready)
-and verify on a clean machine. Then larger libraries: tags, `[[note]]` links with
-backlinks, a search index and lazy tree loading for thousands of notes. The full
-list is in [docs/ROADMAP.md](docs/ROADMAP.md), the history in
-[CHANGELOG.md](CHANGELOG.md), all builds in
-[Releases](https://github.com/ShiDikALexey/KOCPAD/releases).
+and verify on a clean machine. Then `[[note]]` links with backlinks, a search
+index and lazy tree loading for thousands of notes. The full list is in
+[docs/ROADMAP.md](docs/ROADMAP.md), the history in [CHANGELOG.md](CHANGELOG.md),
+all builds in [Releases](https://github.com/ShiDikALexey/KOCPAD/releases).
 
 ## Contributing
 

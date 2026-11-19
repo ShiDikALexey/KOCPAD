@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
 import { titleFromPath } from './util';
+import { extractTags, tagKey, type TagSummary } from './tags';
 import {
   draftIdOf,
   draftPathOf,
@@ -574,7 +575,28 @@ export class Store {
   get importDir(): string {
     const doc = this.activeDoc;
     if (doc && !isDraftPath(doc.path)) return dirname(doc.path);
+    return this.workspaceRootDir;
+  }
+
+  /** Absolute workspace root in the native build, '' for relative backends. */
+  get workspaceRootDir(): string {
     return this.storage.kind === 'tauri' ? this.storage.root ?? '' : '';
+  }
+
+  /** Folders of the workspace, used by the "move to…" picker. */
+  listFolders(): { path: string; label: string; depth: number }[] {
+    const out: { path: string; label: string; depth: number }[] = [
+      { path: this.workspaceRootDir, label: this.rootName, depth: 0 },
+    ];
+    const walk = (nodes: NoteNode[], depth: number): void => {
+      for (const node of nodes) {
+        if (node.kind !== 'dir') continue;
+        out.push({ path: node.path, label: node.name, depth });
+        walk(node.children ?? [], depth + 1);
+      }
+    };
+    walk(this.tree, 1);
+    return out;
   }
 
   /** Copies text content into the workspace and opens it. */
@@ -654,6 +676,89 @@ export class Store {
   }
 
   // ---------------------------------------------------------------- search
+
+  /** Collects `#tags` across drafts and files, with counts, most used first. */
+  async indexTags(): Promise<TagSummary[]> {
+    const map = new Map<string, TagSummary>();
+    const addText = (path: string, text: string): void => {
+      for (const tag of extractTags(text)) {
+        const key = tagKey(tag);
+        let summary = map.get(key);
+        if (!summary) {
+          summary = { tag, key, count: 0, paths: [] };
+          map.set(key, summary);
+        }
+        summary.count += 1;
+        if (!summary.paths.includes(path)) summary.paths.push(path);
+      }
+    };
+
+    for (const doc of this.draftDocs) addText(doc.path, doc.content);
+    for (const file of this.flatFiles()) {
+      try {
+        addText(file.path, await this.storage.readText(file.path));
+      } catch {
+        // An unreadable file simply contributes no tags.
+      }
+    }
+
+    return [...map.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'ru'));
+  }
+
+  // ------------------------------------------------------------ bulk actions
+
+  /** Deletes several files at once and refreshes the tree once. */
+  async deleteMany(paths: string[]): Promise<{ deleted: number; failed: string[] }> {
+    const failed: string[] = [];
+    let deleted = 0;
+    for (const path of paths) {
+      try {
+        await this.storage.remove(path);
+        deleted += 1;
+      } catch {
+        failed.push(basename(path));
+      }
+    }
+    for (const doc of [...this.docs]) {
+      if (paths.some((path) => isInside(doc.path, path))) await this.closeDoc(doc.path, true);
+    }
+    await this.refreshTree();
+    this.setStatus(`Удалено: ${deleted}${failed.length ? `, не удалось: ${failed.length}` : ''}`);
+    return { deleted, failed };
+  }
+
+  /** Moves notes into another workspace folder; collisions are skipped. */
+  async moveMany(paths: string[], targetDir: string): Promise<{ moved: number; skipped: string[] }> {
+    const dir = targetDir || this.workspaceRootDir;
+    const skipped: string[] = [];
+    let moved = 0;
+
+    for (const path of paths) {
+      const name = basename(path);
+      const target = joinPath(dir, name);
+      if (normalizePath(target) === normalizePath(path)) {
+        skipped.push(name);
+        continue;
+      }
+      try {
+        if (await this.storage.exists(target)) {
+          skipped.push(name);
+          continue;
+        }
+        await this.storage.rename(path, target);
+        moved += 1;
+        this.docs = this.docs.map((doc) => (doc.path === path ? { ...doc, path: target, name } : doc));
+        if (this.activePath === path) this.activePath = target;
+      } catch {
+        skipped.push(name);
+      }
+    }
+
+    await this.refreshTree();
+    this.emit('docs', 'active');
+    this.setStatus(`Перемещено: ${moved}${skipped.length ? `, пропущено: ${skipped.length}` : ''}`);
+    return { moved, skipped };
+  }
 
   /**
    * Case-insensitive search across every note in the workspace plus open drafts.

@@ -9,6 +9,9 @@ export interface AppActions {
   createFolder(parentDir?: string): void;
   renameEntry(node: NoteNode): void;
   deleteEntry(node: NoteNode): void;
+  /** Bulk actions from the tree multi-select. */
+  deleteSelected(paths: string[]): void;
+  moveSelected(paths: string[]): void;
   openNote(path: string, options?: { line?: number; column?: number }): void;
   /** Closes a tab: drafts are deleted, files are saved and closed. */
   closeTab(path: string): void;

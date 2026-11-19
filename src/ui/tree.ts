@@ -16,12 +16,104 @@ export class TreeView {
   private expanded = new Set<string>();
   private filter = '';
   private filterInput: HTMLInputElement | null = null;
+  /** Selected note paths (files only): Ctrl+Click toggles, Shift+Click ranges. */
+  private selection = new Set<string>();
+  private anchor: string | null = null;
 
   constructor(
     private container: HTMLElement,
     private store: Store,
     private actions: AppActions,
   ) {}
+
+  get hasSelection(): boolean {
+    return this.selection.size > 0;
+  }
+
+  clearSelection(render = true): void {
+    if (!this.selection.size) return;
+    this.selection.clear();
+    this.anchor = null;
+    if (render) this.render();
+  }
+
+  private toggleSelection(path: string): void {
+    if (this.selection.has(path)) this.selection.delete(path);
+    else this.selection.add(path);
+    this.anchor = path;
+    this.render();
+  }
+
+  /** Shift+Click selects the range between the anchor and the clicked note. */
+  private selectRange(path: string): void {
+    const order = Array.from(this.container.querySelectorAll<HTMLElement>('.node--file'))
+      .map((element) => element.dataset.path)
+      .filter((item): item is string => Boolean(item));
+    const to = order.indexOf(path);
+    const from = this.anchor ? order.indexOf(this.anchor) : -1;
+    if (to < 0) return;
+    if (from < 0) {
+      this.selection.add(path);
+    } else {
+      const [start, end] = from <= to ? [from, to] : [to, from];
+      for (let index = start; index <= end; index += 1) this.selection.add(order[index]);
+    }
+    this.render();
+  }
+
+  private handleFileClick(event: MouseEvent, path: string): void {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      this.toggleSelection(path);
+      return;
+    }
+    if (event.shiftKey) {
+      event.preventDefault();
+      this.selectRange(path);
+      return;
+    }
+    this.clearSelection(false);
+    this.actions.openNote(path);
+  }
+
+  private renderSelectionBar(): HTMLElement {
+    const count = this.selection.size;
+    return h(
+      'div',
+      { class: 'selection-bar', role: 'toolbar', 'aria-label': 'Действия с выбранными заметками' },
+      h('span', { class: 'selection-bar__count' }, `Выбрано: ${count}`),
+      h(
+        'button',
+        {
+          class: 'btn btn--sm',
+          type: 'button',
+          title: 'Переместить в другую папку',
+          onclick: () => this.actions.moveSelected([...this.selection]),
+        },
+        'Переместить',
+      ),
+      h(
+        'button',
+        {
+          class: 'btn btn--sm btn--danger',
+          type: 'button',
+          onclick: () => this.actions.deleteSelected([...this.selection]),
+        },
+        'Удалить',
+      ),
+      h(
+        'button',
+        {
+          class: 'tb-btn tb-btn--icon tb-btn--sm',
+          type: 'button',
+          title: 'Снять выделение (Esc)',
+          'aria-label': 'Снять выделение',
+          onclick: () => this.clearSelection(),
+        },
+        icon('close', 14),
+      ),
+    );
+  }
 
   mount(): void {
     this.filterInput = document.getElementById('tree-filter') as HTMLInputElement | null;
@@ -52,6 +144,14 @@ export class TreeView {
   render(): void {
     this.applyFilterVisibility();
     clear(this.container);
+
+    // Drop selections for notes that disappeared from the workspace.
+    if (this.selection.size) {
+      const available = new Set(this.store.flatFiles().map((file) => file.path));
+      for (const path of [...this.selection]) {
+        if (!available.has(path)) this.selection.delete(path);
+      }
+    }
 
     if (!this.store.storage.root) {
       this.container.appendChild(
@@ -87,6 +187,7 @@ export class TreeView {
     const list = h('div', { class: 'tree__list', role: 'tree', 'aria-label': 'Заметки' });
     this.renderNodes(this.store.tree, list, 0);
     this.container.appendChild(list);
+    if (this.selection.size) this.container.appendChild(this.renderSelectionBar());
   }
 
   private applyFilterVisibility(): void {
@@ -173,16 +274,17 @@ export class TreeView {
 
       const isActive = this.store.activePath === node.path;
       const isDirty = this.store.docs.some((doc) => doc.path === node.path && this.store.isDirty(doc));
+      const isSelected = this.selection.has(node.path);
       parent.appendChild(
         h(
           'div',
           {
-            class: `node node--file${isActive ? ' node--active' : ''}`,
+            class: `node node--file${isActive ? ' node--active' : ''}${isSelected ? ' node--selected' : ''}`,
             role: 'treeitem',
             tabindex: '0',
-            title: node.path,
+            title: isSelected ? `${node.path}\nCtrl+клик — снять, Shift+клик — диапазон` : node.path,
             dataset: { path: node.path },
-            onclick: () => this.actions.openNote(node.path),
+            onclick: (event: MouseEvent) => this.handleFileClick(event, node.path),
             onkeydown: (event: KeyboardEvent) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
