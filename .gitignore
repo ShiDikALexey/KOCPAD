@@ -7,6 +7,18 @@ dist-ssr/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+*.tsbuildinfo
+
+# Local environment and signing material — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key
 
 # Editors
 .vscode/*
