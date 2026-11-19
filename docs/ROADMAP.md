@@ -76,11 +76,15 @@
 - [x] Multi-select in the tree (`Ctrl+Click`, `Shift+Click`) with bulk move to a
       folder and bulk delete
 
-## 0.4.1 — links and scale
+## 0.4.1 — wiki links (done)
+
+- [x] Internal links `[[note]]` with autocomplete and a backlinks panel
+      (outgoing links, reverse links, click navigation)
+
+## 0.4.2 — scale
 
 - [ ] Lazy tree loading for folders with thousands of notes
 - [ ] Incremental workspace search index (currently reads files on each query)
-- [ ] Internal links `[[note]]` with autocomplete and backlinks
 
 ## Later / ideas
 

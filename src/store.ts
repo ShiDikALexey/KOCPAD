@@ -4,6 +4,7 @@ import type { Storage } from './storage';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
 import { titleFromPath } from './util';
 import { extractTags, tagKey, type TagSummary } from './tags';
+import { extractWikiTargets, normalizeLinkTarget } from './wikilinks';
 import {
   draftIdOf,
   draftPathOf,
@@ -673,6 +674,70 @@ export class Store {
     await this.refreshTree();
     this.setStatus(`Удалено · ${node.name}`);
     return true;
+  }
+
+  // ------------------------------------------------------------ wiki links
+
+  /** Note titles for `[[…]]` autocomplete: drafts first, then files. */
+  linkSuggestions(): { title: string; path: string }[] {
+    return [
+      ...this.draftDocs.map((doc) => ({ title: doc.name, path: doc.path })),
+      ...this.flatFiles().map((file) => ({ title: titleFromPath(file.name), path: file.path })),
+    ];
+  }
+
+  /** Resolves a `[[target]]` to an openable note, or null when it does not exist. */
+  resolveLink(rawTarget: string): { name: string; path: string } | null {
+    const wanted = normalizeLinkTarget(rawTarget);
+    if (!wanted) return null;
+    const lower = wanted.toLocaleLowerCase('ru');
+    const titleOf = (name: string): string => titleFromPath(name).toLocaleLowerCase('ru');
+
+    for (const file of this.flatFiles()) {
+      if (titleOf(file.name) === lower) return { name: file.name, path: file.path };
+    }
+
+    const targetPath = normalizePath(wanted);
+    for (const file of this.flatFiles()) {
+      const path = normalizePath(file.path);
+      if (path === targetPath || path.endsWith(`/${targetPath}`)) return { name: file.name, path: file.path };
+    }
+
+    for (const draft of this.draftDocs) {
+      if (titleOf(draft.name) === lower || draft.name.toLocaleLowerCase('ru') === lower) {
+        return { name: draft.name, path: draft.path };
+      }
+    }
+
+    return null;
+  }
+
+  /** `[[links]]` of every note and draft, used to compute backlinks. */
+  async indexLinks(): Promise<{ path: string; name: string; targets: string[] }[]> {
+    const out: { path: string; name: string; targets: string[] }[] = [];
+    for (const doc of this.draftDocs) {
+      out.push({ path: doc.path, name: doc.name, targets: extractWikiTargets(doc.content) });
+    }
+    for (const file of this.flatFiles()) {
+      try {
+        out.push({ path: file.path, name: file.name, targets: extractWikiTargets(await this.storage.readText(file.path)) });
+      } catch {
+        // An unreadable file has no links to contribute.
+      }
+    }
+    return out;
+  }
+
+  /** Notes whose `[[…]]` point at `targetPath`. */
+  async backlinksFor(targetPath: string): Promise<{ path: string; name: string }[]> {
+    const index = await this.indexLinks();
+    const result: { path: string; name: string }[] = [];
+    for (const entry of index) {
+      if (entry.path === targetPath) continue;
+      const pointsHere = entry.targets.some((target) => this.resolveLink(target)?.path === targetPath);
+      if (pointsHere) result.push({ path: entry.path, name: entry.name });
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------- search

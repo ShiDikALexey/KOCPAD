@@ -66,6 +66,16 @@
 | Drop an image file onto the window | Same as paste |
 | Drop a `.md` / `.txt` file from Explorer | Imported into the current note's folder and opened (an existing note with that name is opened instead) |
 
+## Wiki links
+
+| Action | Result |
+| --- | --- |
+| Type `[[` in the editor | Autocomplete with note titles and their folders; `Enter` inserts the title and `]]` |
+| `[[Заметка]]` in the text | Clickable link in the preview; click to open the note |
+| `[[Заметка\|свой текст]]` | Same link with custom display text |
+| «Связи» sidebar tab | Outgoing links of the active note and backlinks to it |
+| Unresolved `[[…]]` | Dashed underline; clicking explains the target does not exist |
+
 ## Multi-select in the tree
 
 | Keys | Action |

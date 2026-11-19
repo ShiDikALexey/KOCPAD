@@ -193,6 +193,25 @@ the rendered row order, `Esc` clears. The action bar calls `Store.deleteMany()` 
 The move target comes from `ui/pickers.ts`, a small folder chooser built from
 `Store.listFolders()` (the workspace root plus every directory in the tree).
 
+## Wiki links
+
+`src/wikilinks.ts` owns the syntax `[[Заметка]]` / `[[Заметка|текст]]`:
+
+- extraction skips fenced code blocks and inline code spans, so a note explaining
+  the syntax does not link itself;
+- `Store.resolveLink()` tries, in order: a note title (file name without
+  extension, case-insensitive), a path suffix (`Идеи/План на неделю`), then a draft
+  title. Unresolved targets stay visible;
+- the preview decorates links after rendering by walking text nodes outside
+  `pre`/`code`/`a` and replacing `[[…]]` with anchors, so markdown parsing never
+  mangles them;
+- autocomplete is a CodeMirror `CompletionSource` triggered by `matchBefore(/\[\[…/)`
+  that inserts the title plus the closing `]]`;
+- `Store.indexLinks()` reads every note once per panel open to build backlinks;
+  `LinksView` shows outgoing links from the active document and the notes that
+  point back to it.
+
+
 ## Drafts
 
 A note does not need a folder to exist. Documents without a file are represented

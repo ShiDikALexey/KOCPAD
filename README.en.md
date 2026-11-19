@@ -12,9 +12,9 @@ to disk as you type and shows the rendered result next to the source. Notes are
 plain `.md` files: no accounts, no database, no proprietary format — they open in
 any other editor.
 
-> Status: working alpha **`0.4.0`**. Writing, saving, searching, tagging, bulk
-> selection and closing without data loss all work today; installer signing,
-> `[[note]]` links and thousands-of-notes scale are next. Plan:
+> Status: working alpha **`0.4.1`**. Writing, saving, searching, tagging, linking
+> notes with `[[…]]`, bulk selection and closing without data loss all work today;
+> installer signing and thousands-of-notes scale are next. Plan:
 > [docs/ROADMAP.md](docs/ROADMAP.md), history: [CHANGELOG.md](CHANGELOG.md).
 >
 > Download: [installers from the latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
@@ -41,12 +41,15 @@ is per-user and needs no administrator rights.
 Every release also ships `SHA256SUMS.txt`, so a download can be verified:
 
 ```powershell
-Get-FileHash .\KOCPAD_0.4.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_0.4.1_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
 ## What's new
 
+- **`[[note]]` links.** Autocomplete after `[[`, clickable links in the preview and
+  a «Связи» panel: what links to this note and where it links to. Aliases work:
+  `[[Note|custom text]]`.
 - **Tags `#tag`.** A «Теги» sidebar panel: every tag with a note count and the
   list of notes that use it. Code blocks are not treated as tags.
 - **Bulk actions.** `Ctrl+Click` and `Shift+Click` select several notes, then
@@ -83,6 +86,7 @@ Get-FileHash .\KOCPAD_0.4.0_x64-setup.exe -Algorithm SHA256
 | --- | --- |
 | Notes | Folder of `.md` / `.markdown` / `.mdown` / `.txt` files, tree sidebar, create / rename / delete folders and notes, filter by name |
 | Tags | Inline `#tag` and `#work/project`: a «Теги» panel with counts and per-tag note lists; tags inside code blocks are ignored |
+| Links | `[[note]]` and `[[note\|custom text]]`: autocomplete after `[[`, a click in the preview opens the note, and the «Связи» panel lists outgoing and backlinks. Missing targets get a dashed underline |
 | Bulk actions | `Ctrl+Click` adds a note to the selection, `Shift+Click` takes a range, `Esc` clears it. «Переместить» into any workspace folder, or «Удалить» the whole batch |
 | Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: the text is stored locally and restored after a restart. «Сохранить в папку…» (`Ctrl+S`) turns it into a real `.md` file, `F2` renames it |
 | Closing | On exit: save drafts into a folder, keep them as drafts, or delete them. If the page stops responding, the window still closes |
@@ -174,6 +178,9 @@ Full list with context (and the Vim section): [docs/KEYBINDINGS.md](docs/KEYBIND
 In the notes tree: `Ctrl+Click` adds a note to the selection, `Shift+Click` takes a
 range, `Esc` clears the selection.
 
+Note links: type `[[` and pick a title from the list; `Enter` inserts the title and
+the closing brackets.
+
 ## Screenshots
 
 | Light | Dark |
@@ -187,6 +194,10 @@ range, `Esc` clears the selection.
 | Tags panel | Bulk actions |
 | --- | --- |
 | ![Tags panel](docs/screenshots/tags.png) | ![Bulk actions](docs/screenshots/selection.png) |
+
+| Links panel | Wiki links in the preview |
+| --- | --- |
+| ![Links panel](docs/screenshots/links.png) | ![Wiki links](docs/screenshots/wikilinks.png) |
 
 | First launch | Draft without a folder |
 | --- | --- |
@@ -204,6 +215,7 @@ KOCPAD
 │  ├─ store.ts           single source of truth: settings, tree, tabs, saves
 │  ├─ drafts.ts          untitled notes kept in localStorage
 │  ├─ tags.ts            inline #tag parser (code blocks excluded)
+│  ├─ wikilinks.ts       [[note]] parser and preview decoration
 │  ├─ images.ts          pasted images → assets/, relative images → blob URLs
 │  ├─ storage/           three backends behind one interface
 │  │  ├─ tauri.ts        native build → Rust commands
@@ -211,8 +223,8 @@ KOCPAD
 │  │  └─ demo.ts         in-memory sample workspace
 │  ├─ editor.ts          CodeMirror 6 wrapper, per-document EditorState
 │  ├─ markdown.ts        GFM render, sanitizing, syntax highlight, print/export
-│  ├─ ui/                tree, outline, tags, tabs, status bar, dialogs, folder
-│  │                     picker, palette, search, settings
+│  ├─ ui/                tree, outline, tags, links, tabs, status bar, dialogs,
+│  │                     folder picker, palette, search, settings
 │  ├─ path.ts, util.ts   path and DOM helpers
 │  └─ style.css          design tokens, themes, accents, components
 ├─ scripts/              bump-version.cjs — keeps the three version fields in sync
@@ -242,8 +254,8 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Roadmap
 
 Near-term: sign the installer (needs an OV/EV certificate — the CI step is ready)
-and verify on a clean machine. Then `[[note]]` links with backlinks, a search
-index and lazy tree loading for thousands of notes. The full list is in
+and verify on a clean machine. Then scale: a search index instead of reading every
+file per query, and lazy tree loading for thousands of notes. The full list is in
 [docs/ROADMAP.md](docs/ROADMAP.md), the history in [CHANGELOG.md](CHANGELOG.md),
 all builds in [Releases](https://github.com/ShiDikALexey/KOCPAD/releases).
 

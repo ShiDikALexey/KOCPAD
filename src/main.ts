@@ -17,6 +17,8 @@ import { StatusBar } from './ui/statusbar';
 import { GlobalSearchPanel } from './ui/gsearch';
 import { OutlineView } from './ui/outline';
 import { TagsView } from './ui/tags';
+import { LinksView } from './ui/links';
+import { decorateWikiLinks } from './wikilinks';
 import { openPalette, type Command } from './ui/palette';
 import { openSettings } from './ui/settings';
 import { choiceDialog, confirmAction, promptText, showMenu, showToast } from './ui/dialog';
@@ -54,6 +56,7 @@ const dom = {
   treeFilter: must<HTMLInputElement>('tree-filter'),
   outline: must('outline'),
   tags: must('tags'),
+  links: must('links'),
   tabs: must('tabs'),
   panes: must('panes'),
   editorHost: must('editor'),
@@ -120,8 +123,10 @@ function applySidebarTab(): void {  const tab = store.settings.sidebarTab;
   dom.treeFilter.hidden = !notesVisible;
   dom.outline.hidden = tab !== 'outline';
   dom.tags.hidden = tab !== 'tags';
+  dom.links.hidden = tab !== 'links';
   if (tab === 'outline') outline.render();
   if (tab === 'tags') tagsView.activate();
+  if (tab === 'links') linksView.activate();
 }
 
 /** Close-folder control only exists while a workspace is connected. */
@@ -219,6 +224,7 @@ const renderPreviewNow = (): void => {
   dom.preview.classList.remove('markdown--empty');
   dom.preview.innerHTML = renderMarkdown(source);
   decoratePreview(dom.preview);
+  decorateWikiLinks(dom.preview, (target) => store.resolveLink(target));
   void imageStore.decorate(dom.preview, doc.path).catch(() => undefined);
 };
 
@@ -251,6 +257,20 @@ dom.preview.addEventListener('scroll', () => {
 
 dom.preview.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
+
+  const wiki = target.closest<HTMLElement>('.wikilink');
+  if (wiki) {
+    event.preventDefault();
+    const linkTarget = wiki.dataset.target ?? '';
+    const resolved = store.resolveLink(linkTarget);
+    if (resolved) {
+      void store.openNote(resolved.path);
+    } else {
+      showToast(`Заметка «${linkTarget}» не найдена — создайте её через Ctrl+N`, 'error');
+    }
+    return;
+  }
+
   const link = target.closest<HTMLAnchorElement>('a[href]');
   if (link) {
     const href = link.getAttribute('href') ?? '';
@@ -749,6 +769,7 @@ const statusBar = new StatusBar(store);
 const searchPanel = new GlobalSearchPanel(store, actions);
 const outline = new OutlineView(dom.outline, store, actions);
 const tagsView = new TagsView(dom.tags, store, actions);
+const linksView = new LinksView(dom.links, store, actions);
 
 function palette(): void {
   const commands: Command[] = [
@@ -774,6 +795,7 @@ function palette(): void {
       : []),
     { label: 'Панель: контур заметки', hint: 'Ctrl+Shift+O', run: () => actions.setSidebarTab('outline') },
     { label: 'Панель: теги', run: () => actions.setSidebarTab('tags') },
+    { label: 'Панель: ссылки', run: () => actions.setSidebarTab('links') },
     { label: 'Панель: дерево заметок', run: () => actions.setSidebarTab('notes') },
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
     { label: 'Перечитать файл с диска', run: actions.reloadActive },
@@ -1200,6 +1222,8 @@ async function boot(): Promise<void> {
   statusBar.mount();
   outline.mount();
   tagsView.mount();
+  linksView.mount();
+  editor.setLinkSuggestions(() => store.linkSuggestions());
 
   store.on('active', () => {
     syncActive();

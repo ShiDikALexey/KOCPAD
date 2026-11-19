@@ -4,6 +4,25 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.4.1] — 2026-11-19
+
+Wiki links: notes can now point at each other.
+
+### Added
+
+- `[[Заметка]]` and `[[Заметка|текст ссылки]]` are rendered as clickable links in
+  the preview; clicking opens the target note. Unresolved targets are shown with a
+  dashed underline instead of disappearing, and clicking one explains what is
+  missing.
+- Autocomplete after `[[`: the editor suggests note titles (with their folder) and
+  inserts the closing brackets on accept.
+- «Связи» sidebar tab: outgoing links of the active note plus backlinks — every
+  note whose `[[…]]` resolves to it, clickable.
+- Resolution is case-insensitive and accepts a title (`Шпаргалка по markdown`) or
+  a workspace path (`Идеи/План на неделю`); drafts are linkable too.
+- Code blocks and inline code are ignored by the link parser, so documentation
+  about the syntax does not link itself.
+
 ## [0.4.0] — 2026-11-19
 
 Tags and bulk actions: the first half of the "larger libraries" milestone.

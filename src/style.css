@@ -512,7 +512,7 @@ button {
   height: 24px;
   border-radius: var(--radius-xs);
   color: var(--ink-faint);
-  font-size: 12px;
+  font-size: 11.5px;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
@@ -714,6 +714,73 @@ button {
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+
+/* ------------------------------------------------------------------- links */
+
+.links {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 12px;
+}
+
+.links[hidden] {
+  display: none;
+}
+
+.links__section {
+  padding: 4px 0 10px;
+}
+
+.links__title {
+  margin: 2px 8px 6px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.links__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.links__row--missing {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+
+.links__row--missing .icon {
+  color: var(--ink-faint);
+}
+
+.links__empty {
+  margin: 0;
+  padding: 4px 8px 6px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.markdown .wikilink {
+  color: var(--md-link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.markdown .wikilink:hover {
+  text-decoration-thickness: 2px;
+}
+
+.markdown .wikilink--missing {
+  color: var(--ink-faint);
+  text-decoration-style: dashed;
+  text-decoration-color: var(--ink-faint);
+  cursor: help;
 }
 
 .sidebar__foot {

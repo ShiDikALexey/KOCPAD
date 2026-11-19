@@ -12,6 +12,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { HighlightStyle, bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
+import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { tags } from '@lezer/highlight';
 import type { EditorKeymap } from './types';
 
@@ -157,10 +158,18 @@ const editorTheme = EditorView.theme({
   '.cm-matchingBracket, .cm-nonmatchingBracket': { outline: '1px solid var(--accent)' },
   '.cm-tooltip': {
     backgroundColor: 'var(--bg-raised)',
+    color: 'var(--ink)',
     border: '1px solid var(--line)',
     borderRadius: '6px',
     boxShadow: 'var(--shadow-pop)',
   },
+  '.cm-tooltip-autocomplete > ul > li': { padding: '3px 7px' },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+    backgroundColor: 'var(--accent-soft)',
+    color: 'var(--ink)',
+  },
+  '.cm-completionDetail': { color: 'var(--ink-faint)', fontStyle: 'normal', marginLeft: '8px' },
+  '.cm-completionMatchedText': { color: 'var(--accent)', textDecoration: 'none', fontWeight: '600' },
 });
 
 export interface EditorCallbacks {
@@ -187,6 +196,30 @@ export class MarkdownEditor {
   private currentTabSize = 4;
   private currentKeymap: EditorKeymap = 'default';
   private vimExtension: Extension | null = null;
+  private linkSuggestionsProvider: () => { title: string; path: string }[] = () => [];
+
+  /** The shell plugs the workspace note list into `[[…]]` autocomplete. */
+  setLinkSuggestions(provider: () => { title: string; path: string }[]): void {
+    this.linkSuggestionsProvider = provider;
+  }
+
+  /** Completes note titles after `[[`, inserting the closing brackets. */
+  private wikiCompletion = (context: CompletionContext): CompletionResult | null => {
+    const match = context.matchBefore(/\[\[[^[\]\n]*/);
+    if (!match) return null;
+    const query = match.text.slice(2).trim().toLocaleLowerCase('ru');
+    const options = this.linkSuggestionsProvider()
+      .filter((item) => !query || item.title.toLocaleLowerCase('ru').includes(query))
+      .slice(0, 15)
+      .map((item) => ({
+        label: item.title,
+        detail: item.path,
+        type: 'text',
+        apply: `${item.title}]]`,
+      }));
+    if (!options.length) return null;
+    return { from: match.from + 2, options, filter: false };
+  };
 
   constructor(parent: HTMLElement, callbacks: EditorCallbacks, options: { showLineNumbers: boolean }) {
     this.callbacks = callbacks;
@@ -211,6 +244,7 @@ export class MarkdownEditor {
         markdown({ base: markdownLanguage, addKeymap: true }),
         syntaxHighlighting(markdownHighlight),
         search({ top: true }),
+        autocompletion({ override: [this.wikiCompletion] }),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
         placeholder('Пишите здесь. Markdown понимается как в GitHub.'),
         EditorState.phrases.of(EDITOR_PHRASES),
