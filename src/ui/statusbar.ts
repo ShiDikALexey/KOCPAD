@@ -1,5 +1,5 @@
 import type { Store } from '../store';
-import { countWords, formatBytes, plural } from '../util';
+import { countWords, debounce, formatBytes, plural } from '../util';
 import { basename, dirname } from '../path';
 import { isDraftPath } from '../drafts';
 
@@ -16,6 +16,8 @@ export class StatusBar {
   private saved!: HTMLElement;
   private backend!: HTMLElement;
   private cursor: CursorInfo = { line: 1, column: 1, selectionLength: 0 };
+  /** Word counts can lag a little; the bar should not re-render per keystroke. */
+  private renderDirty = debounce(() => this.renderStats(), 200);
 
   constructor(private store: Store) {}
 
@@ -27,6 +29,7 @@ export class StatusBar {
 
     this.store.on('status', () => this.renderMessage());
     this.store.on('docs', () => this.renderStats());
+    this.store.on('dirty', this.renderDirty);
     this.store.on('active', () => {
       this.cursor = { line: 1, column: 1, selectionLength: 0 };
       this.renderStats();
@@ -82,6 +85,7 @@ export class StatusBar {
     parts.push(`${words} ${plural(words, 'слово', 'слова', 'слов')}`);
     parts.push(`${chars} ${plural(chars, 'символ', 'символа', 'символов')}`);
     parts.push(`${lines} ${plural(lines, 'строка', 'строки', 'строк')}`);
+    if (words >= 60) parts.push(`~${Math.max(1, Math.round(words / 180))} мин чтения`);
     if (this.cursor.selectionLength > 0) {
       parts.push(`выделено ${this.cursor.selectionLength}`);
     } else if (doc) {

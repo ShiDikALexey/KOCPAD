@@ -2,7 +2,7 @@ import type { Store } from '../store';
 import type { TagSummary } from '../tags';
 import { basename } from '../path';
 import { isDraftPath } from '../drafts';
-import { clear, h, plural } from '../util';
+import { clear, debounce, h, plural } from '../util';
 import { icon } from './icons';
 import type { AppActions } from './actions';
 
@@ -23,6 +23,11 @@ export class TagsView {
     private actions: AppActions,
   ) {}
 
+  /** Tags change with the text; re-index only after a pause, and only if shown. */
+  private refreshDirty = debounce(() => {
+    if (this.visible()) void this.refresh();
+  }, 1500);
+
   mount(): void {
     this.store.on('tree', () => {
       if (this.visible()) void this.refresh();
@@ -32,6 +37,7 @@ export class TagsView {
       this.tags = [];
       if (this.visible()) void this.refresh();
     });
+    this.store.on('dirty', this.refreshDirty);
     this.render();
   }
 

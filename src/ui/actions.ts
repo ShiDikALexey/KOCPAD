@@ -7,6 +7,13 @@ export interface AppActions {
   closeWorkspace(): void;
   /** Re-reads the tree and forgets cached note text (F5). */
   refreshWorkspace(): void;
+  /** Distraction-free writing: no sidebar, no preview, narrow column. */
+  toggleFocusMode(): void;
+  /** Markdown formatting around the selection. */
+  formatBold(): void;
+  formatItalic(): void;
+  formatCode(): void;
+  formatLink(): void;
   createNote(parentDir?: string): void;
   createFolder(parentDir?: string): void;
   renameEntry(node: NoteNode): void;

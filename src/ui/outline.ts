@@ -1,5 +1,5 @@
 import type { Store } from '../store';
-import { clear, h } from '../util';
+import { clear, debounce, h } from '../util';
 import type { AppActions } from './actions';
 
 export interface Heading {
@@ -58,12 +58,18 @@ export class OutlineView {
     private actions: AppActions,
   ) {}
 
+  /** Headings follow the text; a short debounce avoids re-parsing per keystroke. */
+  private renderDirty = debounce(() => {
+    if (!this.container.hidden) this.render();
+  }, 350);
+
   mount(): void {
     this.store.on('docs', () => this.render());
     this.store.on('active', () => {
       this.cursorLine = 1;
       this.render();
     });
+    this.store.on('dirty', this.renderDirty);
     this.render();
   }
 

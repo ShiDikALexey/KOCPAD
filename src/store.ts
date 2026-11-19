@@ -20,6 +20,8 @@ export type Topic =
   | 'tree'
   | 'docs'
   | 'active'
+  /** Text of an open document changed; cheap to emit, cheap to ignore. */
+  | 'dirty'
   | 'mode'
   | 'theme'
   | 'settings'
@@ -363,6 +365,9 @@ export class Store {
       const doc: Doc = { path, name: basename(path), content, savedContent: content };
       this.docs = [...this.docs, doc];
       this.activePath = path;
+      // A newly opened note is also a "recent note"; activate() would return
+      // early here because activePath is already set.
+      this.rememberNote(path);
       this.emit('docs', 'active');
       if (options.focus === false) this.emit('active');
       return doc;
@@ -375,7 +380,18 @@ export class Store {
   activate(path: string): void {
     if (this.activePath === path) return;
     this.activePath = path;
+    this.rememberNote(path);
     this.emit('active');
+  }
+
+  /** Keeps the palette's «недавние заметки» list fresh. */
+  private rememberNote(path: string): void {
+    const list = [path, ...this.settings.recentNotes.filter((item) => item !== path)].slice(0, 8);
+    if (list.length === this.settings.recentNotes.length && list.every((item, index) => item === this.settings.recentNotes[index])) {
+      return;
+    }
+    this.settings.recentNotes = list;
+    saveSettings(this.settings);
   }
 
   /** Called by the editor on every change. Schedules the autosave. */
@@ -383,7 +399,9 @@ export class Store {
     const doc = this.docs.find((item) => item.path === path);
     if (!doc || doc.content === content) return;
     doc.content = content;
-    this.emit('docs');
+    // Only the text changed: tabs, tree and link panels listen to 'dirty'
+    // (debounced), so typing never rebuilds the whole sidebar.
+    this.emit('dirty');
     this.scheduleSave(path);
   }
 
@@ -414,7 +432,7 @@ export class Store {
     if (isDraftPath(path)) {
       const stored = this.persistDraftDocs();
       doc.savedContent = doc.content;
-      this.emit('docs');
+      this.emit('dirty');
       if (!stored) {
         this.report(
           new Error('Локальное хранилище переполнено'),
@@ -440,7 +458,7 @@ export class Store {
       doc.savedContent = snapshot;
       this.textCache.set(path, snapshot);
       if (doc.content === snapshot) this.setStatus(`Сохранено · ${doc.name}`);
-      this.emit('docs');
+      this.emit('dirty');
     });
     this.writes.set(
       path,
@@ -787,6 +805,21 @@ export class Store {
       if (pointsHere) result.push({ path: entry.path, name: entry.name });
     }
     return result;
+  }
+
+  /** Note titles for the palette and quick switcher. */
+  recentNoteEntries(): { title: string; path: string; missing: boolean }[] {
+    return this.settings.recentNotes.map((path) => {
+      const doc = this.docs.find((item) => item.path === path);
+      const draft = this.draftDocs.find((item) => item.path === path);
+      const file = this.flatFiles().find((item) => item.path === path);
+      const name = doc?.name ?? draft?.name ?? file?.name ?? basename(path);
+      return {
+        title: titleFromPath(name),
+        path,
+        missing: !doc && !draft && !file,
+      };
+    });
   }
 
   // ---------------------------------------------------------------- search

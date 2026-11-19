@@ -18,11 +18,24 @@ declare global {
         applyText: (text: string) => void;
         caret: number;
         text: string;
+        formatBold: () => void;
+        formatItalic: () => void;
+        formatCode: () => void;
+        formatLink: () => void;
+        view: {
+          state: {
+            doc: { toString: () => string; length: number };
+            replaceSelection: (text: string) => Record<string, unknown>;
+          };
+          dispatch: (spec: Record<string, unknown>) => void;
+        };
       };
       actions: {
         setTheme: (theme: string) => void;
         setSidebarTab: (tab: string) => void;
         openSettings: () => void;
+        openPalette: () => void;
+        toggleFocusMode: () => void;
       };
     };
   }
@@ -144,6 +157,90 @@ test.describe('editor surfaces', () => {
     await expect
       .poll(async () => page.evaluate(() => window.__kocpad.store.settings.exportTheme))
       .toBe('dark');
+  });
+
+  test('typing does not rebuild the sidebar tree', async ({ page }) => {
+    // Regression guard: every keystroke used to re-render the tree and the tabs.
+    const mutations = await page.evaluate(async () => {
+      const tree = document.getElementById('tree') as HTMLElement;
+      const tabs = document.querySelector('.tabs') as HTMLElement;
+      let treeChanges = 0;
+      let tabChanges = 0;
+      const treeObserver = new MutationObserver((records) => {
+        treeChanges += records.length;
+      });
+      treeObserver.observe(tree, { childList: true, subtree: true });
+      const tabsObserver = new MutationObserver((records) => {
+        tabChanges += records.length;
+      });
+      tabsObserver.observe(tabs, { childList: true, subtree: true });
+
+      const view = window.__kocpad.editor.view;
+      for (let index = 0; index < 25; index += 1) {
+        view.dispatch({ ...view.state.replaceSelection('я'), userEvent: 'input.type' });
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      treeObserver.disconnect();
+      tabsObserver.disconnect();
+      return { treeChanges, tabChanges };
+    });
+    expect(mutations.treeChanges).toBeLessThan(10);
+    expect(mutations.tabChanges).toBeLessThan(10);
+  });
+
+  test('focus mode hides the sidebar and the preview', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.actions.toggleFocusMode());
+    await expect(page.locator('body')).toHaveClass(/focus-mode/);
+    await expect(page.locator('#sidebar')).toBeHidden();
+    await expect(page.locator('.pane--preview')).toBeHidden();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('body')).not.toHaveClass(/focus-mode/);
+    await expect(page.locator('#sidebar')).toBeVisible();
+  });
+
+  test('formatting shortcuts wrap and toggle markdown markers', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const api = window.__kocpad.editor;
+      const view = api.view;
+      const selectAll = () =>
+        view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+
+      api.applyText('слово');
+      selectAll();
+      api.formatBold();
+      const bold = view.state.doc.toString();
+      api.formatBold();
+      const toggledOff = view.state.doc.toString();
+
+      api.applyText('ссылка');
+      selectAll();
+      api.formatLink();
+      return { bold, toggledOff, link: view.state.doc.toString() };
+    });
+    expect(result.bold).toBe('**слово**');
+    expect(result.toggledOff).toBe('слово');
+    expect(result.link).toContain('[ссылка](url)');
+  });
+
+  test('palette lists recently opened notes', async ({ page }) => {
+    await page.evaluate(async () => {
+      await window.__kocpad.store.openNote('Шпаргалка по markdown.md');
+      await window.__kocpad.store.openNote('Идеи/План на неделю.md');
+    });
+    await page.evaluate(() => window.__kocpad.actions.openPalette());
+    // The active note is intentionally not offered again.
+    await page.locator('.palette__input').fill('Недавняя');
+    await expect(page.locator('.palette__item').first()).toContainText('Недавняя заметка');
+    await expect(page.locator('.palette__item').first()).toContainText('Шпаргалка');
+  });
+
+  test('status bar shows reading time for long notes', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText(`# Долгая\n\n${'слово '.repeat(200)}`);
+    });
+    await expect(page.locator('#status-stats')).toContainText('мин чтения', { timeout: 5000 });
   });
 });
 

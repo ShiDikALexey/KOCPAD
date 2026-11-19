@@ -1,10 +1,12 @@
 import type { Store } from '../store';
-import { clear, h } from '../util';
+import { clear, debounce, h } from '../util';
 import { icon } from './icons';
 import type { AppActions } from './actions';
 
 /** Tab strip above the editor. Middle click or × closes, each tab keeps state. */
 export class TabsView {
+  private renderDirty = debounce(() => this.render(), 250);
+
   constructor(
     private container: HTMLElement,
     private store: Store,
@@ -14,6 +16,7 @@ export class TabsView {
   mount(): void {
     this.store.on('docs', () => this.render());
     this.store.on('active', () => this.render());
+    this.store.on('dirty', this.renderDirty);
     this.container.addEventListener('auxclick', (event) => {
       if (event.button !== 1) return;
       const tab = (event.target as HTMLElement).closest<HTMLElement>('.tab');

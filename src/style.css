@@ -2328,6 +2328,36 @@ body.is-dragging::after {
 
 /* ================================================== motion and scaling === */
 
+/* ---------------------------------------------------------- focus mode ---
+   Distraction-free writing: one narrow column, no sidebar, no preview. */
+
+body.focus-mode #sidebar,
+body.focus-mode .sidebar-resizer,
+body.focus-mode .splitter,
+body.focus-mode .pane--preview {
+  display: none !important;
+}
+
+body.focus-mode #panes {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+
+body.focus-mode .editor-host {
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+body.focus-mode .cm-content {
+  padding-top: 4vh;
+  padding-bottom: 30vh;
+}
+
+body.focus-mode .statusbar__stats {
+  opacity: 0.75;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

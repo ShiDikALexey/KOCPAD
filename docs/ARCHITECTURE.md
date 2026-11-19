@@ -193,6 +193,34 @@ the rendered row order, `Esc` clears. The action bar calls `Store.deleteMany()` 
 The move target comes from `ui/pickers.ts`, a small folder chooser built from
 `Store.listFolders()` (the workspace root plus every directory in the tree).
 
+## Event topics and repaint discipline
+
+`Store` emits topics, and the subscribers are deliberately split by cost:
+
+- `docs` — the list of open documents changed (open, close, rename, save landed).
+  Tabs, tree and editor state are rebuilt; this is rare.
+- `active` — the active tab changed. Editor, preview, outline and the status bar
+  sync.
+- `dirty` — the text of the active document changed. Only the title, the preview
+  (debounced), the status bar and per-panel refreshes react.
+- `tree`, `root`, `settings`, `theme`, `mode`, `status` — structural changes.
+
+Typing used to emit `docs`, which meant every keystroke rebuilt the whole tree and
+the tab strip. On a 300-note workspace that is visible; the split now keeps typing
+at text-render cost only, and `tests/app.spec.ts` fails if the tree ever starts
+mutating per keystroke again. Panels that read the workspace (tags, backlinks) and
+the outline listen to `dirty` through `debounce()` with 350–1500 ms so a pause, not
+a keystroke, triggers the work.
+
+## Focus mode
+
+`Settings.focusMode` is a persisted boolean, applied as `body.focus-mode`. CSS hides
+the sidebar, the splitter and the preview pane and constrains `.editor-host` to
+760 px, so the editor keeps all its behaviour (markdown, Vim, find) in a narrow
+column. `Ctrl+Shift+Z` toggles it, `Esc` leaves it, and the settings screen exposes
+the same switch.
+
+
 ## Wiki links
 
 `src/wikilinks.ts` owns the syntax `[[Заметка]]` / `[[Заметка|текст]]`:

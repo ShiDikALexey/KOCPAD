@@ -3,7 +3,7 @@ import type { AppActions } from './actions';
 import { isDraftPath } from '../drafts';
 import { basename } from '../path';
 import { extractWikiLinks } from '../wikilinks';
-import { clear, h } from '../util';
+import { clear, debounce, h } from '../util';
 import { icon } from './icons';
 
 interface LinkRow {
@@ -28,6 +28,11 @@ export class LinksView {
     private actions: AppActions,
   ) {}
 
+  /** Outgoing links change while typing; refresh after a pause, not per key. */
+  private refreshDirty = debounce(() => {
+    if (this.visible()) void this.refresh();
+  }, 700);
+
   mount(): void {
     this.store.on('active', () => {
       if (this.visible()) void this.refresh();
@@ -35,6 +40,7 @@ export class LinksView {
     this.store.on('tree', () => {
       if (this.visible()) void this.refresh();
     });
+    this.store.on('dirty', this.refreshDirty);
     this.render();
   }
 

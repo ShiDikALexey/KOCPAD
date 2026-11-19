@@ -9,6 +9,10 @@
 | --- | --- |
 | `Ctrl+N` | New note: a draft appears immediately, no folder and no name dialog |
 | `Ctrl+Alt+N` | Quick capture — global hotkey: brings KOCPAD to the front and starts a note, works from any application |
+| `Ctrl+B` | Bold around the selection (`**…**`); pressing again removes it |
+| `Ctrl+I` | Italic (`*…*`), toggles the same way |
+| ``Ctrl+` `` | Inline code (`` `…` ``) |
+| `Ctrl+Shift+K` | Insert a link `[text](url)` and select the address placeholder |
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
 | `Ctrl+S` | Save now; for a draft this opens «Сохранить в папку…» |
@@ -54,6 +58,7 @@
 | `Ctrl+K` | Command palette |
 | `Ctrl+,` | Settings |
 | `Ctrl+Shift+O` | Outline panel (headings of the current note) |
+| `Ctrl+Shift+Z` | Focus mode: hide the sidebar and the preview, center the text column |
 | — | Tags panel: palette (`Ctrl+K`) → «Панель: теги», or the «Теги» tab |
 | `Ctrl+\` | Show or hide the sidebar |
 | `Ctrl+Shift+L` | Switch between light and dark theme |

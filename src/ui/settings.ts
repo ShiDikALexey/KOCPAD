@@ -228,6 +228,11 @@ export function openSettings(store: Store): void {
               segmented(KEYMAPS, settings.editorKeymap, (editorKeymap) => patch({ editorKeymap })),
               'Vim: режимы команд и вставки, hjkl',
             ),
+            row(
+              'Режим сосредоточения',
+              toggle('Скрыть панели', settings.focusMode, (focusMode) => patch({ focusMode })),
+              'Ctrl+Shift+Z — включить, Esc — выйти',
+            ),
           ),
           section(
             'Предпросмотр',

@@ -53,6 +53,10 @@ export interface Settings {
   editorTabSize: number;
   editorKeymap: EditorKeymap;
   exportTheme: ExportTheme;
+  /** Distraction-free writing: no sidebar, no preview, one narrow column. */
+  focusMode: boolean;
+  /** Most recently opened notes, newest first (drafts included). */
+  recentNotes: string[];
   recentFolders: string[];
   onboarded: boolean;
   showLineNumbers: boolean;
@@ -88,6 +92,8 @@ export const DEFAULT_SETTINGS: Settings = {
   editorTabSize: 4,
   editorKeymap: 'default',
   exportTheme: 'light',
+  focusMode: false,
+  recentNotes: [],
   recentFolders: [],
   onboarded: false,
   showLineNumbers: false,

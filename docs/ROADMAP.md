@@ -98,6 +98,16 @@
 - [ ] Code-sign the installer — still blocked on an OV/EV certificate; CI step ready
 - [ ] Verify the released installer on a clean Windows machine
 
+## 1.1.0 — performance and focus (done)
+
+- [x] Split text edits into a `dirty` topic: typing no longer rebuilds the tree or
+      the tab strip (regression test in CI)
+- [x] Focus mode (`Ctrl+Shift+Z`): one narrow column, no panels
+- [x] Keyboard formatting: `Ctrl+B`, `Ctrl+I`, ``Ctrl+` ``, `Ctrl+Shift+K`
+- [x] Recent notes in the command palette
+- [x] Reading time in the status bar
+- [x] 16 e2e tests, including the typing-performance guard
+
 ## After 1.0 (backlog)
 
 - [ ] Two notes side by side

@@ -329,6 +329,63 @@ export class MarkdownEditor {
     if (this.path) this.states.delete(this.path);
   }
 
+  /**
+   * Wraps the selection in `open`/`close` (or inserts the pair with a placeholder
+   * and selects it). Running it again on wrapped text removes the markers, which
+   * is what every editor with Ctrl+B does.
+   */
+  private toggleWrap(open: string, close: string, placeholder: string): void {
+    const { from, to } = this.view.state.selection.main;
+    const selected = this.view.state.sliceDoc(from, to);
+    const before = from >= open.length ? this.view.state.sliceDoc(from - open.length, from) : '';
+    const after = this.view.state.sliceDoc(to, Math.min(this.view.state.doc.length, to + close.length));
+
+    if (before === open && after === close) {
+      this.view.dispatch({
+        changes: [
+          { from: from - open.length, to: from },
+          { from: to, to: to + close.length },
+        ],
+        selection: { anchor: from - open.length, head: to - open.length },
+      });
+      this.view.focus();
+      return;
+    }
+
+    const text = selected || placeholder;
+    const start = from + open.length;
+    this.view.dispatch({
+      changes: { from, to, insert: `${open}${text}${close}` },
+      selection: { anchor: start, head: start + text.length },
+    });
+    this.view.focus();
+  }
+
+  formatBold(): void {
+    this.toggleWrap('**', '**', 'жирный текст');
+  }
+
+  formatItalic(): void {
+    this.toggleWrap('*', '*', 'курсив');
+  }
+
+  formatCode(): void {
+    this.toggleWrap('`', '`', 'код');
+  }
+
+  formatLink(): void {
+    const { from, to } = this.view.state.selection.main;
+    const selected = this.view.state.sliceDoc(from, to) || 'текст ссылки';
+    const insert = `[${selected}](url)`;
+    // Select `url`, so the next keystroke replaces the placeholder address.
+    const urlStart = from + selected.length + 3;
+    this.view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: urlStart, head: urlStart + 3 },
+    });
+    this.view.focus();
+  }
+
   private replaceState(state: EditorState): void {
     this.suppressChange = true;
     const scroll = this.view.scrollDOM.scrollTop;
@@ -339,6 +396,7 @@ export class MarkdownEditor {
   }
 
   setLineNumbers(show: boolean): void {
+    if (show === this.currentShowGutter) return;
     this.currentShowGutter = show;
     this.view.dispatch({
       effects: this.gutterCompartment.reconfigure(show ? lineNumbers() : []),

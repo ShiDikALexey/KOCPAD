@@ -112,7 +112,10 @@ function applyTypography(): void {
   root.style.setProperty('--preview-font', PREVIEW_FONT_STACK[settings.previewFontFamily]);
 }
 
-function applySidebarTab(): void {  const tab = store.settings.sidebarTab;
+let shownSidebarTab: SidebarTab | null = null;
+
+function applySidebarTab(): void {
+  const tab = store.settings.sidebarTab;
   document.querySelectorAll<HTMLButtonElement>('.sidebar__tab').forEach((button) => {
     const isActive = button.dataset.tab === tab;
     button.classList.toggle('sidebar__tab--active', isActive);
@@ -124,9 +127,13 @@ function applySidebarTab(): void {  const tab = store.settings.sidebarTab;
   dom.outline.hidden = tab !== 'outline';
   dom.tags.hidden = tab !== 'tags';
   dom.links.hidden = tab !== 'links';
-  if (tab === 'outline') outline.render();
-  if (tab === 'tags') tagsView.activate();
-  if (tab === 'links') linksView.activate();
+  const changed = shownSidebarTab !== tab;
+  shownSidebarTab = tab;
+  // Settings, theme and layout changes also land here; re-indexing the workspace
+  // on every theme toggle would be wasteful, so only react to actual tab switches.
+  if (tab === 'outline' && changed) outline.render();
+  if (tab === 'tags' && changed) tagsView.activate();
+  if (tab === 'links' && changed) linksView.activate();
 }
 
 /** Close-folder control only exists while a workspace is connected. */
@@ -159,6 +166,8 @@ function applyLayout(): void {
   const settings = store.settings;
   dom.sidebar.classList.toggle('sidebar--collapsed', !settings.sidebarOpen);
   dom.sidebarResizer.hidden = !settings.sidebarOpen;
+  // Distraction-free writing: CSS hides the sidebar and the preview.
+  document.body.classList.toggle('focus-mode', settings.focusMode);
   document.documentElement.style.setProperty('--sidebar-width', `${clamp(settings.sidebarWidth, 180, 520)}px`);
   dom.panes.dataset.mode = settings.mode;
   document.documentElement.style.setProperty('--split-left', `${clamp(settings.splitRatio, 0.15, 0.85) * 100}%`);
@@ -352,8 +361,10 @@ function persistTabs(): void {
   }
 }
 
-async function restoreTabs(): Promise<void> {
-  try {
+/** Structural changes are rare; typing is not, so the tab record is debounced. */
+const schedulePersistTabs = debounce(persistTabs, 300);
+
+async function restoreTabs(): Promise<void> {  try {
     const raw = localStorage.getItem(TABS_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw) as { paths?: string[]; active?: string | null };
@@ -539,6 +550,18 @@ const actions: AppActions = {
   },
 
   refreshWorkspace: () => reloadWorkspace(),
+
+  toggleFocusMode: () => {
+    const enabled = !store.settings.focusMode;
+    store.patchSettings({ focusMode: enabled });
+    showToast(enabled ? 'Режим сосредоточения: шапка и панели скрыты' : 'Обычный режим');
+    editor.focus();
+  },
+
+  formatBold: () => editor.formatBold(),
+  formatItalic: () => editor.formatItalic(),
+  formatCode: () => editor.formatCode(),
+  formatLink: () => editor.formatLink(),
 
   closeWorkspace: () => {
     void closeCurrentWorkspace();
@@ -794,6 +817,20 @@ function palette(): void {
     })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
     { label: 'Новая папка', hint: 'Ctrl+Shift+N', run: () => actions.createFolder() },
+    // Recently opened notes, newest first: the quick switcher most editors have.
+    ...store
+      .recentNoteEntries()
+      .filter((entry) => entry.path !== store.activePath)
+      .slice(0, 5)
+      .map((entry) => ({
+        label: `Недавняя заметка: ${entry.title}${entry.missing ? ' (нет файла)' : ''}`,
+        hint: entry.path,
+        run: () => actions.openNote(entry.path),
+      })),
+    { label: 'Формат: жирный', hint: 'Ctrl+B', run: actions.formatBold },
+    { label: 'Формат: курсив', hint: 'Ctrl+I', run: actions.formatItalic },
+    { label: 'Формат: код в строке', hint: 'Ctrl+`', run: actions.formatCode },
+    { label: 'Формат: ссылка', hint: 'Ctrl+Shift+K', run: actions.formatLink },
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
     { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
@@ -810,6 +847,11 @@ function palette(): void {
     { label: 'Панель: теги', run: () => actions.setSidebarTab('tags') },
     { label: 'Панель: ссылки', run: () => actions.setSidebarTab('links') },
     { label: 'Панель: дерево заметок', run: () => actions.setSidebarTab('notes') },
+    {
+      label: store.settings.focusMode ? 'Режим сосредоточения: выключить' : 'Режим сосредоточения',
+      hint: 'Ctrl+Shift+Z',
+      run: actions.toggleFocusMode,
+    },
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
     { label: 'Перечитать файл с диска', run: actions.reloadActive },
     {
@@ -968,6 +1010,11 @@ function mountShortcuts(): void {
       actions.refreshWorkspace();
       return;
     }
+    if (event.key === 'Escape' && store.settings.focusMode) {
+      event.preventDefault();
+      actions.toggleFocusMode();
+      return;
+    }
     if (event.key === 'F2') {
       const doc = store.activeDoc;
       if (doc) {
@@ -990,6 +1037,9 @@ function mountShortcuts(): void {
     }
 
     const handlers: Record<string, () => void> = {
+      z: () => {
+        if (event.shiftKey) actions.toggleFocusMode();
+      },
       n: () => (event.shiftKey ? actions.createFolder() : actions.createNote()),
       o: () => (event.shiftKey ? actions.setSidebarTab('outline') : actions.openFolder()),
       ',': () => actions.openSettings(),
@@ -1003,10 +1053,11 @@ function mountShortcuts(): void {
       },
       f: () => (event.shiftKey ? actions.openGlobalSearch() : actions.openFind()),
       h: () => actions.openFind(),
-      k: () => actions.openPalette(),
+      k: () => (event.shiftKey ? actions.formatLink() : actions.openPalette()),
       p: () => actions.printPdf(),
-      b: () => editor.wrapSelection('**', '**', 'жирный текст'),
-      i: () => editor.wrapSelection('*', '*', 'курсив'),
+      b: () => actions.formatBold(),
+      i: () => actions.formatItalic(),
+      '`': () => actions.formatCode(),
       e: () => (event.shiftKey ? actions.exportHtml() : actions.cycleMode()),
       l: () => {
         if (event.shiftKey) {
@@ -1246,10 +1297,16 @@ async function boot(): Promise<void> {
   store.on('active', () => {
     syncActive();
     resetPreviewScroll();
+    persistTabs();
   });
   store.on('docs', () => {
     syncActive();
-    persistTabs();
+    schedulePersistTabs();
+  });
+  // Typing: only the title, the preview and (debounced) side panels care.
+  store.on('dirty', () => {
+    updateTitle();
+    if (store.activeDoc && store.activeDoc.content !== lastPreviewSource) schedulePreview();
   });
   store.on('root', () => {
     dom.workspaceName.textContent = store.rootName;

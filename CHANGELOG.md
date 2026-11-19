@@ -4,6 +4,34 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-19
+
+Performance pass, focus mode and keyboard formatting.
+
+### Fixed
+
+- **Typing rebuilt the sidebar.** Every keystroke emitted the `docs` topic, so the
+  note tree, the tab strip and the status bar re-rendered per character. Text edits
+  now emit a separate `dirty` topic; tree and tabs refresh through a debounce, and
+  a CI regression test fails if the tree starts mutating on keystrokes again
+  (measured before the fix: 25 keystrokes → 62 tree rebuilds, 124 tab rebuilds).
+- **Recent notes lost freshly opened files.** `openNote` set the active path itself
+  and never called `activate()`, so a newly opened note was not added to the
+  recent list the palette uses.
+- Sidebar «Обновить» re-read the tree without dropping the search cache; F5, the
+  palette command and the button now share one `refreshWorkspace()` action.
+
+### Added
+
+- **Focus mode** (`Ctrl+Shift+Z`, `Esc` to leave, also in settings): hides the
+  sidebar and the preview and centers a 760 px text column.
+- **Keyboard formatting**: `Ctrl+B` bold, `Ctrl+I` italic, ``Ctrl+` `` inline code,
+  `Ctrl+Shift+K` link; pressing again removes the markers. Also in the palette.
+- **Recent notes in the command palette** (`Ctrl+K` → «Недавняя заметка: …»).
+- **Reading time** in the status bar for notes of 60+ words.
+- Focus mode screenshot, docs on event topics and repaint discipline.
+- 5 more e2e tests (16 total), including the typing-performance guard.
+
 ## [1.0.0] — 2026-11-19
 
 First stable release. Everything from the roadmap that does not need a purchased

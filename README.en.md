@@ -12,11 +12,11 @@ to disk as you type and shows the rendered result next to the source. Notes are
 plain `.md` files: no accounts, no database, no proprietary format — they open in
 any other editor.
 
-> Status: **`1.0.0`** — first stable release. Notes, tags, links, drafts, search,
-> export and closing without data loss all work; 11 automated UI tests run in CI on
-> every push. What is left is external: installer signing (needs a certificate) and
-> a clean-machine check. Plan: [docs/ROADMAP.md](docs/ROADMAP.md), history:
-> [CHANGELOG.md](CHANGELOG.md).
+> Status: **`1.1.0`**. Notes, tags, links, drafts, search, export, focus mode and
+> closing without data loss all work; **16 automated UI tests** run in CI on every
+> push, including a regression guard for typing speed. What is left is external:
+> installer signing (needs a certificate) and a clean-machine check. Plan:
+> [docs/ROADMAP.md](docs/ROADMAP.md), history: [CHANGELOG.md](CHANGELOG.md).
 >
 > Download: [installers from the latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 > or the `kocpad-windows` artifact of the [latest build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml).
@@ -42,9 +42,24 @@ is per-user and needs no administrator rights.
 Every release also ships `SHA256SUMS.txt`, so a download can be verified:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.0.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.1.0_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
+
+## What's new in 1.1
+
+- **Focus mode.** `Ctrl+Shift+Z` hides the panels and the preview, leaving one
+  narrow column of text in the middle; `Esc` goes back.
+- **Keyboard formatting.** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+\`` inline code,
+  `Ctrl+Shift+K` link; pressing again removes the markers.
+- **Recent notes in the palette.** `Ctrl+K` → «Недавняя заметка: …» — a quick
+  switcher without digging through the tree.
+- **Typing speed.** Typing no longer rebuilds the tree and the tab strip on every
+  keystroke: 25 keystrokes used to cause 62 tree rebuilds, now none. A regression
+  test keeps it that way.
+- **Reading time** in the status bar for notes of 60+ words.
+- **16 e2e tests** instead of 11: focus mode, formatting, recent notes, reading
+  time and the speed guard are covered.
 
 ## What's new in 1.0
 
@@ -101,6 +116,8 @@ Get-FileHash .\KOCPAD_1.0.0_x64-setup.exe -Algorithm SHA256
 | Links | `[[note]]` and `[[note\|custom text]]`: autocomplete after `[[`, a click in the preview opens the note, and the «Связи» panel lists outgoing and backlinks. Missing targets get a dashed underline |
 | Front matter | A `---` block with `title`, `date`, `tags` and any `key: value`: metadata card in the preview, tags land in the tags panel |
 | Quick capture | Global `Ctrl+Alt+N` from any application: window to the front, new note |
+| Focus mode | `Ctrl+Shift+Z`: text only, one narrow column, no panels or preview; `Esc` exits |
+| Formatting | `Ctrl+B` / `Ctrl+I` / `Ctrl+\`` / `Ctrl+Shift+K`: bold, italic, inline code and a link around the selection; pressing again unwraps |
 | Scale | Cached note text for search, tags and links; folders render in 150-row chunks and the filter caps at 300 results with a hint |
 | Bulk actions | `Ctrl+Click` adds a note to the selection, `Shift+Click` takes a range, `Esc` clears it. «Переместить» into any workspace folder, or «Удалить» the whole batch |
 | Drafts | A new note (`Ctrl+N`) appears immediately and needs no folder: the text is stored locally and restored after a restart. «Сохранить в папку…» (`Ctrl+S`) turns it into a real `.md` file, `F2` renames it |
@@ -160,7 +177,7 @@ The release build produces an NSIS installer and an MSI under
 ```bash
 npm run typecheck      # TypeScript, no emit
 npm run build          # typecheck + production frontend build
-npm run test:e2e       # 11 Playwright scenarios (starts the dev server itself)
+npm run test:e2e       # 16 Playwright scenarios (starts the dev server itself)
 ```
 
 ## Keyboard shortcuts
@@ -169,6 +186,9 @@ npm run test:e2e       # 11 Playwright scenarios (starts the dev server itself)
 | --- | --- |
 | `Ctrl+N` | New note (created immediately, no name dialog) |
 | `Ctrl+Alt+N` | Quick capture: global, works even when the KOCPAD window is in the background |
+| `Ctrl+Shift+Z` | Focus mode (exit with `Esc`) |
+| `Ctrl+B` / `Ctrl+I` / `Ctrl+\`` | Bold, italic, inline code around the selection |
+| `Ctrl+Shift+K` | Insert a `[text](url)` link |
 | `Ctrl+Shift+N` | New folder |
 | `Ctrl+O` | Open folder |
 | `Ctrl+S` | Save now (for a draft: «Сохранить в папку…») |
@@ -219,6 +239,10 @@ the closing brackets.
 | Front matter | Settings |
 | --- | --- |
 | ![Front matter](docs/screenshots/frontmatter.png) | ![Settings](docs/screenshots/settings.png) |
+
+| Focus mode | Draft without a folder |
+| --- | --- |
+| ![Focus mode](docs/screenshots/focus.png) | ![Draft](docs/screenshots/draft.png) |
 
 | First launch | Draft without a folder |
 | --- | --- |

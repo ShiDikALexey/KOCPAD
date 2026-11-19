@@ -1,6 +1,6 @@
 import type { NoteNode } from '../types';
 import type { Store } from '../store';
-import { h, clear } from '../util';
+import { h, clear, debounce } from '../util';
 import { basename, dirname } from '../path';
 import { icon } from './icons';
 import type { AppActions } from './actions';
@@ -23,6 +23,8 @@ export class TreeView {
   private expanded = new Set<string>();
   private filter = '';
   private filterInput: HTMLInputElement | null = null;
+  /** Dirty dots can lag behind typing; the tree is expensive to rebuild. */
+  private renderDirty = debounce(() => this.render(), 400);
   /** How many chunks of a folder are currently shown, keyed by dir path. */
   private pages = new Map<string, number>();
   /** Selected note paths (files only): Ctrl+Click toggles, Shift+Click ranges. */
@@ -139,6 +141,7 @@ export class TreeView {
     this.store.on('tree', () => this.render());
     this.store.on('docs', () => this.render());
     this.store.on('active', () => this.render());
+    this.store.on('dirty', this.renderDirty);
     this.store.on('root', () => {
       this.pages.clear();
       this.selection.clear();
