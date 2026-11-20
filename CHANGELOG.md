@@ -4,6 +4,34 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.2.0] — 2026-11-20
+
+Formatting controls on top of the editor, Word-style.
+
+### Added
+
+- **Format bar** between the tabs and the panes: a block-type field that follows the
+  caret («Текст», headings 1–3, bullet, ordered, task list, quote, code block,
+  separator), inline buttons B / I / S / `</>` / ↗, and a «ПКМ — ещё» button that
+  opens the same menu as a right click.
+- **Context menu on right click** in the text: cut / copy / paste (selection only),
+  inline formatting, block conversion, «Найти выделенное» (prefills the find panel)
+  and «Убрать форматирование» (strips block and inline markers, keeps the words).
+- **Block shortcuts**: `Ctrl+Alt+1/2/3` for headings, `Ctrl+Alt+0` back to text;
+  the palette gained the same commands.
+- `MenuItem.separator` for grouped context menus (thin divider between sections).
+
+### Fixed
+
+- The main column was a three-row grid, so the new format bar pushed the panes into
+  the wrong row and the editor swallowed clicks on the bar. `.main` is now a flex
+  column; the e2e test for the block-type bar guards the layout.
+
+### Tests
+
+- 5 more Playwright scenarios (21 total): block-type bar and `Ctrl+Alt` shortcuts,
+  format-bar buttons, the right-click menu, and clearing markup.
+
 ## [1.1.0] — 2026-11-19
 
 Performance pass, focus mode and keyboard formatting.

@@ -18,7 +18,7 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.1.0` — a working version for everyday writing. 16 UI tests run in CI
+> **Status:** `1.2.0` — a working version for everyday writing. 21 UI tests run in CI
 > on every push. What is left is external: installer code signing and a clean-machine
 > check — see [the roadmap](docs/ROADMAP.md).
 >
@@ -98,6 +98,8 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 | Live preview | Right-hand pane with synced scrolling; editor / split / preview modes |
 | GFM | Tables, task lists, strikethrough, autolinks, footnotes |
 | Formatting | `Ctrl+B` bold, `Ctrl+I` italic, ``Ctrl+` `` code, `Ctrl+Shift+K` link; pressing again removes the markers |
+| Block-type bar | The field above the editor shows the current block and converts it: text, headings 1–3, bullet, ordered, task list, quote, code block, separator |
+| Context menu | Right click in the text: cut/copy/paste, inline formatting, block conversion, find the selection, strip markup |
 | Front matter | A leading `---` block with `title`, `date`, `tags` and any `key: value` is shown as a metadata card |
 | Focus mode | `Ctrl+Shift+Z`: one narrow text column, no panels or preview; `Esc` exits |
 | Vim | Optional keymap (`hjkl`, modes), loaded on demand from settings |
@@ -157,7 +159,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.1.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.2.0_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
@@ -198,6 +200,9 @@ Uninstalling the app does not remove your notes: they stay in your folder.
 | `Ctrl+W` / `Ctrl+Tab` | Close tab / next tab |
 | `Ctrl+,` | Settings |
 | `Ctrl+B` / `Ctrl+I` / ``Ctrl+` `` / `Ctrl+Shift+K` | Bold, italic, code, link (again to unwrap) |
+| `Ctrl+Alt+1` / `Ctrl+Alt+2` / `Ctrl+Alt+3` | Heading 1 / 2 / 3 for the current line or selection |
+| `Ctrl+Alt+0` | Turn the block back into plain text |
+| Right click in the text | Context menu: clipboard, formatting, block types, find the selection |
 | `Ctrl+Shift+Z` / `Esc` | Focus mode / exit it |
 | `Ctrl+Shift+O` | Outline panel |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Font size up / down / reset |
@@ -239,6 +244,10 @@ Full list with context (including Vim): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.m
 | --- | --- |
 | ![Onboarding](docs/screenshots/onboarding.png) | ![Find panel](docs/screenshots/find.png) |
 
+| Format bar | Context menu |
+| --- | --- |
+| ![Format bar](docs/screenshots/formatbar.png) | ![Context menu](docs/screenshots/contextmenu.png) |
+
 ## Building from source
 
 Requirements: Node.js 20+, Rust 1.77.2+ (MSVC toolchain) and the WebView2 Runtime.
@@ -275,7 +284,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 16 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 21 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -316,7 +325,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                16 Playwright scenarios
+├─ tests/                21 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```

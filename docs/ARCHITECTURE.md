@@ -221,6 +221,31 @@ column. `Ctrl+Shift+Z` toggles it, `Esc` leaves it, and the settings screen expo
 the same switch.
 
 
+## Format bar and context menu
+
+Two UI surfaces sit on top of the same editor primitives:
+
+- **Block types.** `detectBlockType(line)` reads the leading markdown markers of the
+  caret line (`#`, `-`, `1.`, `- [ ]`, `>`, fences, `---`). `setBlockType(type)`
+  strips the existing marker from every line of the selection and writes the new
+  one; `code` wraps the range in fences instead of prefixing lines, `hr` replaces
+  the current line. `BLOCK_LABELS` / `BLOCK_TYPES` are shared by the format bar, the
+  context menu and the palette, so the three never drift apart.
+- **Format bar.** A row between the tabs and the panes: the block-type button shows
+  the current block (updated from the editor's `onCursor` callback), the inline
+  buttons reuse `formatBold/Italic/Strike/Code/Link`, and a «ПКМ — ещё» button opens
+  the same menu as a right click, for mouse-only use. Focus mode hides the row.
+- **Context menu.** A `contextmenu` handler on the editor host builds a `MenuItem[]`
+  with `separator: true` entries: clipboard (only with a selection), inline
+  formatting, nine block conversions, «Найти выделенное» (prefills the find panel
+  through `setSearchQuery`) and «Убрать форматирование». Clipboard operations use
+  `navigator.clipboard` and report a toast when the WebView denies access.
+- **Layout note.** `.main` is a flex column (tabs → format bar → panes → status bar)
+  on purpose: adding the bar to the previous three-row grid pushed the panes into the
+  wrong row and the editor intercepted clicks on the bar. The e2e test «block-type
+  bar shows the caret block and converts it» fails if the layout regresses.
+
+
 ## Wiki links
 
 `src/wikilinks.ts` owns the syntax `[[Заметка]]` / `[[Заметка|текст]]`:

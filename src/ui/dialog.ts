@@ -231,10 +231,12 @@ export function choiceDialog(options: ChoiceOptions): Promise<string | null> {
 }
 
 export interface MenuItem {
-  label: string;
+  label?: string;
   hint?: string;
   danger?: boolean;
-  onClick: () => void;
+  /** Renders a thin line instead of an item. */
+  separator?: boolean;
+  onClick?: () => void;
 }
 
 /** Context menu anchored to an element. Closes on outside click or Escape. */
@@ -243,8 +245,9 @@ export function showMenu(anchor: { x: number; y: number }, items: MenuItem[]): v
   const menu = h(
     'div',
     { class: 'menu', role: 'menu' },
-    ...items.map((item) =>
-      h(
+    ...items.map((item) => {
+      if (item.separator) return h('div', { class: 'menu__sep', role: 'separator' });
+      return h(
         'button',
         {
           class: `menu__item${item.danger ? ' menu__item--danger' : ''}`,
@@ -253,13 +256,13 @@ export function showMenu(anchor: { x: number; y: number }, items: MenuItem[]): v
           onclick: () => {
             menu.remove();
             cleanup();
-            item.onClick();
+            item.onClick?.();
           },
         },
         h('span', { class: 'menu__label' }, item.label),
         item.hint ? h('span', { class: 'menu__hint' }, item.hint) : null,
-      ),
-    ),
+      );
+    }),
   );
   document.body.appendChild(menu);
 

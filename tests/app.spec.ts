@@ -194,10 +194,94 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('body')).toHaveClass(/focus-mode/);
     await expect(page.locator('#sidebar')).toBeHidden();
     await expect(page.locator('.pane--preview')).toBeHidden();
+    await expect(page.locator('#formatbar')).toBeHidden();
 
     await page.keyboard.press('Escape');
     await expect(page.locator('body')).not.toHaveClass(/focus-mode/);
     await expect(page.locator('#sidebar')).toBeVisible();
+    await expect(page.locator('#formatbar')).toBeVisible();
+  });
+
+  test('block-type bar shows the caret block and converts it', async ({ page }) => {
+    // The demo note starts with "# Добро пожаловать", so line 1 is a heading.
+    await expect(page.locator('#block-type-label')).toHaveText('Заголовок 1');
+
+    await page.locator('#block-type').click();
+    await expect(page.locator('.menu')).toBeVisible();
+    await page.locator('.menu .menu__item', { hasText: 'Список' }).click();
+
+    await expect(page.locator('#block-type-label')).toHaveText('Список');
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text.split('\n')[0]))
+      .toBe('- Добро пожаловать в KOCPAD');
+
+    // Ctrl+Alt+0 turns the block back into plain text.
+    await page.keyboard.press('Control+Alt+0');
+    await expect(page.locator('#block-type-label')).toHaveText('Текст');
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text.split('\n')[0]))
+      .toBe('Добро пожаловать в KOCPAD');
+  });
+
+  test('Ctrl+Alt+2 makes a heading and the bar follows', async ({ page }) => {
+    await page.evaluate(() => {
+      const view = window.__kocpad.editor.view;
+      view.dispatch({ selection: { anchor: 0 } });
+    });
+    await page.keyboard.press('Control+Alt+2');
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text.split('\n')[0]))
+      .toBe('## Добро пожаловать в KOCPAD');
+    await expect(page.locator('#block-type-label')).toHaveText('Заголовок 2');
+  });
+
+  test('format bar buttons wrap the selection', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad.editor;
+      api.applyText('слово');
+      api.view.dispatch({ selection: { anchor: 0, head: 5 } });
+    });
+    await page.locator('#formatbar [data-format="bold"]').click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toBe('**слово**');
+  });
+
+  test('right click in the editor opens a Word-like menu with our actions', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad.editor;
+      api.applyText('# Заголовок\n\nтекст');
+      // "текст" occupies offsets 13..18.
+      api.view.dispatch({ selection: { anchor: 13, head: 18 } });
+      document
+        .querySelector('.cm-content')
+        ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 200, clientY: 200 }));
+    });
+
+    const menu = page.locator('.menu');
+    await expect(menu).toBeVisible();
+    await expect(menu).toContainText('Вырезать');
+    await expect(menu).toContainText('Жирный');
+    await expect(menu).toContainText('Заголовок 1');
+    await expect(menu).toContainText('Убрать форматирование');
+    await expect(menu.locator('.menu__sep').first()).toBeVisible();
+
+    await menu.locator('.menu__item', { hasText: 'Жирный' }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('**текст**');
+  });
+
+  test('clear formatting removes markers without losing words', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad.editor;
+      api.applyText('## **Жирный** и `код` и [ссылка](url)');
+      api.view.dispatch({ selection: { anchor: 0, head: api.text.length } });
+      api.clearFormatting();
+    });
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toBe('Жирный и код и ссылка');
   });
 
   test('formatting shortcuts wrap and toggle markdown markers', async ({ page }) => {

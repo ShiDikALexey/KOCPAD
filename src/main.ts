@@ -2,7 +2,7 @@ import './style.css';
 
 import { Store } from './store';
 import { createStorage } from './storage';
-import { MarkdownEditor } from './editor';
+import { MarkdownEditor, BLOCK_LABELS, BLOCK_TYPES, type BlockType } from './editor';
 import {
   buildExportHtml,
   decoratePreview,
@@ -21,7 +21,7 @@ import { LinksView } from './ui/links';
 import { decorateWikiLinks } from './wikilinks';
 import { openPalette, type Command } from './ui/palette';
 import { openSettings } from './ui/settings';
-import { choiceDialog, confirmAction, promptText, showMenu, showToast } from './ui/dialog';
+import { choiceDialog, confirmAction, promptText, showMenu, showToast, type MenuItem } from './ui/dialog';
 import { folderPicker } from './ui/pickers';
 import { icon, type IconName } from './ui/icons';
 import type { AppActions } from './ui/actions';
@@ -64,6 +64,10 @@ const dom = {
   emptyState: must('empty-state'),
   splitter: must('splitter'),
   statusMode: must('status-mode'),
+  formatbar: must('formatbar'),
+  blockType: must('block-type'),
+  blockTypeLabel: must('block-type-label'),
+  blockHint: must('block-hint'),
   overlay: must('overlay'),
 } as const;
 
@@ -196,6 +200,188 @@ function applyLayout(): void {
 
 let suppressPreviewRender = false;
 
+// ---------------------------------------------------------------- format bar
+
+/** Guards against early calls while the editor is still being constructed. */
+let formatBarReady = false;
+
+function blockHintFor(type: BlockType): string | undefined {
+  if (type === 'h1') return 'Ctrl+Alt+1';
+  if (type === 'h2') return 'Ctrl+Alt+2';
+  if (type === 'h3') return 'Ctrl+Alt+3';
+  if (type === 'paragraph') return 'Ctrl+Alt+0';
+  return undefined;
+}
+
+/** Keeps the block-type button in sync with the caret line. */
+function updateFormatBar(): void {
+  if (!formatBarReady) return;
+  const doc = store.activeDoc;
+  dom.formatbar.hidden = !doc;
+  if (doc) dom.blockTypeLabel.textContent = BLOCK_LABELS[editor.blockType];
+}
+
+function openBlockMenu(anchor: { x: number; y: number }): void {
+  showMenu(
+    anchor,
+    BLOCK_TYPES.map((type) => ({
+      label: BLOCK_LABELS[type],
+      hint: blockHintFor(type),
+      onClick: () => {
+        editor.setBlockType(type);
+        updateFormatBar();
+      },
+    })),
+  );
+}
+
+/** Editor context menu: clipboard, inline formatting and block conversion. */
+function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean): void {
+  if (!store.activeDoc) return;
+  const hasSelection = editor.hasSelection;
+  const items: MenuItem[] = [];
+
+  if (withClipboard && hasSelection) {
+    items.push(
+      {
+        label: 'Вырезать',
+        hint: 'Ctrl+X',
+        onClick: () => {
+          void editor.cutSelection().then((ok) => {
+            if (!ok) showToast('Буфер обмена недоступен', 'error');
+            updateFormatBar();
+          });
+        },
+      },
+      {
+        label: 'Копировать',
+        hint: 'Ctrl+C',
+        onClick: () => {
+          void editor.copySelection().then((ok) => {
+            if (!ok) showToast('Буфер обмена недоступен', 'error');
+          });
+        },
+      },
+    );
+  }
+
+  items.push({
+    label: 'Вставить',
+    hint: 'Ctrl+V',
+    onClick: () => {
+      void editor.pasteClipboard().then((ok) => {
+        if (!ok) showToast('Не удалось прочитать буфер — нажмите Ctrl+V', 'error');
+        else updateFormatBar();
+      });
+    },
+  });
+
+  items.push({ separator: true });
+  items.push(
+    {
+      label: 'Жирный',
+      hint: 'Ctrl+B',
+      onClick: () => {
+        editor.formatBold();
+        updateFormatBar();
+      },
+    },
+    {
+      label: 'Курсив',
+      hint: 'Ctrl+I',
+      onClick: () => {
+        editor.formatItalic();
+        updateFormatBar();
+      },
+    },
+    {
+      label: 'Зачёркнутый',
+      onClick: () => {
+        editor.formatStrike();
+        updateFormatBar();
+      },
+    },
+    {
+      label: 'Код в строке',
+      hint: 'Ctrl+`',
+      onClick: () => {
+        editor.formatCode();
+        updateFormatBar();
+      },
+    },
+    {
+      label: 'Ссылка',
+      hint: 'Ctrl+Shift+K',
+      onClick: () => {
+        editor.formatLink();
+        updateFormatBar();
+      },
+    },
+  );
+
+  items.push({ separator: true });
+  const blockItems: BlockType[] = ['h1', 'h2', 'h3', 'bullet', 'ordered', 'task', 'quote', 'code', 'hr'];
+  for (const type of blockItems) {
+    items.push({
+      label: BLOCK_LABELS[type],
+      hint: blockHintFor(type),
+      onClick: () => {
+        editor.setBlockType(type);
+        updateFormatBar();
+      },
+    });
+  }
+
+  if (hasSelection) {
+    items.push(
+      { separator: true },
+      { label: 'Найти выделенное', hint: 'Ctrl+F', onClick: () => editor.findSelection() },
+    );
+  }
+
+  items.push({ separator: true }, {
+    label: 'Убрать форматирование',
+    onClick: () => {
+      editor.clearFormatting();
+      updateFormatBar();
+    },
+  });
+
+  showMenu(anchor, items);
+}
+
+function mountFormatBar(): void {
+  dom.blockType.addEventListener('click', () => {
+    const rect = dom.blockType.getBoundingClientRect();
+    openBlockMenu({ x: rect.left, y: rect.bottom + 4 });
+  });
+  dom.blockHint.addEventListener('click', () => {
+    const rect = dom.blockHint.getBoundingClientRect();
+    openEditorMenu({ x: rect.left, y: rect.bottom + 4 }, false);
+  });
+  dom.formatbar.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLElement>('[data-format]');
+    const kind = button?.dataset.format;
+    if (!kind) return;
+    const handlers: Record<string, () => void> = {
+      bold: () => editor.formatBold(),
+      italic: () => editor.formatItalic(),
+      strike: () => editor.formatStrike(),
+      code: () => editor.formatCode(),
+      link: () => editor.formatLink(),
+    };
+    handlers[kind]?.();
+    updateFormatBar();
+  });
+  dom.editorHost.addEventListener('contextmenu', (event) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.cm-content') || !store.activeDoc) return;
+    event.preventDefault();
+    openEditorMenu({ x: event.clientX, y: event.clientY }, true);
+  });
+  formatBarReady = true;
+}
+
 const editor = new MarkdownEditor(
   dom.editorHost,
   {
@@ -208,6 +394,7 @@ const editor = new MarkdownEditor(
     onCursor: (line, column, selectionLength) => {
       statusBar.setCursor({ line, column, selectionLength });
       outline.setCursor(line);
+      updateFormatBar();
     },
   },
   { showLineNumbers: store.settings.showLineNumbers },
@@ -333,12 +520,14 @@ function syncActive(): void {
 
   if (!doc) {
     dom.preview.innerHTML = '';
+    updateFormatBar();
     updateTitle();
     return;
   }
 
   editor.open(doc.path, doc.content);
   editor.setLineNumbers(store.settings.showLineNumbers);
+  updateFormatBar();
   if (doc.content !== lastPreviewSource) schedulePreview();
   updateTitle();
   statusBar.setCursor({ line: editor.cursorLine, column: 1, selectionLength: 0 });
@@ -562,6 +751,18 @@ const actions: AppActions = {
   formatItalic: () => editor.formatItalic(),
   formatCode: () => editor.formatCode(),
   formatLink: () => editor.formatLink(),
+
+  setBlockType: (type) => {
+    editor.setBlockType(type);
+    updateFormatBar();
+  },
+
+  clearFormatting: () => {
+    editor.clearFormatting();
+    updateFormatBar();
+  },
+
+  findSelection: () => editor.findSelection(),
 
   closeWorkspace: () => {
     void closeCurrentWorkspace();
@@ -831,6 +1032,16 @@ function palette(): void {
     { label: 'Формат: курсив', hint: 'Ctrl+I', run: actions.formatItalic },
     { label: 'Формат: код в строке', hint: 'Ctrl+`', run: actions.formatCode },
     { label: 'Формат: ссылка', hint: 'Ctrl+Shift+K', run: actions.formatLink },
+    { label: 'Тип блока: текст', hint: 'Ctrl+Alt+0', run: () => actions.setBlockType('paragraph') },
+    { label: 'Тип блока: заголовок 1', hint: 'Ctrl+Alt+1', run: () => actions.setBlockType('h1') },
+    { label: 'Тип блока: заголовок 2', hint: 'Ctrl+Alt+2', run: () => actions.setBlockType('h2') },
+    { label: 'Тип блока: заголовок 3', hint: 'Ctrl+Alt+3', run: () => actions.setBlockType('h3') },
+    { label: 'Тип блока: чек-лист', run: () => actions.setBlockType('task') },
+    { label: 'Тип блока: цитата', run: () => actions.setBlockType('quote') },
+    { label: 'Тип блока: блок кода', run: () => actions.setBlockType('code') },
+    { label: 'Тип блока: разделитель', run: () => actions.setBlockType('hr') },
+    { label: 'Убрать форматирование', run: actions.clearFormatting },
+    { label: 'Найти выделенное', hint: 'Ctrl+F', run: actions.findSelection },
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
     { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
@@ -1025,6 +1236,22 @@ function mountShortcuts(): void {
       return;
     }
     if (!mod || overlayOpen()) return;
+
+    // Ctrl+Alt+1/2/3 make headings, Ctrl+Alt+0 turns a block back into text.
+    if (event.altKey) {
+      const blockByKey: Record<string, BlockType> = {
+        '0': 'paragraph',
+        '1': 'h1',
+        '2': 'h2',
+        '3': 'h3',
+      };
+      const blockType = blockByKey[event.key];
+      if (blockType) {
+        event.preventDefault();
+        actions.setBlockType(blockType);
+        return;
+      }
+    }
 
     if (event.key === 'Tab') {
       event.preventDefault();
@@ -1289,6 +1516,8 @@ async function boot(): Promise<void> {
   tree.mount();
   tabsView.mount();
   statusBar.mount();
+  mountFormatBar();
+  updateFormatBar();
   outline.mount();
   tagsView.mount();
   linksView.mount();

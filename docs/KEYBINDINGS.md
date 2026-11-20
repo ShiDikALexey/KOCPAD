@@ -13,6 +13,9 @@
 | `Ctrl+I` | Italic (`*…*`), toggles the same way |
 | ``Ctrl+` `` | Inline code (`` `…` ``) |
 | `Ctrl+Shift+K` | Insert a link `[text](url)` and select the address placeholder |
+| `Ctrl+Alt+1` / `Ctrl+Alt+2` / `Ctrl+Alt+3` | Heading 1 / 2 / 3 for the current line or the selection |
+| `Ctrl+Alt+0` | Turn the block back into plain text |
+| Right click in the editor | Context menu: cut/copy/paste, formatting, block types, find the selection, strip markup |
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
 | `Ctrl+S` | Save now; for a draft this opens «Сохранить в папку…» |

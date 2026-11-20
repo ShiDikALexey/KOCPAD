@@ -66,6 +66,22 @@
         <main class="main">
           <div id="tabs" class="tabs" role="tablist" aria-label="Открытые заметки"></div>
 
+          <div id="formatbar" class="formatbar" hidden>
+            <button id="block-type" class="formatbar__block" type="button" aria-haspopup="menu" title="Тип блока: Ctrl+Alt+1–3, Ctrl+Alt+0 — текст">
+              <span id="block-type-label">Текст</span>
+              <span class="formatbar__chevron" aria-hidden="true">▾</span>
+            </button>
+            <span class="formatbar__divider" aria-hidden="true"></span>
+            <div class="formatbar__group" role="group" aria-label="Форматирование">
+              <button class="formatbar__btn" type="button" data-format="bold" title="Жирный (Ctrl+B)" aria-label="Жирный"><b>B</b></button>
+              <button class="formatbar__btn" type="button" data-format="italic" title="Курсив (Ctrl+I)" aria-label="Курсив"><i>I</i></button>
+              <button class="formatbar__btn" type="button" data-format="strike" title="Зачёркнутый" aria-label="Зачёркнутый"><s>S</s></button>
+              <button class="formatbar__btn" type="button" data-format="code" title="Код в строке (Ctrl+`)" aria-label="Код в строке">&lt;/&gt;</button>
+              <button class="formatbar__btn" type="button" data-format="link" title="Ссылка (Ctrl+Shift+K)" aria-label="Ссылка">↗</button>
+            </div>
+            <button id="block-hint" class="formatbar__hint" type="button" title="Контекстное меню по правой кнопке мыши">ПКМ — ещё</button>
+          </div>
+
           <div id="panes" class="panes" data-mode="split">
             <section class="pane pane--editor">
               <div id="editor" class="editor-host"></div>

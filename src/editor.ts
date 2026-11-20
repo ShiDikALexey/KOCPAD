@@ -11,7 +11,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { HighlightStyle, bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language';
-import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
+import { openSearchPanel, search, searchKeymap, SearchQuery, setSearchQuery } from '@codemirror/search';
 import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { tags } from '@lezer/highlight';
 import type { EditorKeymap } from './types';
@@ -437,8 +437,7 @@ export class MarkdownEditor {
     }
   }
 
-  private applyKeymap(extension: Extension): void {
-    this.view.dispatch({ effects: this.keymapCompartment.reconfigure(extension) });
+  private applyKeymap(extension: Extension): void {    this.view.dispatch({ effects: this.keymapCompartment.reconfigure(extension) });
     this.states.clear();
   }
 
@@ -448,6 +447,17 @@ export class MarkdownEditor {
 
   openSearch(): void {
     openSearchPanel(this.view);
+  }
+
+  /** Opens the find panel with the selected text as the query (Word-style). */
+  findSelection(): void {
+    const text = this.selectedText;
+    openSearchPanel(this.view);
+    if (text) {
+      this.view.dispatch({
+        effects: setSearchQuery.of(new SearchQuery({ search: text, caseSensitive: false })),
+      });
+    }
   }
 
   scrollToLine(line: number, column = 1): void {
@@ -468,9 +478,154 @@ export class MarkdownEditor {
     element.scrollTop = max * Math.min(Math.max(ratio, 0), 1);
   }
 
-  /** Wraps the selection, or inserts a placeholder between the markers. */
-  wrapSelection(before: string, after = before, placeholderText = 'текст'): void {
+  // ------------------------------------------------ block types and clipboard
+
+  /** What kind of markdown block the caret is in. */
+  get blockType(): BlockType {
+    return detectBlockType(this.view.state.doc.lineAt(this.view.state.selection.main.head).text);
+  }
+
+  get hasSelection(): boolean {
+    const range = this.view.state.selection.main;
+    return range.from !== range.to;
+  }
+
+  get selectedText(): string {
+    const range = this.view.state.selection.main;
+    return this.view.state.sliceDoc(range.from, range.to);
+  }
+
+  /** Converts every line of the selection to the requested block type. */
+  setBlockType(type: BlockType): void {
     const state = this.view.state;
+    const range = state.selection.main;
+    const first = state.doc.lineAt(range.from);
+    let last = state.doc.lineAt(range.to);
+    // A selection ending exactly at the next line start does not include that line.
+    if (last.number > first.number && range.to === last.from) last = state.doc.line(last.number - 1);
+
+    if (type === 'code') {
+      this.toggleCodeBlock(first.from, last.to);
+      return;
+    }
+
+    if (type === 'hr') {
+      const line = state.doc.lineAt(range.head);
+      this.view.dispatch({
+        changes: { from: line.from, to: line.to, insert: '---' },
+        selection: { anchor: line.from + 3 },
+      });
+      this.view.focus();
+      return;
+    }
+
+    const changes: { from: number; to: number; insert: string }[] = [];
+    for (let number = first.number; number <= last.number; number += 1) {
+      const line = state.doc.line(number);
+      const next = blockPrefix(type, number - first.number) + stripBlockPrefix(line.text);
+      if (next !== line.text) changes.push({ from: line.from, to: line.to, insert: next });
+    }
+    if (changes.length) this.view.dispatch({ changes });
+    this.view.focus();
+  }
+
+  /** Removes block markers and inline markdown, keeping the words. */
+  clearFormatting(): void {
+    const state = this.view.state;
+    const range = state.selection.main;
+    const text = state.sliceDoc(range.from, range.to);
+    const plain = text
+      .split('\n')
+      .map((line) => stripInlineMarkdown(stripBlockPrefix(line)))
+      .join('\n');
+    if (plain !== text) {
+      this.view.dispatch({
+        changes: { from: range.from, to: range.to, insert: plain },
+        selection: { anchor: range.from, head: range.from + plain.length },
+      });
+    }
+    this.view.focus();
+  }
+
+  formatStrike(): void {
+    this.toggleWrap('~~', '~~', 'зачёркнутый');
+  }
+
+  /** Copies the selection; false when the clipboard is unavailable. */
+  async copySelection(): Promise<boolean> {
+    const text = this.selectedText;
+    if (!text) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async cutSelection(): Promise<boolean> {
+    const ok = await this.copySelection();
+    if (ok) this.deleteSelection();
+    return ok;
+  }
+
+  deleteSelection(): void {
+    const range = this.view.state.selection.main;
+    if (range.from === range.to) return;
+    this.view.dispatch({
+      changes: { from: range.from, to: range.to },
+      selection: { anchor: range.from },
+    });
+    this.view.focus();
+  }
+
+  /** Pastes clipboard text at the caret; false means "use Ctrl+V instead". */
+  async pasteClipboard(): Promise<boolean> {
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      return false;
+    }
+    if (!text) return false;
+    const range = this.view.state.selection.main;
+    this.view.dispatch({
+      changes: { from: range.from, to: range.to, insert: text },
+      selection: { anchor: range.from + text.length },
+    });
+    this.view.focus();
+    return true;
+  }
+
+  private toggleCodeBlock(from: number, to: number): void {
+    const state = this.view.state;
+    const first = state.doc.lineAt(from);
+    const last = state.doc.lineAt(to);
+    const firstIsFence = first.text.trimStart().startsWith('```');
+    const lastIsFence = last.text.trim() === '```';
+    if (firstIsFence && lastIsFence && last.number > first.number) {
+      // Unwrap: drop both fence lines.
+      this.view.dispatch({
+        changes: [
+          { from: first.from, to: first.to + 1 },
+          { from: last.from - 1, to: last.to },
+        ],
+        selection: { anchor: first.from },
+      });
+    } else if (!firstIsFence) {
+      this.view.dispatch({
+        changes: [
+          { from: first.from, insert: '```\n' },
+          { from: last.to, insert: '\n```' },
+        ],
+        selection: { anchor: first.from + 4 },
+      });
+    }
+    this.view.focus();
+  }
+
+  /** Wraps the selection, or inserts a placeholder between the markers. */
+  wrapSelection(before: string, after = before, placeholderText = 'текст'): void {    const state = this.view.state;
     const range = state.selection.main;
     const selected = state.sliceDoc(range.from, range.to) || placeholderText;
     const insert = before + selected + after;
@@ -509,3 +664,101 @@ export class MarkdownEditor {
 
 /** Kept as an explicit alias so module imports stay readable. */
 export type EditorExtension = Extension;
+
+// ------------------------------------------------------------------ blocks
+
+/** Markdown block kinds offered by the format bar and the context menu. */
+export type BlockType =
+  | 'paragraph'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'bullet'
+  | 'ordered'
+  | 'task'
+  | 'quote'
+  | 'code'
+  | 'hr';
+
+export const BLOCK_LABELS: Record<BlockType, string> = {
+  paragraph: 'Текст',
+  h1: 'Заголовок 1',
+  h2: 'Заголовок 2',
+  h3: 'Заголовок 3',
+  bullet: 'Список',
+  ordered: 'Нумерованный',
+  task: 'Чек-лист',
+  quote: 'Цитата',
+  code: 'Блок кода',
+  hr: 'Разделитель',
+};
+
+/** Order used by the block-type menu. */
+export const BLOCK_TYPES: BlockType[] = [
+  'paragraph',
+  'h1',
+  'h2',
+  'h3',
+  'bullet',
+  'ordered',
+  'task',
+  'quote',
+  'code',
+  'hr',
+];
+
+function blockPrefix(type: BlockType, index: number): string {
+  switch (type) {
+    case 'h1':
+      return '# ';
+    case 'h2':
+      return '## ';
+    case 'h3':
+      return '### ';
+    case 'bullet':
+      return '- ';
+    case 'ordered':
+      return `${index + 1}. `;
+    case 'task':
+      return '- [ ] ';
+    case 'quote':
+      return '> ';
+    default:
+      return '';
+  }
+}
+
+/** Detects the block kind of one line. */
+export function detectBlockType(text: string): BlockType {
+  const line = text.trimStart();
+  if (/^```|^~~~/.test(line)) return 'code';
+  if (/^###\s/.test(line)) return 'h3';
+  if (/^##\s/.test(line)) return 'h2';
+  if (/^#\s/.test(line)) return 'h1';
+  if (/^[-*+]\s+\[[ xX]\]\s?/.test(line)) return 'task';
+  if (/^[-*+]\s/.test(line)) return 'bullet';
+  if (/^\d+[.)]\s/.test(line)) return 'ordered';
+  if (/^>\s?/.test(line)) return 'quote';
+  if (/^(---|\*\*\*|___)\s*$/.test(line)) return 'hr';
+  return 'paragraph';
+}
+
+/** Removes the leading markdown markers of a block line. */
+export function stripBlockPrefix(text: string): string {
+  return text.replace(
+    /^(?:#{1,6}\s+|[-*+]\s+\[[ xX]\]\s*|[-*+]\s+|\d+[.)]\s+|>\s?|```[^`]*$|~~~[^~]*$|(?:---|\*\*\*|___)\s*$)/,
+    '',
+  );
+}
+
+/** Removes inline markdown markers, keeping the words. */
+export function stripInlineMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\[([^\]\n]+)\]\(([^)\n]*)\)/g, '$1')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1$2')
+    .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1$2');
+}

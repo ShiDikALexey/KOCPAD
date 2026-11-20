@@ -261,11 +261,22 @@ button {
 
 .main {
   position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-width: 0;
   background: var(--bg);
+}
+
+/* Rows of the main column: tabs, format bar (optional), panes, status bar. */
+.main > .tabs,
+.main > .formatbar,
+.main > .statusbar {
+  flex: none;
+}
+
+.main > .panes {
+  flex: 1 1 auto;
 }
 
 /* ============================================================ titlebar === */
@@ -2327,6 +2338,100 @@ body.is-dragging::after {
 }
 
 /* ================================================== motion and scaling === */
+
+/* ------------------------------------------------------------- format bar */
+
+.formatbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-panel);
+}
+
+.formatbar[hidden] {
+  display: none;
+}
+
+.formatbar__block {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg-raised);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.formatbar__block:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-hover);
+}
+
+.formatbar__chevron {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+.formatbar__divider {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+
+.formatbar__group {
+  display: flex;
+  gap: 2px;
+}
+
+.formatbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+.formatbar__btn:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+
+.formatbar__btn:active {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.formatbar__hint {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.formatbar__hint:hover {
+  color: var(--ink-muted);
+}
+
+body.focus-mode .formatbar {
+  display: none;
+}
+
+.menu__sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--line);
+}
 
 /* ---------------------------------------------------------- focus mode ---
    Distraction-free writing: one narrow column, no sidebar, no preview. */

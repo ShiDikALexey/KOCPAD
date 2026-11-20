@@ -1,4 +1,5 @@
 import type { NoteNode, SidebarTab, ThemeMode, ViewMode } from '../types';
+import type { BlockType } from '../editor';
 
 /** Callbacks the UI modules need from the app shell. Implemented in main.ts. */
 export interface AppActions {
@@ -14,6 +15,10 @@ export interface AppActions {
   formatItalic(): void;
   formatCode(): void;
   formatLink(): void;
+  /** Converts the current line or selection to a markdown block type. */
+  setBlockType(type: BlockType): void;
+  clearFormatting(): void;
+  findSelection(): void;
   createNote(parentDir?: string): void;
   createFolder(parentDir?: string): void;
   renameEntry(node: NoteNode): void;

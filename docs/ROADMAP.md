@@ -108,6 +108,15 @@
 - [x] Reading time in the status bar
 - [x] 16 e2e tests, including the typing-performance guard
 
+## 1.2.0 — formatting controls (done)
+
+- [x] Format bar: block-type field that follows the caret plus inline buttons
+- [x] Block conversion for text, headings 1–3, lists, task list, quote, code, hr
+- [x] Context menu on right click (clipboard, formatting, blocks, find selection,
+      strip markup)
+- [x] `Ctrl+Alt+0…3` block shortcuts and palette commands
+- [x] Main-column layout fix and 5 more e2e tests (21 total)
+
 ## After 1.0 (backlog)
 
 - [ ] Two notes side by side
