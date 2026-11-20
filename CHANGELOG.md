@@ -4,6 +4,31 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.3.0] — 2026-11-20
+
+Auto-updates are in, and the signing situation is documented honestly.
+
+### Added
+
+- **In-app updater** (Tauri updater plugin): «⋯» → «Проверить обновления…» and a
+  palette command. The app reads the release `latest.json`, compares versions,
+  verifies the signature against the public key in `tauri.conf.json`, downloads the
+  installer and installs it in `passive` mode; problems are reported as toasts.
+- `scripts/enable-updater.cjs` — CI flips `bundle.createUpdaterArtifacts` on only
+  when `TAURI_SIGNING_PRIVATE_KEY` exists, so builds without the secret keep working.
+- `scripts/make-latest-json.cjs` — the release job writes `latest.json` (version,
+  installer URL, signature) next to the `.sig` file.
+- An updater keypair was generated: the public key is committed, the private key
+  lives outside the repository (setup steps in `docs/PUBLISHING.md`).
+- e2e test for the update command (22 total).
+
+### Changed
+
+- `docs/PUBLISHING.md`: the signing note now matches the 2023–2026 rules — private
+  keys must live on hardware or a cloud HSM, Azure Artifact Signing is available to
+  organizations in the US/Canada/EU/UK and individuals in the US/Canada, Russian
+  developers have the industry ОТУЦ, and a `.pfx` file is no longer issued.
+
 ## [1.2.0] — 2026-11-20
 
 Formatting controls on top of the editor, Word-style.

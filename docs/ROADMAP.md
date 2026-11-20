@@ -117,6 +117,15 @@
 - [x] `Ctrl+Alt+0…3` block shortcuts and palette commands
 - [x] Main-column layout fix and 5 more e2e tests (21 total)
 
+## 1.3.0 — auto-updates (done)
+
+- [x] Updater plugin wired: menu and palette command, signature verification,
+      passive install
+- [x] Keypair generated; public key committed, private key kept out of the repo
+- [x] CI: updater artifacts enabled when the signing secret exists, `latest.json`
+      generated for the release
+- [x] Documentation: how to enable updates, and the honest state of Windows signing
+
 ## After 1.0 (backlog)
 
 - [ ] Two notes side by side

@@ -573,6 +573,51 @@ async function restoreTabs(): Promise<void> {  try {
 
 // ------------------------------------------------------------------- actions
 
+/** Asks the release endpoint for a signed update and installs it on consent. */
+async function checkForUpdates(): Promise<void> {
+  if (!isTauriRuntime()) {
+    showToast('Обновления проверяются только в приложении KOCPAD', 'info');
+    return;
+  }
+
+  let current = '';
+  try {
+    const { getVersion } = await import('@tauri-apps/api/app');
+    current = await getVersion();
+  } catch {
+    // The version is only used in the toast text.
+  }
+
+  try {
+    const { check } = await import('@tauri-apps/plugin-updater');
+    const update = await check();
+    if (!update) {
+      showToast(current ? `Обновлений нет · установлена ${current}` : 'Обновлений нет');
+      return;
+    }
+
+    const confirmed = await confirmAction({
+      title: `Доступно обновление ${update.version}`,
+      message:
+        update.body?.trim() ||
+        'Скачать и установить новую версию? KOCPAD закроется, установит обновление, после чего его нужно будет запустить снова.',
+      confirmLabel: 'Обновить',
+    });
+    if (!confirmed) return;
+
+    showToast('Скачиваю обновление…');
+    await update.downloadAndInstall();
+    showToast('Обновление установлено. Запустите KOCPAD снова.', 'success');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const hint =
+      message.includes('Could not fetch') || message.includes('release JSON')
+        ? ' — в последнем релизе ещё нет файла обновления'
+        : '';
+    showToast(`Не удалось проверить обновления: ${message}${hint}`, 'error');
+  }
+}
+
 /** Re-reads the workspace and drops cached text so external edits are visible. */
 function reloadWorkspace(): void {
   store.clearTextCache();
@@ -1042,6 +1087,7 @@ function palette(): void {
     { label: 'Тип блока: разделитель', run: () => actions.setBlockType('hr') },
     { label: 'Убрать форматирование', run: actions.clearFormatting },
     { label: 'Найти выделенное', hint: 'Ctrl+F', run: actions.findSelection },
+    { label: 'Проверить обновления…', run: () => void checkForUpdates() },
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
     { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
@@ -1123,6 +1169,7 @@ function mountToolbar(): void {
       { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', onClick: actions.exportHtml },
       { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
       { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
+      { label: 'Проверить обновления…', onClick: () => void checkForUpdates() },
       { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, onClick: actions.toggleTheme },
       { label: 'Тема: как в Windows', onClick: () => actions.setTheme('system') },
       {

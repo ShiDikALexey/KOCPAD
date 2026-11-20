@@ -18,7 +18,10 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.2.0` — a working version for everyday writing. 21 UI tests run in CI
+> **Status:** `1.3.0` — a working version for everyday writing. 22 UI tests run in CI
+> on every push. Auto-updates are built in and switch on with two CI secrets
+> ([details](docs/PUBLISHING.md#5-auto-updates)); installer signing is still blocked
+> on a certificate — see [the roadmap](docs/ROADMAP.md).
 > on every push. What is left is external: installer code signing and a clean-machine
 > check — see [the roadmap](docs/ROADMAP.md).
 >
@@ -123,6 +126,7 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 |---|---|
 | HTML | A standalone file with inline styles; light or dark export theme |
 | PDF | Printing through the system dialog (Windows PDF printer) |
+| Updates | «⋯» → «Проверить обновления…»: compares the version with the release `latest.json`, verifies the update signature and installs it; enabled by a CI key |
 | Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, tab width, Vim, line numbers, synced scrolling, autosave delay, export theme |
 | Window memory | Window size and position, last folder, open tabs, recent folders and notes |
 | Scale | Large folders render in 150-row chunks («Показать ещё»), the name filter caps at 300 results |
@@ -159,7 +163,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.2.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.3.0_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
@@ -284,7 +288,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 21 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 22 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -325,7 +329,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                21 Playwright scenarios
+├─ tests/                22 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```
@@ -381,6 +385,11 @@ folder later.
 **Why is the app so small?** The frontend is hand-built TypeScript and the shell is
 Tauri, which uses the system WebView2 instead of bundling Chromium. The installer is
 about 1.5 MB and the app uses tens of megabytes of RAM.
+
+**How does the app update itself?** «⋯» → «Проверить обновления…». The update is
+checked against the release `latest.json` and signed with a separate key (not the
+Windows certificate), so it works even without installer signing. Until the key is
+added to CI the app honestly reports that no update information is available.
 
 **Where do pasted images go?** Into an `assets/` subfolder next to the note, with a
 relative `![](assets/…)` link in the text.

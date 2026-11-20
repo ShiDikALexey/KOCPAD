@@ -326,6 +326,12 @@ test.describe('editor surfaces', () => {
     });
     await expect(page.locator('#status-stats')).toContainText('мин чтения', { timeout: 5000 });
   });
+
+  test('update check explains that it only works in the desktop app', async ({ page }) => {
+    await page.evaluate(() => document.getElementById('btn-more')?.click());
+    await page.locator('.menu .menu__item', { hasText: 'Проверить обновления' }).click();
+    await expect(page.locator('.toast__text')).toContainText('только в приложении');
+  });
 });
 
 test.describe('drafts without a folder', () => {

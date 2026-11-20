@@ -47,6 +47,8 @@ pub fn run() {
                 })
                 .build(),
         )
+        // In-app updates: checks the release JSON and installs signed updates.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             fs_ops::fs_list_tree,
             fs_ops::fs_read_text,
