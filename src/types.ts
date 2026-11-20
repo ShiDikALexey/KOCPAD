@@ -60,6 +60,10 @@ export interface Settings {
   recentFolders: string[];
   onboarded: boolean;
   showLineNumbers: boolean;
+  /** Treat a single newline as a line break, like Notepad does. */
+  softBreaks: boolean;
+  /** Persisted settings schema; bumped when defaults need a one-time migration. */
+  schema: number;
   lastRoot: string | null;
   syncScroll: boolean;
 }
@@ -96,7 +100,9 @@ export const DEFAULT_SETTINGS: Settings = {
   recentNotes: [],
   recentFolders: [],
   onboarded: false,
-  showLineNumbers: false,
+  showLineNumbers: true,
+  softBreaks: true,
+  schema: 2,
   lastRoot: null,
   syncScroll: true,
 };

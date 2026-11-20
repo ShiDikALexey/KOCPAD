@@ -9,6 +9,7 @@ import {
   documentTitle,
   printDocument,
   renderMarkdown,
+  setSoftBreaks,
   toggleTaskAtIndex,
 } from './markdown';
 import { TreeView } from './ui/tree';
@@ -194,6 +195,21 @@ function applyLayout(): void {
   applySidebarTab();
   applyWorkspaceChrome();
   applyEditorSettings();
+  applySoftBreaks();
+}
+
+/** Soft line breaks change the rendered HTML, so the preview must be rebuilt. */
+let appliedSoftBreaks: boolean | null = null;
+
+function applySoftBreaks(): void {
+  const value = store.settings.softBreaks;
+  if (appliedSoftBreaks === value) return;
+  appliedSoftBreaks = value;
+  setSoftBreaks(value);
+  if (store.activeDoc) {
+    lastPreviewSource = '\u0000';
+    schedulePreview();
+  }
 }
 
 // -------------------------------------------------------------------- editor
@@ -213,6 +229,40 @@ function blockHintFor(type: BlockType): string | undefined {
   return undefined;
 }
 
+/** Left-column mark for block items in menus. */
+function blockGlyph(type: BlockType): string {
+  const glyphs: Record<BlockType, string> = {
+    paragraph: '¶',
+    h1: '#',
+    h2: '##',
+    h3: '###',
+    bullet: '•',
+    ordered: '1.',
+    task: '☑',
+    quote: '❝',
+    code: '{}',
+    hr: '—',
+  };
+  return glyphs[type];
+}
+
+/** Short label for grid tiles in the block menu. */
+function blockTileLabel(type: BlockType): string {
+  const labels: Record<BlockType, string> = {
+    paragraph: 'Текст',
+    h1: 'H1',
+    h2: 'H2',
+    h3: 'H3',
+    bullet: 'Список',
+    ordered: 'Нумер.',
+    task: 'Чек',
+    quote: 'Цитата',
+    code: 'Код',
+    hr: 'Линия',
+  };
+  return labels[type];
+}
+
 /** Keeps the block-type button in sync with the caret line. */
 function updateFormatBar(): void {
   if (!formatBarReady) return;
@@ -226,17 +276,26 @@ function openBlockMenu(anchor: { x: number; y: number }): void {
     anchor,
     BLOCK_TYPES.map((type) => ({
       label: BLOCK_LABELS[type],
+      tileLabel: blockTileLabel(type),
       hint: blockHintFor(type),
+      glyph: blockGlyph(type),
+      group: 'grid' as const,
       onClick: () => {
         editor.setBlockType(type);
         updateFormatBar();
       },
     })),
+    { key: 'block-type', anchorElement: dom.blockType },
   );
 }
 
 /** Editor context menu: clipboard, inline formatting and block conversion. */
-function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean): void {
+function openEditorMenu(
+  anchor: { x: number; y: number },
+  withClipboard: boolean,
+  key?: string,
+  anchorElement?: HTMLElement,
+): void {
   if (!store.activeDoc) return;
   const hasSelection = editor.hasSelection;
   const items: MenuItem[] = [];
@@ -246,6 +305,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
       {
         label: 'Вырезать',
         hint: 'Ctrl+X',
+        glyph: '✂',
+        group: 'toolbar',
         onClick: () => {
           void editor.cutSelection().then((ok) => {
             if (!ok) showToast('Буфер обмена недоступен', 'error');
@@ -256,6 +317,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
       {
         label: 'Копировать',
         hint: 'Ctrl+C',
+        glyph: '⧉',
+        group: 'toolbar',
         onClick: () => {
           void editor.copySelection().then((ok) => {
             if (!ok) showToast('Буфер обмена недоступен', 'error');
@@ -268,6 +331,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
   items.push({
     label: 'Вставить',
     hint: 'Ctrl+V',
+    glyph: '⇓',
+    group: 'toolbar',
     onClick: () => {
       void editor.pasteClipboard().then((ok) => {
         if (!ok) showToast('Не удалось прочитать буфер — нажмите Ctrl+V', 'error');
@@ -281,6 +346,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
     {
       label: 'Жирный',
       hint: 'Ctrl+B',
+      glyph: 'B',
+      group: 'toolbar',
       onClick: () => {
         editor.formatBold();
         updateFormatBar();
@@ -289,6 +356,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
     {
       label: 'Курсив',
       hint: 'Ctrl+I',
+      glyph: 'I',
+      group: 'toolbar',
       onClick: () => {
         editor.formatItalic();
         updateFormatBar();
@@ -296,6 +365,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
     },
     {
       label: 'Зачёркнутый',
+      glyph: 'S',
+      group: 'toolbar',
       onClick: () => {
         editor.formatStrike();
         updateFormatBar();
@@ -304,6 +375,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
     {
       label: 'Код в строке',
       hint: 'Ctrl+`',
+      glyph: '</>',
+      group: 'toolbar',
       onClick: () => {
         editor.formatCode();
         updateFormatBar();
@@ -312,6 +385,8 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
     {
       label: 'Ссылка',
       hint: 'Ctrl+Shift+K',
+      glyph: '→',
+      group: 'toolbar',
       onClick: () => {
         editor.formatLink();
         updateFormatBar();
@@ -324,7 +399,10 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
   for (const type of blockItems) {
     items.push({
       label: BLOCK_LABELS[type],
+      tileLabel: blockTileLabel(type),
       hint: blockHintFor(type),
+      glyph: blockGlyph(type),
+      group: 'grid',
       onClick: () => {
         editor.setBlockType(type);
         updateFormatBar();
@@ -335,19 +413,20 @@ function openEditorMenu(anchor: { x: number; y: number }, withClipboard: boolean
   if (hasSelection) {
     items.push(
       { separator: true },
-      { label: 'Найти выделенное', hint: 'Ctrl+F', onClick: () => editor.findSelection() },
+      { label: 'Найти выделенное', hint: 'Ctrl+F', glyph: 'F', onClick: () => editor.findSelection() },
     );
   }
 
   items.push({ separator: true }, {
     label: 'Убрать форматирование',
+    glyph: 'Tx',
     onClick: () => {
       editor.clearFormatting();
       updateFormatBar();
     },
   });
 
-  showMenu(anchor, items);
+  showMenu(anchor, items, { ...(key ? { key } : {}), ...(anchorElement ? { anchorElement } : {}) });
 }
 
 function mountFormatBar(): void {
@@ -357,7 +436,7 @@ function mountFormatBar(): void {
   });
   dom.blockHint.addEventListener('click', () => {
     const rect = dom.blockHint.getBoundingClientRect();
-    openEditorMenu({ x: rect.left, y: rect.bottom + 4 }, false);
+    openEditorMenu({ x: rect.left, y: rect.bottom + 4 }, false, 'editor-menu', dom.blockHint);
   });
   dom.formatbar.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>('[data-format]');
@@ -1154,35 +1233,43 @@ function mountToolbar(): void {
   document.getElementById('btn-more')?.addEventListener('click', (event) => {
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
-    showMenu({ x: rect.left - 180, y: rect.bottom + 6 }, [
-      ...(store.activeDoc && isDraftPath(store.activeDoc.path)
-        ? [{ label: 'Сохранить черновик в папку…', hint: 'Ctrl+S', onClick: actions.saveDraftAsFile }]
-        : []),
-      { label: 'Настройки…', hint: 'Ctrl+,', onClick: actions.openSettings },
-      ...(store.storage.root
-        ? [{
-            label: store.storage.kind === 'demo' ? 'Сбросить демо-заметки' : 'Закрыть папку',
-            danger: store.storage.kind === 'demo',
-            onClick: actions.closeWorkspace,
-          }]
-        : []),
-      { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', onClick: actions.exportHtml },
-      { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
-      { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
-      { label: 'Проверить обновления…', onClick: () => void checkForUpdates() },
-      { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, onClick: actions.toggleTheme },
-      { label: 'Тема: как в Windows', onClick: () => actions.setTheme('system') },
-      {
-        label: store.settings.showLineNumbers ? '✓ Номера строк' : 'Номера строк',
-        onClick: actions.toggleLineNumbers,
-      },
-      {
-        label: store.settings.syncScroll ? '✓ Синхронная прокрутка' : 'Синхронная прокрутка',
-        onClick: actions.toggleSyncScroll,
-      },
-      { label: 'Обновить дерево', hint: 'F5', onClick: () => actions.refreshWorkspace() },
-      { label: `Папка: ${store.rootName}`, onClick: () => actions.openFolder() },
-    ]);
+    showMenu(
+      { x: rect.left - 180, y: rect.bottom + 6 },
+      [
+        ...(store.activeDoc && isDraftPath(store.activeDoc.path)
+          ? [{ label: 'Сохранить черновик в папку…', hint: 'Ctrl+S', glyph: '⤓', onClick: actions.saveDraftAsFile }]
+          : []),
+        { label: 'Настройки…', hint: 'Ctrl+,', glyph: '⚙', onClick: actions.openSettings },
+        ...(store.storage.root
+          ? [{
+              label: store.storage.kind === 'demo' ? 'Сбросить демо-заметки' : 'Закрыть папку',
+              glyph: '⨯',
+              danger: store.storage.kind === 'demo',
+              onClick: actions.closeWorkspace,
+            }]
+          : []),
+        { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', glyph: '↧', onClick: actions.exportHtml },
+        { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', glyph: '⎙', onClick: actions.printPdf },
+        { label: 'Перечитать файл с диска', glyph: '↻', onClick: actions.reloadActive },
+        { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, glyph: '◐', onClick: actions.toggleTheme },
+        { label: 'Тема: как в Windows', glyph: '◑', onClick: () => actions.setTheme('system') },
+        {
+          label: store.settings.showLineNumbers ? '✓ Номера строк' : 'Номера строк',
+          glyph: '≡',
+          onClick: actions.toggleLineNumbers,
+        },
+        {
+          label: store.settings.syncScroll ? '✓ Синхронная прокрутка' : 'Синхронная прокрутка',
+          glyph: '⇅',
+          onClick: actions.toggleSyncScroll,
+        },
+        { label: 'Обновить дерево', hint: 'F5', glyph: '⟳', onClick: () => actions.refreshWorkspace() },
+        { label: `Папка: ${store.rootName}`, glyph: '▤', onClick: () => actions.openFolder() },
+        { separator: true },
+        { label: 'Проверить обновления…', glyph: '⤒', onClick: () => void checkForUpdates() },
+      ],
+      { key: 'more', anchorElement: target },
+    );
   });
 
   document.querySelectorAll<HTMLButtonElement>('.segmented__item').forEach((button) => {

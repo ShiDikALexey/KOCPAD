@@ -1031,7 +1031,14 @@ function loadSettings(): Settings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<Settings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    const merged = { ...DEFAULT_SETTINGS, ...parsed };
+    // Schema 2: Notepad-like line breaks and subtle line numbers on by default.
+    if ((parsed.schema ?? 1) < 2) {
+      merged.softBreaks = true;
+      merged.showLineNumbers = true;
+      merged.schema = 2;
+    }
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

@@ -18,7 +18,7 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.3.0` — a working version for everyday writing. 22 UI tests run in CI
+> **Status:** `1.4.0` — a working version for everyday writing. 27 UI tests run in CI
 > on every push. Auto-updates are built in and switch on with two CI secrets
 > ([details](docs/PUBLISHING.md#5-auto-updates)); installer signing is still blocked
 > on a certificate — see [the roadmap](docs/ROADMAP.md).
@@ -99,6 +99,8 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 |---|---|
 | Markdown highlighting | CodeMirror 6: headings, lists, links, code, tables |
 | Live preview | Right-hand pane with synced scrolling; editor / split / preview modes |
+| Line breaks | "Like Notepad" (default): every line starts a new line; or "Like Markdown": lines join into a paragraph |
+| Line numbers | Faint but always visible (on by default); can be turned off in settings or the «⋯» menu |
 | GFM | Tables, task lists, strikethrough, autolinks, footnotes |
 | Formatting | `Ctrl+B` bold, `Ctrl+I` italic, ``Ctrl+` `` code, `Ctrl+Shift+K` link; pressing again removes the markers |
 | Block-type bar | The field above the editor shows the current block and converts it: text, headings 1–3, bullet, ordered, task list, quote, code block, separator |
@@ -127,7 +129,7 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 | HTML | A standalone file with inline styles; light or dark export theme |
 | PDF | Printing through the system dialog (Windows PDF printer) |
 | Updates | «⋯» → «Проверить обновления…»: compares the version with the release `latest.json`, verifies the update signature and installs it; enabled by a CI key |
-| Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, tab width, Vim, line numbers, synced scrolling, autosave delay, export theme |
+| Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, line numbers, line breaks, tab width, Vim, line numbers, synced scrolling, autosave delay, export theme |
 | Window memory | Window size and position, last folder, open tabs, recent folders and notes |
 | Scale | Large folders render in 150-row chunks («Показать ещё»), the name filter caps at 300 results |
 
@@ -163,7 +165,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.3.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.4.0_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
@@ -288,7 +290,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 22 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 27 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -329,7 +331,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                22 Playwright scenarios
+├─ tests/                27 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```

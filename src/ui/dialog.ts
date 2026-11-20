@@ -21,8 +21,15 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
     if (closed) return;
     closed = true;
     document.removeEventListener('keydown', onKey, true);
+    root.removeEventListener('mousedown', onBackdrop);
     root.classList.remove('overlay--visible');
     clear(root);
+  };
+  /** A click on the dimmed area outside the panel dismisses the modal. */
+  const onBackdrop = (event: MouseEvent): void => {
+    if (event.target !== root) return;
+    onEscape?.();
+    close();
   };
   const onKey = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -33,6 +40,7 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
     }
   };
   document.addEventListener('keydown', onKey, true);
+  root.addEventListener('mousedown', onBackdrop);
   root.classList.add('overlay--visible');
   clear(root);
   const content = build(close);
@@ -40,8 +48,19 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
   return { close, root: content };
 }
 
-export interface PromptOptions {
-  title: string;
+/**
+ * Dismisses a custom overlay panel when the dimmed area around it is clicked.
+ * Returns a disposer that the panel must call when it closes.
+ */
+export function closeOnBackdrop(host: HTMLElement, close: () => void): () => void {
+  const onPointer = (event: MouseEvent): void => {
+    if (event.target === host) close();
+  };
+  host.addEventListener('mousedown', onPointer);
+  return () => host.removeEventListener('mousedown', onPointer);
+}
+
+export interface PromptOptions {  title: string;
   label?: string;
   value?: string;
   placeholder?: string;
@@ -232,39 +251,138 @@ export function choiceDialog(options: ChoiceOptions): Promise<string | null> {
 
 export interface MenuItem {
   label?: string;
+  /** Short label for compact grid tiles. */
+  tileLabel?: string;
   hint?: string;
+  /** Short symbol in the left column (clipboard/format/block marks). */
+  glyph?: string;
   danger?: boolean;
   /** Renders a thin line instead of an item. */
   separator?: boolean;
+  /** Compact rendering: a row of icon buttons or a grid of tiles. */
+  group?: 'toolbar' | 'grid';
   onClick?: () => void;
 }
 
-/** Context menu anchored to an element. Closes on outside click or Escape. */
-export function showMenu(anchor: { x: number; y: number }, items: MenuItem[]): void {
-  document.querySelector('.menu')?.remove();
-  const menu = h(
-    'div',
-    { class: 'menu', role: 'menu' },
-    ...items.map((item) => {
-      if (item.separator) return h('div', { class: 'menu__sep', role: 'separator' });
-      return h(
-        'button',
-        {
-          class: `menu__item${item.danger ? ' menu__item--danger' : ''}`,
-          type: 'button',
-          role: 'menuitem',
-          onclick: () => {
-            menu.remove();
-            cleanup();
-            item.onClick?.();
-          },
-        },
-        h('span', { class: 'menu__label' }, item.label),
-        item.hint ? h('span', { class: 'menu__hint' }, item.hint) : null,
-      );
-    }),
-  );
+interface ActiveMenu {
+  key?: string;
+  close: () => void;
+}
+
+let activeMenu: ActiveMenu | null = null;
+
+/** Closes the open menu, if there is one. */
+export function closeMenu(): void {
+  const menu = activeMenu;
+  activeMenu = null;
+  menu?.close();
+}
+
+/**
+ * Context menu anchored to an element. Closes on outside click or Escape.
+ * Passing the same `key` twice toggles: the second call closes the menu.
+ */
+export function showMenu(
+  anchor: { x: number; y: number },
+  items: MenuItem[],
+  options: { key?: string; anchorElement?: HTMLElement } = {},
+): void {
+  if (options.key && activeMenu?.key === options.key) {
+    closeMenu();
+    return;
+  }
+  closeMenu();
+
+  const children: HTMLElement[] = [];
+  let bucket: HTMLElement | null = null;
+  let bucketKind: string | null = null;
+
+  const flush = (): void => {
+    bucket = null;
+    bucketKind = null;
+  };
+
+  const renderItem = (item: MenuItem, kind?: 'toolbar' | 'grid'): HTMLElement => {
+    const className =
+      kind === 'toolbar' ? 'menu__tool' : kind === 'grid' ? 'menu__tile' : 'menu__item';
+    const title = [item.label, item.hint].filter(Boolean).join(' · ');
+    const onActivate = (): void => {
+      close();
+      item.onClick?.();
+    };
+    const glyph = h('span', {
+      class: kind === 'toolbar' ? 'menu__tool-glyph' : kind === 'grid' ? 'menu__tile-glyph' : 'menu__glyph',
+      'aria-hidden': 'true',
+    }, item.glyph ?? '');
+
+    if (kind === 'toolbar') {
+      return h('button', {
+        class: className,
+        type: 'button',
+        role: 'menuitem',
+        title,
+        'aria-label': item.label ?? '',
+        onclick: onActivate,
+      }, glyph);
+    }
+    if (kind === 'grid') {
+      return h('button', {
+        class: className,
+        type: 'button',
+        role: 'menuitem',
+        title,
+        'aria-label': item.label ?? '',
+        onclick: onActivate,
+      }, glyph, h('span', { class: 'menu__tile-label' }, item.tileLabel ?? item.label ?? ''));
+    }
+    return h('button', {
+      class: `${className}${item.danger ? ' menu__item--danger' : ''}`,
+      type: 'button',
+      role: 'menuitem',
+      title,
+      'aria-label': item.label ?? '',
+      onclick: onActivate,
+    },
+      glyph,
+      h('span', { class: 'menu__label' }, item.label ?? ''),
+      item.hint ? h('span', { class: 'menu__hint' }, item.hint) : null,
+    );
+  };
+
+  for (const item of items) {
+    if (item.separator) {
+      flush();
+      children.push(h('div', { class: 'menu__sep', role: 'separator' }));
+      continue;
+    }
+    if (item.group) {
+      if (!bucket || bucketKind !== item.group) {
+        bucket = h('div', { class: `menu__group menu__group--${item.group}`, role: 'group' });
+        bucketKind = item.group;
+        children.push(bucket);
+      }
+      bucket.appendChild(renderItem(item, item.group));
+      continue;
+    }
+    flush();
+    children.push(renderItem(item));
+  }
+
+  const menu = h('div', { class: 'menu', role: 'menu' }, ...children);
   document.body.appendChild(menu);
+
+  function cleanup(): void {
+    document.removeEventListener('click', onPointer, true);
+    document.removeEventListener('keydown', onKey, true);
+  }
+
+  function close(): void {
+    cleanup();
+    menu.remove();
+    if (activeMenu?.close === close) activeMenu = null;
+  }
+
+  activeMenu = { key: options.key, close };
 
   const rect = menu.getBoundingClientRect();
   const x = Math.min(anchor.x, window.innerWidth - rect.width - 8);
@@ -272,24 +390,19 @@ export function showMenu(anchor: { x: number; y: number }, items: MenuItem[]): v
   menu.style.left = `${Math.max(8, x)}px`;
   menu.style.top = `${Math.max(8, y)}px`;
 
+  // A click, not mousedown: the anchor button's own handler runs first, so
+  // clicking the same button toggles the menu instead of reopening it.
   const onPointer = (event: MouseEvent): void => {
-    if (!menu.contains(event.target as Node)) {
-      menu.remove();
-      cleanup();
-    }
+    const target = event.target as Node;
+    // The button that opened the menu handles its own toggle.
+    if (options.anchorElement?.contains(target)) return;
+    if (!menu.contains(target)) close();
   };
   const onKey = (event: KeyboardEvent): void => {
-    if (event.key === 'Escape') {
-      menu.remove();
-      cleanup();
-    }
+    if (event.key === 'Escape') close();
   };
-  function cleanup(): void {
-    document.removeEventListener('mousedown', onPointer, true);
-    document.removeEventListener('keydown', onKey, true);
-  }
   window.setTimeout(() => {
-    document.addEventListener('mousedown', onPointer, true);
+    document.addEventListener('click', onPointer, true);
     document.addEventListener('keydown', onKey, true);
   }, 0);
 }

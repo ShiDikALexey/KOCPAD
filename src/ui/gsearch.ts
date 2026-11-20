@@ -2,6 +2,7 @@ import type { Store } from '../store';
 import type { SearchHit } from '../types';
 import { clear, h, plural } from '../util';
 import { icon } from './icons';
+import { closeOnBackdrop } from './dialog';
 import type { AppActions } from './actions';
 
 /**
@@ -12,6 +13,7 @@ import type { AppActions } from './actions';
  */
 export class GlobalSearchPanel {
   private overlay: HTMLElement | null = null;
+  private disposeBackdrop: (() => void) | null = null;
   private lastQuery = '';
 
   constructor(
@@ -66,6 +68,7 @@ export class GlobalSearchPanel {
     host.classList.add('overlay--visible');
     clear(host);
     host.appendChild(panel);
+    this.disposeBackdrop = closeOnBackdrop(host, () => this.close());
     input.focus();
     input.select();
 
@@ -194,6 +197,8 @@ export class GlobalSearchPanel {
   close(): void {
     const host = document.getElementById('overlay');
     if (!host || !this.overlay) return;
+    this.disposeBackdrop?.();
+    this.disposeBackdrop = null;
     host.classList.remove('overlay--visible');
     clear(host);
     this.overlay = null;

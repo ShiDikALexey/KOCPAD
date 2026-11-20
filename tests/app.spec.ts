@@ -208,7 +208,7 @@ test.describe('editor surfaces', () => {
 
     await page.locator('#block-type').click();
     await expect(page.locator('.menu')).toBeVisible();
-    await page.locator('.menu .menu__item', { hasText: 'Список' }).click();
+    await page.locator('.menu .menu__tile', { hasText: 'Список' }).click();
 
     await expect(page.locator('#block-type-label')).toHaveText('Список');
     await expect
@@ -260,13 +260,13 @@ test.describe('editor surfaces', () => {
 
     const menu = page.locator('.menu');
     await expect(menu).toBeVisible();
-    await expect(menu).toContainText('Вырезать');
-    await expect(menu).toContainText('Жирный');
-    await expect(menu).toContainText('Заголовок 1');
+    await expect(menu.getByRole('menuitem', { name: 'Вырезать' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Жирный' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Заголовок 1' })).toBeVisible();
     await expect(menu).toContainText('Убрать форматирование');
     await expect(menu.locator('.menu__sep').first()).toBeVisible();
 
-    await menu.locator('.menu__item', { hasText: 'Жирный' }).click();
+    await menu.getByRole('menuitem', { name: 'Жирный' }).click();
     await expect
       .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
       .toContain('**текст**');
@@ -331,6 +331,50 @@ test.describe('editor surfaces', () => {
     await page.evaluate(() => document.getElementById('btn-more')?.click());
     await page.locator('.menu .menu__item', { hasText: 'Проверить обновления' }).click();
     await expect(page.locator('.toast__text')).toContainText('только в приложении');
+  });
+
+  test('the update command sits at the bottom of the menu', async ({ page }) => {
+    await page.evaluate(() => document.getElementById('btn-more')?.click());
+    await expect(page.locator('.menu')).toBeVisible();
+    const labels = await page.$$eval('.menu .menu__item .menu__label', (els) =>
+      els.map((el) => el.textContent?.trim() ?? ''),
+    );
+    expect(labels.at(-1)).toBe('Проверить обновления…');
+    await page.keyboard.press('Escape');
+  });
+
+  test('clicking the block-type button again closes its menu', async ({ page }) => {
+    await page.locator('#block-type').click();
+    await expect(page.locator('.menu')).toBeVisible();
+    await page.locator('#block-type').click();
+    await expect(page.locator('.menu')).toHaveCount(0);
+  });
+
+  test('settings close when the dimmed area is clicked', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    await expect(page.locator('.settings')).toBeVisible();
+    await page.locator('#overlay').click({ position: { x: 8, y: 8 } });
+    await expect(page.locator('.settings')).toHaveCount(0);
+  });
+
+  test('a single newline becomes a line break in the preview', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('первая строка\nвторая строка');
+    });
+    await expect.poll(async () => page.evaluate(() => document.getElementById('preview')?.innerHTML ?? '')).toContain('<br>');
+  });
+
+  test('line numbers are shown by default and stay subtle', async ({ page }) => {
+    // CodeMirror keeps a hidden measuring element in the gutter, so look for
+    // the actual first line number instead of the first child.
+    await expect(
+      page.locator('.cm-lineNumbers .cm-gutterElement').filter({ hasText: /^1$/ }).first(),
+    ).toBeVisible();
+    const opacity = await page.evaluate(() => {
+      const gutter = document.querySelector('.cm-gutters');
+      return gutter ? getComputedStyle(gutter).opacity : '';
+    });
+    expect(Number(opacity)).toBeLessThan(0.8);
   });
 });
 

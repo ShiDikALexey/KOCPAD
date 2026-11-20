@@ -1,5 +1,6 @@
 import { clear, h } from '../util';
 import { icon } from './icons';
+import { closeOnBackdrop } from './dialog';
 
 export interface Command {
   /** Optional stable identifier, useful when commands are generated. */
@@ -55,7 +56,11 @@ export function openPalette(commands: Command[]): void {
       h('kbd', null, 'Esc'), ' закрыть'),
   );
 
+  let disposeBackdrop: (() => void) | null = null;
+
   const close = (): void => {
+    disposeBackdrop?.();
+    disposeBackdrop = null;
     document.removeEventListener('keydown', onKey, true);
     overlay.classList.remove('overlay--visible');
     clear(overlay);
@@ -137,6 +142,7 @@ export function openPalette(commands: Command[]): void {
   overlay.classList.add('overlay--visible');
   clear(overlay);
   overlay.appendChild(root);
+  disposeBackdrop = closeOnBackdrop(overlay, close);
   render();
   input.focus();
   document.addEventListener('keydown', onKey, true);

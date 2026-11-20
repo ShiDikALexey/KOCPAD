@@ -4,7 +4,15 @@ import hljs from 'highlight.js/lib/common';
 import { renderFrontMatterCard, splitFrontMatter } from './frontmatter';
 import type { ExportTheme } from './types';
 
-marked.setOptions({ gfm: true, breaks: false });
+marked.setOptions({ gfm: true, breaks: true });
+
+/**
+ * Single newlines render as line breaks when enabled (the Notepad behaviour);
+ * with `false`, markdown joins them into one paragraph.
+ */
+export function setSoftBreaks(enabled: boolean): void {
+  marked.setOptions({ gfm: true, breaks: enabled });
+}
 
 const SANITIZE_CONFIG = {
   ADD_TAGS: ['input', 'mark', 'del', 'ins', 'details', 'summary', 'kbd', 'figure', 'figcaption', 's'],

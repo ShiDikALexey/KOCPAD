@@ -2494,3 +2494,244 @@ body.focus-mode .statusbar__stats {
     display: none;
   }
 }
+
+/* ======================================================================
+   Refinement pass: softer surfaces, tighter instrument panels, calmer type
+   ====================================================================== */
+
+:root {
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 14px;
+}
+
+/* --- menus: compact panel with a glyph column --- */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 232px;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.menu__item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  line-height: 1.25;
+}
+
+.menu__glyph {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+  transition: color var(--dur) var(--ease);
+}
+
+.menu__item:hover .menu__glyph {
+  color: var(--accent);
+}
+
+.menu__hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: -0.02em;
+}
+
+.menu__sep {
+  margin: 5px 8px;
+}
+
+/* --- dialogs --- */
+
+.overlay {
+  background: rgba(8, 10, 13, 0.38);
+  backdrop-filter: blur(3px);
+}
+
+.dialog {
+  padding: 22px 24px 20px;
+  border-radius: 14px;
+}
+
+.settings {
+  border-radius: 14px;
+}
+
+/* --- settings: cards instead of hairline rows --- */
+
+.settings__body {
+  padding: 12px 16px 18px;
+}
+
+.settings__section {
+  padding: 14px 16px 8px;
+  margin: 0 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.settings__section:last-child {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings__section-title {
+  margin-bottom: 6px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+}
+
+.settings__row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings__row:last-child {
+  border-bottom: none;
+}
+
+/* --- format bar --- */
+
+.formatbar {
+  height: 34px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.formatbar__block {
+  height: 24px;
+  padding: 0 10px;
+  border-color: transparent;
+  border-radius: 7px;
+  background: transparent;
+}
+
+.formatbar__block:hover {
+  border-color: transparent;
+  background: var(--bg-hover);
+}
+
+.formatbar__divider {
+  height: 16px;
+}
+
+.formatbar__btn {
+  width: 26px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* --- tabs and buttons: match the softer scale --- */
+
+.tabs {
+  background: transparent;
+}
+
+.tab {
+  border-radius: 8px 8px 0 0;
+}
+
+.btn {
+  border-radius: 8px;
+}
+
+/* --- compact menu groups: tool row and tile grid --- */
+
+.menu__group {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.menu__group--grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.menu__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--ink-muted);
+}
+
+.menu__tool:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+
+.menu__tool-glyph {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.menu__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 7px;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.menu__tile:hover {
+  background: var(--bg-hover);
+}
+
+.menu__tile-glyph {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.menu__tile-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- settings details --- */
+
+.settings__checkbox {
+  accent-color: var(--accent);
+}
+
+.settings__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--ink-faint);
+}
+
+.settings__close:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+
+.settings__head .settings__shortcut {
+  margin-left: auto;
+}

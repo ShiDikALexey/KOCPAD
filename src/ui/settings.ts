@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from '../types';
 import type { Store } from '../store';
 import { h } from '../util';
 import { openModal } from './dialog';
+import { icon } from './icons';
 
 const ACCENTS: { id: AccentName; label: string; color: string }[] = [
   { id: 'marker', label: 'Маркер', color: '#d9a62e' },
@@ -52,6 +53,12 @@ const KEYMAPS: { id: EditorKeymap; label: string }[] = [
 const EXPORT_THEMES: { id: ExportTheme; label: string }[] = [
   { id: 'light', label: 'Светлая' },
   { id: 'dark', label: 'Тёмная' },
+];
+
+/** How a single newline in the note is treated by the preview. */
+const SOFT_BREAKS: { id: 'notepad' | 'markdown'; label: string }[] = [
+  { id: 'notepad', label: 'Как в Блокноте' },
+  { id: 'markdown', label: 'Как в Markdown' },
 ];
 
 function row(label: string, control: HTMLElement, hint?: string): HTMLElement {
@@ -200,6 +207,17 @@ export function openSettings(store: Store): void {
           { class: 'settings__head' },
           h('h2', { class: 'settings__title' }, 'Настройки'),
           h('span', { class: 'settings__shortcut' }, 'Ctrl+,'),
+          h(
+            'button',
+            {
+              class: 'settings__close',
+              type: 'button',
+              title: 'Закрыть (Esc)',
+              'aria-label': 'Закрыть настройки',
+              onclick: () => closeModal(),
+            },
+            icon('close', 14),
+          ),
         ),
         h(
           'div',
@@ -219,6 +237,15 @@ export function openSettings(store: Store): void {
               ),
             ),
             row('Номера строк', toggle('Показывать', settings.showLineNumbers, (showLineNumbers) => patch({ showLineNumbers }))),
+            row(
+              'Перенос строк',
+              segmented(
+                SOFT_BREAKS,
+                settings.softBreaks ? 'notepad' : 'markdown',
+                (value) => patch({ softBreaks: value === 'notepad' }),
+              ),
+              'Блокнот: каждая строка отдельно · Markdown: строки склеиваются в абзац',
+            ),
             row(
               'Ширина таба',
               select(TAB_SIZES, String(settings.editorTabSize), (value) => patch({ editorTabSize: Number(value) })),

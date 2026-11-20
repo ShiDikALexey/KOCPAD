@@ -4,6 +4,35 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.4.0] — 2026-11-20
+
+Interface pass from a hands-on review: six defects fixed and the UI made less boxy.
+
+### Fixed
+
+- **Menus toggle.** Clicking the block-type button (or «⋯») while its menu is open
+  now closes it instead of reopening. Menus also close on any click outside.
+- **Modals close on the dimmed backdrop** — settings, dialogs, the folder picker,
+  the command palette and workspace search all dismiss when the area around them is
+  clicked, not just with Esc or «Готово».
+- **Single newlines became one paragraph in the preview.** Rendering now treats a
+  newline as a line break by default ("Как в Блокноте"); settings offer "Как в
+  Markdown" for the old behaviour. Existing profiles are migrated once (schema 2).
+- **Line numbers were off by default and invisible.** They are now on by default and
+  drawn faintly (72% size, 62% opacity), with no gutter border.
+- The «Проверить обновления…» item moved to the bottom of the «⋯» menu.
+
+### Changed
+
+- **Compact context menu with glyphs**: clipboard and inline formatting are a single
+  icon row, block conversions a 3×3 tile grid with `#`/`·`/`1.`/`☑` marks — the menu
+  shrank from ~600 px to ~330 px.
+- **Softer surfaces**: larger radii, warm layered shadows, card-style settings
+  sections, accent-coloured checkboxes, a close button in the settings header,
+  calmer tab strip and slimmer format bar.
+- 5 more e2e tests (27 total): menu toggle, backdrop close, soft line breaks,
+  line numbers, and the update item position.
+
 ## [1.3.0] — 2026-11-20
 
 Auto-updates are in, and the signing situation is documented honestly.

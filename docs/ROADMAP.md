@@ -126,6 +126,16 @@
       generated for the release
 - [x] Documentation: how to enable updates, and the honest state of Windows signing
 
+## 1.4.0 — interface pass (done)
+
+- [x] Menus toggle on the second click and close on outside clicks
+- [x] All modals dismiss on a backdrop click
+- [x] Notepad-style line breaks by default, markdown-style as a setting
+- [x] Faint line numbers on by default
+- [x] Compact context menu: icon toolbar plus a block tile grid
+- [x] Softer visual language: radii, shadows, cards in settings, accent checkboxes
+- [x] 5 more e2e tests (27 total)
+
 ## After 1.0 (backlog)
 
 - [ ] Two notes side by side
