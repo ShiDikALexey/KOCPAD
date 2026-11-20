@@ -251,16 +251,12 @@ export function choiceDialog(options: ChoiceOptions): Promise<string | null> {
 
 export interface MenuItem {
   label?: string;
-  /** Short label for compact grid tiles. */
-  tileLabel?: string;
   hint?: string;
-  /** Short symbol in the left column (clipboard/format/block marks). */
-  glyph?: string;
   danger?: boolean;
   /** Renders a thin line instead of an item. */
   separator?: boolean;
-  /** Compact rendering: a row of icon buttons or a grid of tiles. */
-  group?: 'toolbar' | 'grid';
+  /** Items in this group are laid out in two columns to keep the menu short. */
+  group?: 'columns';
   onClick?: () => void;
 }
 
@@ -295,55 +291,26 @@ export function showMenu(
 
   const children: HTMLElement[] = [];
   let bucket: HTMLElement | null = null;
-  let bucketKind: string | null = null;
 
   const flush = (): void => {
     bucket = null;
-    bucketKind = null;
   };
 
-  const renderItem = (item: MenuItem, kind?: 'toolbar' | 'grid'): HTMLElement => {
-    const className =
-      kind === 'toolbar' ? 'menu__tool' : kind === 'grid' ? 'menu__tile' : 'menu__item';
+  const renderItem = (item: MenuItem): HTMLElement => {
     const title = [item.label, item.hint].filter(Boolean).join(' · ');
-    const onActivate = (): void => {
-      close();
-      item.onClick?.();
-    };
-    const glyph = h('span', {
-      class: kind === 'toolbar' ? 'menu__tool-glyph' : kind === 'grid' ? 'menu__tile-glyph' : 'menu__glyph',
-      'aria-hidden': 'true',
-    }, item.glyph ?? '');
-
-    if (kind === 'toolbar') {
-      return h('button', {
-        class: className,
+    return h(
+      'button',
+      {
+        class: `menu__item${item.danger ? ' menu__item--danger' : ''}`,
         type: 'button',
         role: 'menuitem',
         title,
         'aria-label': item.label ?? '',
-        onclick: onActivate,
-      }, glyph);
-    }
-    if (kind === 'grid') {
-      return h('button', {
-        class: className,
-        type: 'button',
-        role: 'menuitem',
-        title,
-        'aria-label': item.label ?? '',
-        onclick: onActivate,
-      }, glyph, h('span', { class: 'menu__tile-label' }, item.tileLabel ?? item.label ?? ''));
-    }
-    return h('button', {
-      class: `${className}${item.danger ? ' menu__item--danger' : ''}`,
-      type: 'button',
-      role: 'menuitem',
-      title,
-      'aria-label': item.label ?? '',
-      onclick: onActivate,
-    },
-      glyph,
+        onclick: () => {
+          close();
+          item.onClick?.();
+        },
+      },
       h('span', { class: 'menu__label' }, item.label ?? ''),
       item.hint ? h('span', { class: 'menu__hint' }, item.hint) : null,
     );
@@ -355,13 +322,12 @@ export function showMenu(
       children.push(h('div', { class: 'menu__sep', role: 'separator' }));
       continue;
     }
-    if (item.group) {
-      if (!bucket || bucketKind !== item.group) {
-        bucket = h('div', { class: `menu__group menu__group--${item.group}`, role: 'group' });
-        bucketKind = item.group;
+    if (item.group === 'columns') {
+      if (!bucket) {
+        bucket = h('div', { class: 'menu__group menu__group--columns', role: 'group' });
         children.push(bucket);
       }
-      bucket.appendChild(renderItem(item, item.group));
+      bucket.appendChild(renderItem(item));
       continue;
     }
     flush();

@@ -208,7 +208,7 @@ test.describe('editor surfaces', () => {
 
     await page.locator('#block-type').click();
     await expect(page.locator('.menu')).toBeVisible();
-    await page.locator('.menu .menu__tile', { hasText: 'Список' }).click();
+    await page.locator('.menu .menu__item', { hasText: 'Список' }).click();
 
     await expect(page.locator('#block-type-label')).toHaveText('Список');
     await expect
@@ -399,5 +399,29 @@ test.describe('drafts without a folder', () => {
     await page.waitForSelector('.cm-content');
     await expect(page.locator('#preview')).toContainText('черновик без папки');
     await expect(page.locator('#status-saved')).toContainText('Черновик');
+  });
+
+  test('drafts panel lists stored drafts and keeps them after closing the tab', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+
+    await page.locator('.dialog').getByRole('button', { name: 'Начать с черновика' }).click();
+    await page.locator('.cm-content').click();
+    await page.keyboard.type('заметка в черновике');
+    await expect(page.locator('#drafts-badge')).toBeVisible();
+
+    // Closing the tab must keep the draft in the list, not delete it.
+    await page.keyboard.press('Control+w');
+    await expect(page.locator('.tab')).toHaveCount(0);
+
+    await page.locator('#btn-drafts').click();
+    const panel = page.locator('.drafts');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('Новая заметка');
+
+    await panel.getByRole('button', { name: 'Открыть' }).click();
+    await expect(page.locator('.tab')).toHaveCount(1);
+    await expect(page.locator('#preview')).toContainText('заметка в черновике');
   });
 });

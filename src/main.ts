@@ -19,6 +19,7 @@ import { GlobalSearchPanel } from './ui/gsearch';
 import { OutlineView } from './ui/outline';
 import { TagsView } from './ui/tags';
 import { LinksView } from './ui/links';
+import { openDraftsPanel } from './ui/drafts';
 import { decorateWikiLinks } from './wikilinks';
 import { openPalette, type Command } from './ui/palette';
 import { openSettings } from './ui/settings';
@@ -27,7 +28,7 @@ import { folderPicker } from './ui/pickers';
 import { icon, type IconName } from './ui/icons';
 import type { AppActions } from './ui/actions';
 import { ImageStore } from './images';
-import { isDraftPath } from './drafts';
+import { isDraftPath, draftIdOf } from './drafts';
 import { isTauriRuntime } from './storage';
 import { invoke } from '@tauri-apps/api/core';
 import type { EditorKeymap, PreviewFont, SidebarTab, ViewMode } from './types';
@@ -65,6 +66,8 @@ const dom = {
   emptyState: must('empty-state'),
   splitter: must('splitter'),
   statusMode: must('status-mode'),
+  btnDrafts: must('btn-drafts'),
+  draftsBadge: must('drafts-badge'),
   formatbar: must('formatbar'),
   blockType: must('block-type'),
   blockTypeLabel: must('block-type-label'),
@@ -229,40 +232,6 @@ function blockHintFor(type: BlockType): string | undefined {
   return undefined;
 }
 
-/** Left-column mark for block items in menus. */
-function blockGlyph(type: BlockType): string {
-  const glyphs: Record<BlockType, string> = {
-    paragraph: '¶',
-    h1: '#',
-    h2: '##',
-    h3: '###',
-    bullet: '•',
-    ordered: '1.',
-    task: '☑',
-    quote: '❝',
-    code: '{}',
-    hr: '—',
-  };
-  return glyphs[type];
-}
-
-/** Short label for grid tiles in the block menu. */
-function blockTileLabel(type: BlockType): string {
-  const labels: Record<BlockType, string> = {
-    paragraph: 'Текст',
-    h1: 'H1',
-    h2: 'H2',
-    h3: 'H3',
-    bullet: 'Список',
-    ordered: 'Нумер.',
-    task: 'Чек',
-    quote: 'Цитата',
-    code: 'Код',
-    hr: 'Линия',
-  };
-  return labels[type];
-}
-
 /** Keeps the block-type button in sync with the caret line. */
 function updateFormatBar(): void {
   if (!formatBarReady) return;
@@ -276,10 +245,8 @@ function openBlockMenu(anchor: { x: number; y: number }): void {
     anchor,
     BLOCK_TYPES.map((type) => ({
       label: BLOCK_LABELS[type],
-      tileLabel: blockTileLabel(type),
       hint: blockHintFor(type),
-      glyph: blockGlyph(type),
-      group: 'grid' as const,
+      group: 'columns',
       onClick: () => {
         editor.setBlockType(type);
         updateFormatBar();
@@ -305,8 +272,7 @@ function openEditorMenu(
       {
         label: 'Вырезать',
         hint: 'Ctrl+X',
-        glyph: '✂',
-        group: 'toolbar',
+      group: 'columns',
         onClick: () => {
           void editor.cutSelection().then((ok) => {
             if (!ok) showToast('Буфер обмена недоступен', 'error');
@@ -317,8 +283,7 @@ function openEditorMenu(
       {
         label: 'Копировать',
         hint: 'Ctrl+C',
-        glyph: '⧉',
-        group: 'toolbar',
+      group: 'columns',
         onClick: () => {
           void editor.copySelection().then((ok) => {
             if (!ok) showToast('Буфер обмена недоступен', 'error');
@@ -331,8 +296,7 @@ function openEditorMenu(
   items.push({
     label: 'Вставить',
     hint: 'Ctrl+V',
-    glyph: '⇓',
-    group: 'toolbar',
+      group: 'columns',
     onClick: () => {
       void editor.pasteClipboard().then((ok) => {
         if (!ok) showToast('Не удалось прочитать буфер — нажмите Ctrl+V', 'error');
@@ -346,8 +310,7 @@ function openEditorMenu(
     {
       label: 'Жирный',
       hint: 'Ctrl+B',
-      glyph: 'B',
-      group: 'toolbar',
+      group: 'columns',
       onClick: () => {
         editor.formatBold();
         updateFormatBar();
@@ -356,8 +319,7 @@ function openEditorMenu(
     {
       label: 'Курсив',
       hint: 'Ctrl+I',
-      glyph: 'I',
-      group: 'toolbar',
+      group: 'columns',
       onClick: () => {
         editor.formatItalic();
         updateFormatBar();
@@ -365,8 +327,7 @@ function openEditorMenu(
     },
     {
       label: 'Зачёркнутый',
-      glyph: 'S',
-      group: 'toolbar',
+      group: 'columns',
       onClick: () => {
         editor.formatStrike();
         updateFormatBar();
@@ -375,8 +336,7 @@ function openEditorMenu(
     {
       label: 'Код в строке',
       hint: 'Ctrl+`',
-      glyph: '</>',
-      group: 'toolbar',
+      group: 'columns',
       onClick: () => {
         editor.formatCode();
         updateFormatBar();
@@ -385,8 +345,7 @@ function openEditorMenu(
     {
       label: 'Ссылка',
       hint: 'Ctrl+Shift+K',
-      glyph: '→',
-      group: 'toolbar',
+      group: 'columns',
       onClick: () => {
         editor.formatLink();
         updateFormatBar();
@@ -399,10 +358,8 @@ function openEditorMenu(
   for (const type of blockItems) {
     items.push({
       label: BLOCK_LABELS[type],
-      tileLabel: blockTileLabel(type),
       hint: blockHintFor(type),
-      glyph: blockGlyph(type),
-      group: 'grid',
+      group: 'columns',
       onClick: () => {
         editor.setBlockType(type);
         updateFormatBar();
@@ -413,13 +370,12 @@ function openEditorMenu(
   if (hasSelection) {
     items.push(
       { separator: true },
-      { label: 'Найти выделенное', hint: 'Ctrl+F', glyph: 'F', onClick: () => editor.findSelection() },
+      { label: 'Найти выделенное', hint: 'Ctrl+F', onClick: () => editor.findSelection() },
     );
   }
 
   items.push({ separator: true }, {
     label: 'Убрать форматирование',
-    glyph: 'Tx',
     onClick: () => {
       editor.clearFormatting();
       updateFormatBar();
@@ -632,16 +588,20 @@ function persistTabs(): void {
 /** Structural changes are rare; typing is not, so the tab record is debounced. */
 const schedulePersistTabs = debounce(persistTabs, 300);
 
-async function restoreTabs(): Promise<void> {  try {
+async function restoreTabs(): Promise<void> {
+  try {
     const raw = localStorage.getItem(TABS_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw) as { paths?: string[]; active?: string | null };
     const available = new Set(store.flatFiles().map((node) => node.path));
-    // Drafts are restored from their own storage, so only real files are reopened here.
-    const paths = (parsed.paths ?? []).filter((path) => !isDraftPath(path) && available.has(path));
-    for (const path of paths) {
-      await store.openNote(path, { focus: false });
+    const saved = parsed.paths ?? [];
+
+    // Drafts and files are both tab paths now; drafts open from local storage.
+    for (const path of saved) {
+      if (isDraftPath(path)) store.openDraft(draftIdOf(path));
+      else if (available.has(path)) await store.openNote(path, { focus: false });
     }
+    store.reorderDocs(saved);
     if (parsed.active && store.docs.some((doc) => doc.path === parsed.active)) {
       store.activate(parsed.active);
     }
@@ -750,19 +710,8 @@ async function createNoteNow(parentDir?: string): Promise<void> {
 async function closeTabNow(path: string): Promise<void> {
   const doc = store.docs.find((item) => item.path === path);
   if (!doc) return;
-  if (isDraftPath(path)) {
-    if (doc.content.trim()) {
-      const ok = await confirmAction({
-        title: 'Удалить черновик?',
-        message: `«${doc.name}» ещё не сохранён в файл. При удалении текст пропадёт.`,
-        confirmLabel: 'Удалить',
-        danger: true,
-      });
-      if (!ok) return;
-    }
-    await store.deleteDraftDoc(path);
-    return;
-  }
+  // Closing a draft tab only closes the tab: the draft stays in local storage
+  // and remains available in the drafts panel.
   await store.closeDoc(path);
 }
 
@@ -1141,6 +1090,7 @@ function palette(): void {
       run: () => actions.openRecentFolder(path),
     })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
+    { label: 'Черновики без файла…', run: () => openDraftsPanel(store, actions) },
     { label: 'Новая папка', hint: 'Ctrl+Shift+N', run: () => actions.createFolder() },
     // Recently opened notes, newest first: the quick switcher most editors have.
     ...store
@@ -1213,6 +1163,20 @@ function palette(): void {
 
 // ------------------------------------------------------------------ toolbar
 
+/** Badge on the sidebar button that opens the drafts panel. */
+function mountDraftsButton(): void {
+  const update = (): void => {
+    const count = store.draftsCount;
+    dom.draftsBadge.hidden = count === 0;
+    dom.draftsBadge.textContent = String(count);
+    dom.btnDrafts.title = count
+      ? `Черновики без файла: ${count}`
+      : 'Черновики без файла';
+  };
+  store.on('drafts', update);
+  update();
+}
+
 function mountToolbar(): void {
   // Static buttons declare their icon in the markup; decorate them in one pass.
   document.querySelectorAll<HTMLElement>('[data-icon]').forEach((element) => {
@@ -1226,6 +1190,7 @@ function mountToolbar(): void {
   document.getElementById('btn-new-note')?.addEventListener('click', () => actions.createNote());
   document.getElementById('btn-new-folder')?.addEventListener('click', () => actions.createFolder());
   document.getElementById('btn-refresh')?.addEventListener('click', () => actions.refreshWorkspace());
+  document.getElementById('btn-drafts')?.addEventListener('click', () => openDraftsPanel(store, actions));
   document.getElementById('btn-search')?.addEventListener('click', () => actions.openGlobalSearch());
   document.getElementById('btn-palette')?.addEventListener('click', () => actions.openPalette());
   document.getElementById('btn-theme')?.addEventListener('click', () => actions.toggleTheme());
@@ -1237,36 +1202,33 @@ function mountToolbar(): void {
       { x: rect.left - 180, y: rect.bottom + 6 },
       [
         ...(store.activeDoc && isDraftPath(store.activeDoc.path)
-          ? [{ label: 'Сохранить черновик в папку…', hint: 'Ctrl+S', glyph: '⤓', onClick: actions.saveDraftAsFile }]
+          ? [{ label: 'Сохранить черновик в папку…', hint: 'Ctrl+S', onClick: actions.saveDraftAsFile }]
           : []),
-        { label: 'Настройки…', hint: 'Ctrl+,', glyph: '⚙', onClick: actions.openSettings },
+        { label: 'Настройки…', hint: 'Ctrl+,', onClick: actions.openSettings },
         ...(store.storage.root
           ? [{
               label: store.storage.kind === 'demo' ? 'Сбросить демо-заметки' : 'Закрыть папку',
-              glyph: '⨯',
               danger: store.storage.kind === 'demo',
               onClick: actions.closeWorkspace,
             }]
           : []),
-        { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', glyph: '↧', onClick: actions.exportHtml },
-        { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', glyph: '⎙', onClick: actions.printPdf },
-        { label: 'Перечитать файл с диска', glyph: '↻', onClick: actions.reloadActive },
-        { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, glyph: '◐', onClick: actions.toggleTheme },
-        { label: 'Тема: как в Windows', glyph: '◑', onClick: () => actions.setTheme('system') },
+        { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', onClick: actions.exportHtml },
+        { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
+        { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
+        { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, onClick: actions.toggleTheme },
+        { label: 'Тема: как в Windows', onClick: () => actions.setTheme('system') },
         {
           label: store.settings.showLineNumbers ? '✓ Номера строк' : 'Номера строк',
-          glyph: '≡',
           onClick: actions.toggleLineNumbers,
         },
         {
           label: store.settings.syncScroll ? '✓ Синхронная прокрутка' : 'Синхронная прокрутка',
-          glyph: '⇅',
           onClick: actions.toggleSyncScroll,
         },
-        { label: 'Обновить дерево', hint: 'F5', glyph: '⟳', onClick: () => actions.refreshWorkspace() },
-        { label: `Папка: ${store.rootName}`, glyph: '▤', onClick: () => actions.openFolder() },
+        { label: 'Обновить дерево', hint: 'F5', onClick: () => actions.refreshWorkspace() },
+        { label: `Папка: ${store.rootName}`, onClick: () => actions.openFolder() },
         { separator: true },
-        { label: 'Проверить обновления…', glyph: '⤒', onClick: () => void checkForUpdates() },
+        { label: 'Проверить обновления…', onClick: () => void checkForUpdates() },
       ],
       { key: 'more', anchorElement: target },
     );
@@ -1556,8 +1518,9 @@ async function forceCloseWindow(): Promise<void> {
 }
 
 /**
- * Notepad-style exit. Drafts are already saved locally, so the question is what
- * to do with them: put them into a folder, keep them for next launch, or drop.
+ * Notepad-style exit: file notes are already written by autosave, drafts stay in
+ * local storage, and the tabs come back on the next launch. No question dialog —
+ * the only interruption left is a failed write.
  */
 async function handleCloseRequest(): Promise<void> {
   if (closeInProgress) return;
@@ -1576,39 +1539,7 @@ async function handleCloseRequest(): Promise<void> {
       return;
     }
 
-    const drafts = store.draftDocs.filter((doc) => doc.content.trim().length > 0);
-    if (!drafts.length) {
-      await forceCloseWindow();
-      return;
-    }
-
-    const choice = await choiceDialog({
-      title: 'Черновики без файла',
-      message: `Черновиков без файла: ${drafts.length}. Они сохранены локально и вернутся при следующем запуске.`,
-      details: drafts.slice(0, 5).map((doc) => `«${doc.name}»`),
-      options: [
-        { id: 'save', label: 'Сохранить в папку…', kind: 'primary' },
-        { id: 'keep', label: 'Оставить черновиками' },
-        { id: 'delete', label: 'Удалить и закрыть', kind: 'danger' },
-      ],
-    });
-    if (choice === null) return;
-
-    if (choice === 'save') {
-      if (!store.storage.root && !(await chooseWorkspace())) return;
-      const saved = await store.saveAllDraftsAsFiles(store.importDir);
-      if (saved > 0) showToast(`Сохранено в папку · ${saved}`, 'success');
-      await forceCloseWindow();
-      return;
-    }
-    if (choice === 'keep') {
-      await forceCloseWindow();
-      return;
-    }
-    if (choice === 'delete') {
-      for (const doc of [...store.draftDocs]) await store.deleteDraftDoc(doc.path);
-      await forceCloseWindow();
-    }
+    await forceCloseWindow();
   } finally {
     closeInProgress = false;
   }
@@ -1652,6 +1583,7 @@ async function boot(): Promise<void> {
   statusBar.mount();
   mountFormatBar();
   updateFormatBar();
+  mountDraftsButton();
   outline.mount();
   tagsView.mount();
   linksView.mount();
@@ -1697,6 +1629,11 @@ async function boot(): Promise<void> {
     await store.refreshTree();
   }
   await restoreTabs();
+  // Nothing to restore from tabs: bring back the most recent draft, if any.
+  if (!store.activeDoc && store.draftsCount > 0) {
+    const recent = store.draftList[0];
+    if (recent) store.openDraft(recent.id);
+  }
   if (!store.activeDoc) {
     const files = store.flatFiles();
     // On a fresh workspace open the onboarding note when it exists.

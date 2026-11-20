@@ -18,7 +18,7 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.4.0` — a working version for everyday writing. 27 UI tests run in CI
+> **Status:** `1.4.1` (beta branch) — a working version for everyday writing. 28 UI tests run in CI
 > on every push. Auto-updates are built in and switch on with two CI secrets
 > ([details](docs/PUBLISHING.md#5-auto-updates)); installer signing is still blocked
 > on a certificate — see [the roadmap](docs/ROADMAP.md).
@@ -90,7 +90,7 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 | Notes and folders | Create, rename (`F2`), delete, context menus, drag `.md` files into the window |
 | Tabs | Several notes at once, `Ctrl+Tab` switches, `Ctrl+W` closes; each tab keeps its own undo history |
 | Autosave | Writes as you type (delay configurable), `Ctrl+S` saves at once; atomic write via a temp file |
-| Drafts | `Ctrl+N` opens a blank page immediately, even without a folder; text lives locally and returns after a restart |
+| Drafts | `Ctrl+N` opens a blank page immediately, even without a folder; text lives locally and returns after a restart. A button with a counter in the sidebar opens the list of stored drafts: open, save to folder, delete. Closing a draft tab keeps the draft |
 | Bulk actions | `Ctrl+Click` and `Shift+Click` in the tree: move a batch into another folder or delete it with one confirmation |
 
 ### Writing and markup
@@ -165,7 +165,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.4.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.4.1_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
@@ -175,7 +175,7 @@ Get-FileHash .\KOCPAD_1.4.0_x64-setup.exe -Algorithm SHA256
 2. A draft is a note without a file: write immediately, save into a folder later
    (`Ctrl+S`). Drafts survive restarts.
 3. A folder is any folder with `.md` files; KOCPAD remembers it for next time.
-4. Closing the window with non-empty drafts asks what to do with them.
+4. Closing the window just closes it: files are saved, drafts stay in local storage, and the same tabs come back on the next launch.
 
 ## Where data lives
 
@@ -254,6 +254,10 @@ Full list with context (including Vim): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.m
 | --- | --- |
 | ![Format bar](docs/screenshots/formatbar.png) | ![Context menu](docs/screenshots/contextmenu.png) |
 
+| Drafts panel |
+| --- |
+| ![Drafts list](docs/screenshots/drafts.png) |
+
 ## Building from source
 
 Requirements: Node.js 20+, Rust 1.77.2+ (MSVC toolchain) and the WebView2 Runtime.
@@ -290,7 +294,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 27 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 28 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -331,7 +335,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                27 Playwright scenarios
+├─ tests/                28 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```

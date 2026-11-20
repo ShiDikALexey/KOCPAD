@@ -2518,25 +2518,13 @@ body.focus-mode .statusbar__stats {
 }
 
 .menu__item {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 9px;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 6px 10px;
   border-radius: 7px;
-  line-height: 1.25;
-}
-
-.menu__glyph {
-  color: var(--ink-faint);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-align: center;
-  transition: color var(--dur) var(--ease);
-}
-
-.menu__item:hover .menu__glyph {
-  color: var(--accent);
+  line-height: 1.3;
 }
 
 .menu__hint {
@@ -2647,68 +2635,171 @@ body.focus-mode .statusbar__stats {
   border-radius: 8px;
 }
 
-/* --- compact menu groups: tool row and tile grid --- */
+/* --- menu columns: two short columns instead of a long list --- */
 
-.menu__group {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-}
-
-.menu__group--grid {
+.menu__group--columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
 }
 
-.menu__tool {
+.menu__group--columns .menu__item {
+  justify-content: flex-start;
+  padding: 6px 8px;
+}
+
+/* --- drafts button, badge and panel --- */
+
+.tb-slot {
+  position: relative;
+  display: inline-flex;
+}
+
+.tb-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-panel);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.tb-badge[hidden] {
+  display: none;
+}
+
+.drafts {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 100%);
+  max-height: min(720px, 82vh);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+.drafts__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drafts__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.drafts__count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.drafts__close {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 26px;
   height: 26px;
-  border-radius: 6px;
-  color: var(--ink-muted);
+  border-radius: 7px;
+  color: var(--ink-faint);
 }
 
-.menu__tool:hover {
+.drafts__close:hover {
   background: var(--bg-hover);
   color: var(--ink);
 }
 
-.menu__tool-glyph {
-  font-family: var(--font-mono);
-  font-size: 11px;
+.drafts__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
 }
 
-.menu__tile {
+.drafts__empty {
+  margin: 8px;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.drafts__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+}
+
+.drafts__row:hover {
+  background: var(--bg-hover);
+}
+
+.drafts__mark {
+  display: inline-flex;
+  color: var(--ink-faint);
+}
+
+.drafts__main {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 2px;
-  padding: 6px 7px;
-  border-radius: 7px;
-  color: var(--ink);
-  font-size: 11px;
-  line-height: 1.2;
-  text-align: left;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
-.menu__tile:hover {
-  background: var(--bg-hover);
-}
-
-.menu__tile-glyph {
-  color: var(--ink-faint);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-}
-
-.menu__tile-label {
-  max-width: 100%;
+.drafts__title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.drafts__meta {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.drafts__actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.drafts__actions .btn {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 11.5px;
+}
+
+.drafts__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
 }
 
 /* --- settings details --- */

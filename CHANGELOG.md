@@ -4,6 +4,39 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+## [1.4.1] — 2026-11-21 (beta branch)
+
+Notepad-style exit, a real drafts list, and two interface fixes from the review.
+
+### Added
+
+- **Drafts panel.** The sidebar header has a button with a count badge; it opens a
+  list of every stored draft — open in a tab or not. From the list a draft can be
+  opened, saved into the workspace folder, or deleted (with confirmation).
+- **Drafts are stored independently of tabs.** Closing a draft tab no longer deletes
+  it; the note stays in the list. Search, tags, links and backlinks now include
+  drafts that are not open.
+- **Session restore covers drafts.** On launch the saved tab order comes back,
+  including draft tabs; if there are no saved tabs, the most recent draft opens.
+
+### Changed
+
+- **Closing the window asks nothing.** File notes are already written by autosave,
+  drafts stay in local storage, and the tabs return on the next launch. The exit
+  dialog is gone; only a failed write asks for confirmation.
+- Context menus are text again: the glyph/tile experiment is replaced by a compact
+  two-column layout with clear labels («Жирный», «Заголовок 1», …) — one click, no
+  guessing.
+- Text selection uses the accent-tinted colour from the theme in every state,
+  including when the editor is unfocused (it used to fall back to the system
+  lavender).
+- `docs/BETA.md` documents the `beta` branch workflow; CI builds it too.
+
+### Tests
+
+- One more e2e scenario (28 total): the drafts panel lists stored drafts, keeps a
+  draft after closing its tab, and reopens it.
+
 ## [1.4.0] — 2026-11-20
 
 Interface pass from a hands-on review: six defects fixed and the UI made less boxy.

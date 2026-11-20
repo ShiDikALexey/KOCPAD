@@ -136,6 +136,15 @@
 - [x] Softer visual language: radii, shadows, cards in settings, accent checkboxes
 - [x] 5 more e2e tests (27 total)
 
+## 1.4.1 — notepad exit and drafts (beta)
+
+- [x] Closing the window keeps drafts and restores tabs on the next launch
+- [x] Drafts live in their own list: a sidebar button with a counter opens the panel
+- [x] Draft tab can be closed without losing the draft; search/tags/links see all drafts
+- [x] Context menus back to clear text labels in a compact two-column layout
+- [x] Selection colour follows the theme even when the editor is unfocused
+- [x] `beta` branch + CI builds it; `docs/BETA.md` describes the workflow
+
 ## After 1.0 (backlog)
 
 - [ ] Two notes side by side

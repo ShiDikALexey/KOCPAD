@@ -14,6 +14,7 @@ import {
   newDraftId,
   nextDraftTitle,
   persistDrafts,
+  type StoredDraft,
 } from './drafts';
 
 export type Topic =
@@ -22,6 +23,8 @@ export type Topic =
   | 'active'
   /** Text of an open document changed; cheap to emit, cheap to ignore. */
   | 'dirty'
+  /** The stored drafts list changed (open, rename, delete, content). */
+  | 'drafts'
   | 'mode'
   | 'theme'
   | 'settings'
@@ -51,6 +54,8 @@ export class Store {
   private writes = new Map<string, Promise<void>>();
   /** Cached file text, so search/tags/links do not re-read the workspace. */
   private textCache = new Map<string, string>();
+  /** Drafts kept between sessions independently of the open tabs. */
+  private storedDrafts: StoredDraft[] = [];
   onError: (message: string) => void = () => undefined;
 
   constructor(storage: Storage) {
@@ -218,36 +223,62 @@ export class Store {
     return this.docs.filter((doc) => isDraftPath(doc.path));
   }
 
-  get hasDrafts(): boolean {
-    return this.draftDocs.length > 0;
+  /** All stored drafts, newest first — open or not. */
+  get draftList(): StoredDraft[] {
+    return [...this.storedDrafts].sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
-  /** Restores drafts saved in the previous session. */
+  get draftsCount(): number {
+    return this.storedDrafts.length;
+  }
+
+  get hasDrafts(): boolean {
+    return this.storedDrafts.length > 0;
+  }
+
+  /** Loads the draft list saved in the previous session. Tabs reopen separately. */
   restoreDrafts(): void {
-    const stored = loadDrafts();
-    for (const draft of stored) {
-      const path = draftPathOf(draft.id);
-      if (this.docs.some((doc) => doc.path === path)) continue;
-      this.docs.push({
-        path,
-        name: draft.title,
-        content: draft.content,
-        savedContent: draft.content,
-      });
+    this.storedDrafts = loadDrafts();
+    if (this.storedDrafts.length) this.emit('drafts');
+  }
+
+  /** Opens a stored draft as a tab (or activates it when already open). */
+  openDraft(id: string): Doc | null {
+    const path = draftPathOf(id);
+    const existing = this.docs.find((doc) => doc.path === path);
+    if (existing) {
+      this.activate(path);
+      return existing;
     }
-    if (this.docs.length && !this.activePath) this.activePath = this.docs[0].path;
-    if (stored.length) this.emit('docs', 'active');
+    const stored = this.storedDrafts.find((draft) => draft.id === id);
+    if (!stored) return null;
+    const doc: Doc = {
+      path,
+      name: stored.title,
+      content: stored.content,
+      savedContent: stored.content,
+    };
+    this.docs = [...this.docs, doc];
+    this.activePath = path;
+    this.rememberNote(path);
+    this.emit('docs', 'active');
+    return doc;
   }
 
   /** Creates an untitled note immediately — the notepad behaviour, no folder needed. */
   async createDraftDoc(): Promise<Doc> {
-    const taken = [...this.docs.map((doc) => doc.name), ...this.draftDocs.map((doc) => doc.name)];
+    const taken = [...this.docs.map((doc) => doc.name), ...this.draftList.map((draft) => draft.title)];
+    const id = newDraftId();
     const doc: Doc = {
-      path: draftPathOf(newDraftId()),
+      path: draftPathOf(id),
       name: nextDraftTitle(taken),
       content: '',
       savedContent: '',
     };
+    this.storedDrafts = [
+      { id, title: doc.name, content: '', updatedAt: Date.now() },
+      ...this.storedDrafts,
+    ];
     this.docs = [...this.docs, doc];
     this.activePath = doc.path;
     this.persistDraftDocs();
@@ -255,15 +286,20 @@ export class Store {
     return doc;
   }
 
+  /**
+   * Writes open draft content into the stored list and persists it. Drafts that
+   * are closed stay in the list, so a tab can be closed without losing the note.
+   */
   private persistDraftDocs(): boolean {
-    return persistDrafts(
-      this.draftDocs.map((doc) => ({
-        id: draftIdOf(doc.path),
-        title: doc.name,
-        content: doc.content,
-        updatedAt: Date.now(),
-      })),
-    );
+    const byId = new Map(this.storedDrafts.map((draft) => [draft.id, draft]));
+    for (const doc of this.draftDocs) {
+      const id = draftIdOf(doc.path);
+      byId.set(id, { id, title: doc.name, content: doc.content, updatedAt: Date.now() });
+    }
+    this.storedDrafts = [...byId.values()];
+    const saved = persistDrafts(this.storedDrafts);
+    this.emit('drafts');
+    return saved;
   }
 
   renameDraft(path: string, rawTitle: string): boolean {
@@ -279,8 +315,11 @@ export class Store {
 
   async deleteDraftDoc(path: string): Promise<void> {
     if (!isDraftPath(path)) return;
+    const id = draftIdOf(path);
+    this.storedDrafts = this.storedDrafts.filter((draft) => draft.id !== id);
     await this.closeDoc(path, true);
-    this.persistDraftDocs();
+    persistDrafts(this.storedDrafts);
+    this.emit('drafts');
     this.setStatus('Черновик удалён');
   }
 
@@ -310,6 +349,7 @@ export class Store {
     doc.savedContent = doc.content;
     this.textCache.set(target, doc.content);
     if (this.activePath === draftPath) this.activePath = target;
+    this.storedDrafts = this.storedDrafts.filter((draft) => draft.id !== draftIdOf(draftPath));
     this.persistDraftDocs();
     await this.refreshTree();
     this.emit('docs', 'active');
@@ -317,11 +357,31 @@ export class Store {
     return target;
   }
 
+  /** Saves one draft into a folder under a free name; returns the new path. */
+  async saveDraftToFolder(draftPath: string, dir: string): Promise<string | null> {
+    let doc = this.docs.find((item) => item.path === draftPath) ?? null;
+    if (!doc && isDraftPath(draftPath)) doc = this.openDraft(draftIdOf(draftPath));
+    if (!doc) return null;
+    const name = await this.uniqueDraftFileName(dir, doc.name);
+    return this.saveDraftAsFile(doc.path, dir, name);
+  }
+
+  /** Restores the saved tab order after reopening a session. */
+  reorderDocs(paths: string[]): void {
+    const rank = new Map(paths.map((path, index) => [path, index]));
+    this.docs = [...this.docs].sort(
+      (a, b) => (rank.get(a.path) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.path) ?? Number.MAX_SAFE_INTEGER),
+    );
+    this.emit('docs');
+  }
+
   /** Saves every non-empty draft into a folder with names derived from titles. */
   async saveAllDraftsAsFiles(dir: string): Promise<number> {
     let saved = 0;
-    for (const doc of [...this.draftDocs]) {
-      if (!doc.content.trim()) continue;
+    for (const draft of this.draftList) {
+      if (!draft.content.trim()) continue;
+      const doc = this.openDraft(draft.id);
+      if (!doc) continue;
       const name = await this.uniqueDraftFileName(dir, doc.name);
       if (await this.saveDraftAsFile(doc.path, dir, name)) saved += 1;
     }
@@ -748,7 +808,7 @@ export class Store {
   /** Note titles for `[[…]]` autocomplete: drafts first, then files. */
   linkSuggestions(): { title: string; path: string }[] {
     return [
-      ...this.draftDocs.map((doc) => ({ title: doc.name, path: doc.path })),
+      ...this.draftList.map((draft) => ({ title: draft.title, path: draftPathOf(draft.id) })),
       ...this.flatFiles().map((file) => ({ title: titleFromPath(file.name), path: file.path })),
     ];
   }
@@ -770,9 +830,9 @@ export class Store {
       if (path === targetPath || path.endsWith(`/${targetPath}`)) return { name: file.name, path: file.path };
     }
 
-    for (const draft of this.draftDocs) {
-      if (titleOf(draft.name) === lower || draft.name.toLocaleLowerCase('ru') === lower) {
-        return { name: draft.name, path: draft.path };
+    for (const draft of this.draftList) {
+      if (titleOf(draft.title) === lower || draft.title.toLocaleLowerCase('ru') === lower) {
+        return { name: draft.title, path: draftPathOf(draft.id) };
       }
     }
 
@@ -782,8 +842,8 @@ export class Store {
   /** `[[links]]` of every note and draft, used to compute backlinks. */
   async indexLinks(): Promise<{ path: string; name: string; targets: string[] }[]> {
     const out: { path: string; name: string; targets: string[] }[] = [];
-    for (const doc of this.draftDocs) {
-      out.push({ path: doc.path, name: doc.name, targets: extractWikiTargets(doc.content) });
+    for (const draft of this.draftList) {
+      out.push({ path: draftPathOf(draft.id), name: draft.title, targets: extractWikiTargets(draft.content) });
     }
     for (const file of this.flatFiles()) {
       try {
@@ -811,9 +871,11 @@ export class Store {
   recentNoteEntries(): { title: string; path: string; missing: boolean }[] {
     return this.settings.recentNotes.map((path) => {
       const doc = this.docs.find((item) => item.path === path);
-      const draft = this.draftDocs.find((item) => item.path === path);
+      const draft = isDraftPath(path)
+        ? this.draftList.find((item) => draftPathOf(item.id) === path)
+        : undefined;
       const file = this.flatFiles().find((item) => item.path === path);
-      const name = doc?.name ?? draft?.name ?? file?.name ?? basename(path);
+      const name = doc?.name ?? draft?.title ?? file?.name ?? basename(path);
       return {
         title: titleFromPath(name),
         path,
@@ -842,7 +904,7 @@ export class Store {
       }
     };
 
-    for (const doc of this.draftDocs) addText(doc.path, doc.content);
+    for (const draft of this.draftList) addText(draftPathOf(draft.id), draft.content);
     for (const file of this.flatFiles()) {
       try {
         addText(file.path, await this.readCached(file.path));
@@ -925,8 +987,8 @@ export class Store {
     const pattern = new RegExp(escapeRegExp(needle), 'iu');
     const hits: SearchHit[] = [];
 
-    for (const doc of this.draftDocs) {
-      collectHits(doc.path, doc.name, doc.content, pattern, hits, limit);
+    for (const draft of this.draftList) {
+      collectHits(draftPathOf(draft.id), draft.title, draft.content, pattern, hits, limit);
       if (hits.length >= limit) break;
     }
 
