@@ -236,10 +236,16 @@ jobs:
           retention-days: 14
 
   native-e2e:
-    name: Native e2e (WebDriver)
+    name: Native e2e (WebDriver, advisory)
     needs: windows
     runs-on: windows-latest
     timeout-minutes: 30
+    # GitHub-hosted Windows runners start elevated, and WebView2 ignores the
+    # remote-debugging arguments in an elevated process (tauri-apps/wry#1782).
+    # This job tries the RUNASINVOKER compatibility layer and stays advisory
+    # until it is proven on a non-elevated runner; the enforced native check is
+    # the "Native smoke" step in the windows job.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -280,6 +286,15 @@ jobs:
           if (-not (Test-Path $env:KOCPAD_APP)) { throw "app not found: $env:KOCPAD_APP" }
           Write-Host "edge driver: $env:MSEDGEDRIVER"
           & $env:MSEDGEDRIVER --version
+          Write-Host '--- WebView2 runtime versions ---'
+          Get-ChildItem 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients' -ErrorAction SilentlyContinue | ForEach-Object {
+            $props = Get-ItemProperty $_.PSPath
+            if ($props.name -like '*WebView2*') { Write-Host "$($props.name): $($props.pv)" }
+          }
+          # WebView2 ignores remote-debugging args when the process is elevated.
+          # RUNASINVOKER asks the loader to run the driver (and its child app)
+          # with the invoking token instead of the elevated admin token.
+          $env:__COMPAT_LAYER = 'RUNASINVOKER'
           $driverPath = Join-Path $HOME '.cargo\bin\tauri-driver.exe'
           $driver = Start-Process -FilePath $driverPath `
             -ArgumentList '--native-driver', $env:MSEDGEDRIVER -PassThru `
