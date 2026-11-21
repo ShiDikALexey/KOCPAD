@@ -5,7 +5,7 @@
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=release)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
-  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.2-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.3-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#requirements)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -19,10 +19,10 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `beta` branch — `1.5.0-beta.2`; latest published release — `1.4.0`.
+> **Status:** `beta` branch — `1.5.0-beta.3`; latest published release — `1.4.0`.
 > This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
 > install test and no long real-world use. An honest maturity assessment and the
-> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 40 e2e tests run
+> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 43 e2e tests run
 > in CI on every push; auto-updates are wired and switch on with one key secret
 > ([details](docs/PUBLISHING.md#5-auto-updates)).
 >
@@ -128,7 +128,7 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 
 | Feature | How it works |
 |---|---|
-| HTML | A standalone file with inline styles and a light/dark export theme. Images from `assets/` are not embedded (they stay relative paths) and `[[links]]` stay plain text |
+| HTML | A standalone file with inline styles and a light/dark export theme: images from `assets/` are embedded as data URLs and `[[links]]` are styled like in the app |
 | PDF | Printing through the system dialog (Windows "save as PDF" works); images from `assets/` are not embedded into the printout |
 | Updates | «⋯» → «Проверить обновления…»: compares the version with the release `latest.json`, verifies the update signature and installs it. The signing key is already in CI, so this path works |
 | Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, line numbers, line breaks, tab width, Vim, synced scrolling, autosave delay, export theme |
@@ -140,22 +140,28 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 - Atomic writes: a note is never left half-written after a crash.
 - Window close asks nothing: file notes are already saved, drafts stay in local
   storage, and the same tabs come back on the next launch.
+- External edits are never overwritten blindly: KOCPAD compares the file version
+  before writing and asks «перечитать / оставить моё / сохранить копию»; a clean
+  note is reloaded automatically.
+- Deleting goes to KOCPAD's trash for 30 days; restore from «⋯» → «Корзина…».
+- A crash or a killed process does not lose the last keystrokes: the recovery
+  journal offers the text on the next launch.
+- Encodings (UTF-8/BOM, UTF-16, cp1251) and CRLF are preserved as in the source file.
 - No background migrations rewriting your files.
 
-What **does not** exist yet (the limits of "never loses a note"):
+What **does not** exist yet:
 
-- **External edits are not watched.** If a file changed in another editor (or via
-  OneDrive/Yandex.Disk sync), the open tab will not notice and the next autosave
-  overwrites it. Press `F5` to re-read, or close the tab before editing elsewhere.
-- **Deleting is recoverable**: a note goes to KOCPAD's internal trash for 30 days
-  and can be restored from «⋯» → «Корзина…». A draft is not a file, so deleting a
-  draft from the list is permanent.
-- **A power cut** can lose the last keystrokes: autosave is delayed (under a second
-  by default) and there is no recovery journal.
-- **Encodings are detected**: UTF-8 (with or without BOM), UTF-16LE/BE and cp1251
-  (old Notepad); the status bar shows the encoding and CRLF, and a wrong guess can
-  be overridden with «Кодировка: открыть как…» in the palette. Files are saved back
-  in their original encoding and line endings.
+- **HTML export** embeds images from `assets/` and styles `[[links]]`, but they are
+  not clickable links between files. PDF is the Windows print dialog: no headers or
+  page numbers beyond what the printer provides.
+- **No sync and no accounts**, one folder per window, no mobile build. Sync the
+  folder with any tool you like — the files are plain markdown.
+- **Workspace search is a substring match**, no regular expressions; tags and
+  backlinks are recomputed when their panel opens.
+- **No version history of a note** (only the 30-day trash for deleted files).
+- **Native automated tests are limited**: 43 e2e scenarios run in Chromium, and CI
+  on Windows checks that the built `.exe` opens a window (smoke); a full e2e
+  against the packaged app is planned.
 
 ## Installation
 
@@ -312,7 +318,7 @@ node scripts/bump-version.cjs <x.y.z>
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 40 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 43 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -356,7 +362,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                40 Playwright scenarios
+├─ tests/                43 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs, enable-updater.cjs, make-latest-json.cjs
 ```
@@ -371,6 +377,8 @@ highlight.js 11, Playwright 1.65.
 | [docs/BETA.md](docs/BETA.md) | How the `beta` branch works, how to get a beta build and merge it |
 | [docs/VERSIONING.md](docs/VERSIONING.md) | Honest maturity assessment, numbering rules, release checklist |
 | [docs/WAVE-1.md](docs/WAVE-1.md) | Data-safety wave plan: external edits, recovery journal, encodings, trash |
+| [docs/WAVE-2.md](docs/WAVE-2.md) | Boundaries and reproducibility: fs sandbox, async commands, single instance, Cargo.lock, CSP |
+| [docs/WAVE-3.md](docs/WAVE-3.md) | Export, keyboard and the native smoke test |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Storage seam, document lifecycle, event topics, panels |
 | [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Every key, the mouse, Vim mode |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Done, planned and deliberately out of scope |

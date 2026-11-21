@@ -9,8 +9,9 @@ import {
   buildExportHtml,
   decoratePreview,
   documentTitle,
-  printDocument,
+  printHtml,
   renderMarkdown,
+  renderWikiLinks,
   setSoftBreaks,
   toggleTaskAtIndex,
 } from './markdown';
@@ -37,7 +38,7 @@ import { isTauriRuntime } from './storage';
 import { invoke } from '@tauri-apps/api/core';
 import type { EditorKeymap, PreviewFont, SidebarTab, ViewMode } from './types';
 import { basename, dirname, isTextFile, joinPath } from './path';
-import { clamp, debounce, plural } from './util';
+import { clamp, debounce, plural, bytesToBase64 } from './util';
 
 const TABS_KEY = 'kocpad.tabs';
 
@@ -681,6 +682,56 @@ function reloadWorkspace(): void {
   });
 }
 
+const IMAGE_MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  bmp: 'image/bmp',
+};
+
+function mimeFor(path: string): string {
+  const extension = path.split('.').pop()?.toLowerCase() ?? '';
+  return IMAGE_MIME[extension] ?? 'application/octet-stream';
+}
+
+/** Embeds relative images from `assets/` into the exported document. */
+async function inlineExportImages(html: string, baseDir: string): Promise<string> {
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  for (const image of [...parsed.querySelectorAll('img')]) {
+    const source = image.getAttribute('src') ?? '';
+    if (!source || /^(?:https?:|data:|blob:)/i.test(source)) continue;
+    const target = joinPath(baseDir, decodeURIComponent(source));
+    try {
+      const bytes = await store.storage.readBinary(target);
+      image.setAttribute('src', `data:${mimeFor(target)};base64,${bytesToBase64(bytes)}`);
+    } catch {
+      image.removeAttribute('src');
+      const alt = image.getAttribute('alt') ?? '';
+      image.setAttribute('alt', alt ? `${alt} (изображение не найдено)` : 'изображение не найдено');
+    }
+  }
+  return `<!DOCTYPE html>\n${parsed.documentElement.outerHTML}`;
+}
+
+/** Full export/print document: rendered markdown, wikilinks and embedded images. */
+async function buildExportDocument(doc: {
+  path: string;
+  name: string;
+  content: string;
+}): Promise<{ title: string; html: string }> {
+  const title = documentTitle(doc.name);
+  const body = renderWikiLinks(renderMarkdown(doc.content));
+  const baseDir = isDraftPath(doc.path) ? '' : dirname(doc.path);
+  const html = await inlineExportImages(
+    buildExportHtml(title, body, { theme: store.settings.exportTheme }),
+    baseDir,
+  );
+  return { title, html };
+}
+
 /** Asks what to do when a file changed on disk while it had unsaved edits. */
 async function showConflictDialog(path: string): Promise<void> {
   const doc = store.docs.find((item) => item.path === path);
@@ -1094,24 +1145,23 @@ const actions: AppActions = {
         showToast('Откройте заметку для экспорта', 'error');
         return;
       }
-      const title = documentTitle(doc.name);
-      const html = buildExportHtml(title, renderMarkdown(doc.content), {
-        subtitle: doc.path,
-        theme: store.settings.exportTheme,
-      });
+      const { title, html } = await buildExportDocument(doc);
       const saved = await store.storage.saveAs(`${title}.html`, html, 'text/html;charset=utf-8');
       if (saved) showToast(store.storage.kind === 'tauri' ? `Сохранено: ${saved}` : 'HTML-файл скачан', 'success');
     })();
   },
 
   printPdf: () => {
-    const doc = store.activeDoc;
-    if (!doc) {
-      showToast('Откройте заметку для печати', 'error');
-      return;
-    }
-    printDocument(documentTitle(doc.name), renderMarkdown(doc.content), doc.path, store.settings.exportTheme);
-    showToast('Выберите «Сохранить как PDF» в диалоге печати');
+    void (async () => {
+      const doc = store.activeDoc;
+      if (!doc) {
+        showToast('Откройте заметку для печати', 'error');
+        return;
+      }
+      const { html } = await buildExportDocument(doc);
+      printHtml(html);
+      showToast('Выберите «Сохранить как PDF» в диалоге печати');
+    })();
   },
 
   toggleTheme: () => {
@@ -1419,6 +1469,16 @@ function mountShortcuts(): void {
       event.preventDefault();
       tree.clearSelection();
       return;
+    }
+    // Delete in the tree, but never while the caret is in the editor or a field.
+    if (event.key === 'Delete' && !overlayOpen() && tree.hasSelection) {
+      const target = event.target as HTMLElement | null;
+      const typing = !!target?.closest('input, textarea, [contenteditable="true"]');
+      if (!typing) {
+        event.preventDefault();
+        actions.deleteSelected(tree.selectedPaths);
+        return;
+      }
     }
     if (event.key === 'Escape' && overlayOpen()) return;
 
@@ -1811,6 +1871,10 @@ async function boot(): Promise<void> {
       encoding: { decodeText, decodeAs, encodeText },
       trash,
       openTrash: () => openTrashPanel(store),
+      buildExport: async () => {
+        const doc = store.activeDoc;
+        return doc ? await buildExportDocument(doc) : null;
+      },
     };
   }
 }

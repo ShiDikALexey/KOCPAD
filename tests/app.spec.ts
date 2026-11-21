@@ -337,6 +337,47 @@ test.describe('editor surfaces', () => {
     expect(left).toBe(1);
   });
 
+  test('export embeds relative images and renders wiki links', async ({ page }) => {
+    const exported = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      // A real 1x1 transparent PNG.
+      const base64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      await api.store.storage.writeBinary('assets/pic.png', bytes);
+      const doc = api.store.activeDoc;
+      const text = '# Экспорт\n\n![картинка](assets/pic.png)\n\nСсылка на [[Другая заметка|другую]].\n';
+      api.editor.applyText(text);
+      await api.store.updateContent(doc.path, text);
+      return await api.buildExport();
+    });
+    expect(exported).not.toBeNull();
+    const html = exported!.html;
+    expect(html).toContain('data:image/png;base64,');
+    expect(html).toContain('class="wikilink"');
+    expect(html).toContain('другую');
+    expect(html).not.toContain('assets/pic.png');
+    expect(html).not.toContain('[[Другая заметка');
+  });
+
+  test('Delete removes selected notes from the tree', async ({ page }) => {
+    const note = page.locator('[role="treeitem"]', { hasText: 'Добро пожаловать' }).first();
+    await note.click({ modifiers: ['Control'] });
+    await page.keyboard.press('Delete');
+    await expect(page.locator('.dialog')).toContainText('Удалить');
+  });
+
+  test('a modal keeps keyboard focus inside itself', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const settings = page.locator('.settings');
+    await expect(settings).toBeVisible();
+    for (let index = 0; index < 8; index += 1) await page.keyboard.press('Tab');
+    const inside = await page.evaluate(() =>
+      !!document.activeElement?.closest('.settings, .dialog, .overlay'),
+    );
+    expect(inside).toBe(true);
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

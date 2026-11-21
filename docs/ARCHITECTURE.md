@@ -227,6 +227,21 @@ permanently. On startup `trash_purge(30)` removes entries older than 30 days and
 caps the trash at 200 items. Drafts are not files, so deleting a draft still removes
 it from the local drafts list.
 
+## Export and print
+
+`buildExportDocument()` in `src/main.ts` is the single builder for both `Ctrl+Shift+E`
+and printing:
+
+1. render the markdown with `renderMarkdown()`;
+2. `renderWikiLinks()` turns `[[target]]` into `<span class="wikilink" title="…">`
+   outside `<pre>`/`<code>` blocks;
+3. `inlineExportImages()` parses the result, resolves every relative `<img src>`
+   against the note folder, reads the bytes through the storage seam and replaces
+   the source with a `data:` URL (missing files become alt text);
+4. `buildExportHtml()` adds the document CSS and title;
+5. export hands the HTML to `saveAs`; print writes it into a hidden iframe and calls
+   `printHtml`, so PDF gets the same inlined document and no file path in the header.
+
 ## Security boundary
 
 Custom Tauri commands are not covered by the capability ACL, so the file layer

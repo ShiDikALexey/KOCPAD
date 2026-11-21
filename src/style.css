@@ -33,7 +33,7 @@ html[data-theme="light"] {
 
   --ink: #15171c;
   --ink-muted: #5b626c;
-  --ink-faint: #8a9099;
+  --ink-faint: #74776d;
 
   --line: #e2e2d8;
   --line-strong: #ccccc1;
@@ -79,7 +79,7 @@ html[data-theme="dark"] {
 
   --ink: #e8eaed;
   --ink-muted: #9aa2ad;
-  --ink-faint: #6d7682;
+  --ink-faint: #98a1ac;
 
   --line: #242a32;
   --line-strong: #333b46;
@@ -1520,7 +1520,12 @@ button {
 }
 
 .statusbar__saved--dirty {
-  color: var(--accent);
+  /* The accent itself is too light for small text; this is the accessible amber. */
+  color: #8a6400;
+}
+
+html[data-theme="dark"] .statusbar__saved--dirty {
+  color: #e8bb52;
 }
 
 .statusbar__saved--draft {

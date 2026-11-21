@@ -157,6 +157,22 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri:build
 
+      - name: Native smoke (the built app opens a window)
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path 'src-tauri\target\release\kocpad.exe'
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 15
+          $process.Refresh()
+          if ($process.HasExited) {
+            throw "KOCPAD exited early with code $($process.ExitCode)"
+          }
+          if (-not $process.MainWindowTitle) {
+            throw 'KOCPAD did not open a window'
+          }
+          Write-Host "window: $($process.MainWindowTitle)"
+          Stop-Process -Id $process.Id -Force
+
       - name: Sign binaries
         if: env.HAS_CERTIFICATE == 'true'
         shell: pwsh

@@ -166,10 +166,14 @@ Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 - [x] Delete to the recycle bin or an app `.trash` (internal KOCPAD trash, 30 days)
 - [x] FS sandbox, async file commands, single-instance guard, committed Cargo.lock,
       hardened CSP (wave 2, `1.5.0-beta.2`)
-- [ ] Native smoke test on Windows against the built `.exe`
-- [ ] Export: embed `assets/` images and render `[[links]]`
-- [ ] Keyboard/a11y: `Del` in the tree, focus traps, contrast
-- [ ] Simplify duplicated formatting entry points
+- [x] Export: embed `assets/` images and render `[[links]]` (wave 3,
+      `1.5.0-beta.3`)
+- [x] Keyboard/a11y: `Del` in the tree, focus traps, contrast (wave 3)
+- [x] Native smoke: CI launches the built `.exe` and checks the window (wave 3)
+- [ ] Full native e2e against the packaged app (tauri-driver/WebDriver)
+- [ ] Menu arrow-key navigation
+- [ ] Simplify duplicated formatting entry points (decision pending)
+- [ ] `spawn_blocking` for slow disks; stricter `script-src` after a packaged-build check
 
 ## Later / ideas
 

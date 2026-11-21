@@ -9,6 +9,35 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.0-beta.3] — 2026-11-21 (export, keyboard, native smoke)
+
+Wave 3: the export became self-contained, the tree and dialogs got keyboard
+attention, and CI now starts the real Windows binary. Plan: [docs/WAVE-3.md](docs/WAVE-3.md).
+
+### Changed
+
+- **HTML export embeds images.** Relative images from `assets/` are inlined as data
+  URLs (a missing file becomes alt text), `[[links]]` are rendered as link-styled
+  spans with a tooltip, and the absolute file path is no longer printed under the
+  title. Print/PDF uses the same inlined document, so images appear there too.
+- **Delete in the tree.** `Delete` removes the selected notes (with confirmation)
+  and is ignored while the caret is in the editor or a text field.
+- **Modal focus handling.** Tab is trapped inside an open dialog, the dialog gets
+  focus when it opens, and the previous element is focused again after closing.
+- **Contrast.** `--ink-faint` is darker in both themes; the "unsaved" status uses the
+  accessible amber instead of the light accent colour.
+
+### Added
+
+- **Native smoke test in CI.** The Windows job launches the freshly built
+  `kocpad.exe`, verifies that the process stays alive and opens a window, then
+  stops it — the first automated check of the packaged app.
+
+### Tests
+
+- 3 new e2e scenarios (43 total): export embeds images and renders wiki links;
+  Delete removes a selected note; a modal keeps keyboard focus inside itself.
+
 ## [1.5.0-beta.2] — 2026-11-21 (boundaries and reproducibility)
 
 Wave 2: the native file layer is scoped to the workspace, fs commands no longer run

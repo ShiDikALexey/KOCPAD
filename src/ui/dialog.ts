@@ -16,7 +16,9 @@ interface ModalHandle {
 /** Opens a modal overlay and lets the caller render its content. */
 export function openModal(build: (close: () => void) => HTMLElement, onEscape?: () => void): ModalHandle {
   const root = overlayRoot();
+  const previousFocus = document.activeElement as HTMLElement | null;
   let closed = false;
+  let content: HTMLElement;
   const close = (): void => {
     if (closed) return;
     closed = true;
@@ -24,6 +26,8 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
     root.removeEventListener('mousedown', onBackdrop);
     root.classList.remove('overlay--visible');
     clear(root);
+    // Return focus where it was before the modal opened.
+    if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
   };
   /** A click on the dimmed area outside the panel dismisses the modal. */
   const onBackdrop = (event: MouseEvent): void => {
@@ -31,20 +35,47 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
     onEscape?.();
     close();
   };
+  const focusable = (): HTMLElement[] =>
+    [...content.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => element.offsetParent !== null);
   const onKey = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       onEscape?.();
       close();
+      return;
+    }
+    // Keep Tab inside the dialog: a modal must not let the caret escape behind it.
+    if (event.key === 'Tab') {
+      const items = focusable();
+      const active = document.activeElement as HTMLElement | null;
+      if (!items.length) {
+        event.preventDefault();
+        content.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const outside = !active || !content.contains(active);
+      if (event.shiftKey && (active === first || outside)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || outside)) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   };
   document.addEventListener('keydown', onKey, true);
   root.addEventListener('mousedown', onBackdrop);
   root.classList.add('overlay--visible');
   clear(root);
-  const content = build(close);
+  content = build(close);
+  content.tabIndex = -1;
   root.appendChild(content);
+  window.setTimeout(() => content.focus(), 0);
   return { close, root: content };
 }
 

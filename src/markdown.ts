@@ -125,6 +125,7 @@ li.task-item { list-style: none; margin-left: -1.2em; }
 li.task-item input { margin-right: 0.5em; accent-color: var(--accent); }
 img { max-width: 100%; height: auto; }
 del { color: var(--ink-muted); }
+.wikilink { color: #8a6400; border-bottom: 1px dotted currentColor; }
 .hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: var(--c-keyword); }
 .hljs-string, .hljs-attr, .hljs-symbol, .hljs-bullet { color: var(--c-string); }
 .hljs-comment, .hljs-quote { color: var(--c-comment); font-style: italic; }
@@ -152,8 +153,30 @@ const DARK_DOCUMENT_CSS = `
 body { background: #13161a; color: var(--ink); }
 th { background: #1a1f26; }
 a { color: #7fb4f2; }
+.wikilink { color: #e2b54a; }
 :not(pre) > code { background: var(--code-bg); color: #cda6ef; }
 `;
+
+/** Turns `[[target]]` / `[[target|label]]` into link-styled spans outside code. */
+export function renderWikiLinks(html: string): string {
+  const parts = html.split(/(<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>)/g);
+  return parts
+    .map((part, index) => {
+      if (index % 2 === 1) return part;
+      return part.replace(
+        /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+        (_match, target: string, label?: string) => {
+          const display = (label ?? target).trim();
+          return `<span class="wikilink" title="Заметка: ${escapeAttribute(target.trim())}">${display}</span>`;
+        },
+      );
+    })
+    .join('');
+}
+
+function escapeAttribute(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
 
 /** Builds a standalone, self-contained HTML document for export or printing. */
 export function buildExportHtml(
@@ -183,14 +206,8 @@ ${bodyHtml}
 </html>`;
 }
 
-/** Prints the rendered document, which is how KOCPAD produces a PDF. */
-export function printDocument(
-  title: string,
-  bodyHtml: string,
-  subtitle?: string,
-  theme: ExportTheme = 'light',
-): void {
-  const html = buildExportHtml(title, bodyHtml, { subtitle, theme });
+/** Prints a ready HTML document, which is how KOCPAD produces a PDF. */
+export function printHtml(html: string): void {
   const frame = document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';

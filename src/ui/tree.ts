@@ -41,6 +41,11 @@ export class TreeView {
     return this.selection.size > 0;
   }
 
+  /** Selected note paths, for keyboard actions such as Delete. */
+  get selectedPaths(): string[] {
+    return [...this.selection];
+  }
+
   clearSelection(render = true): void {
     if (!this.selection.size) return;
     this.selection.clear();
