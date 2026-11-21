@@ -53,6 +53,8 @@ when the updater key is configured.
 
 - A tag with a suffix (`v1.5.0-beta.1`) is published as a **pre-release**: it does
   not become `/releases/latest`, so the updater never offers a beta to stable users.
+  Such builds ship the NSIS installer only: WiX/MSI rejects non-numeric prerelease
+  identifiers (`scripts/prepare-build.cjs` removes the MSI target for them).
 - A pre-release tag needs a matching `-beta` version; CI fails otherwise.
 - Do not renumber backwards and do not delete releases — see VERSIONING.md.
 

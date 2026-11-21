@@ -116,6 +116,9 @@ jobs:
           }
           Write-Host 'No BOM in configuration files'
 
+      - name: Prepare bundle for this version
+        run: node scripts/prepare-build.cjs
+
       - name: Enable updater artifacts when a signing key exists
         shell: pwsh
         env:

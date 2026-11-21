@@ -16,6 +16,10 @@ anything that still needs a second look go here first.
    fast-forward, bump the version (`node scripts/bump-version.cjs <x.y.z>`), and tag
    the release.
 
+Beta builds carry a prerelease suffix (`1.5.0-beta.1`), so their tag is published as
+a GitHub pre-release and the MSI target is skipped (WiX does not accept non-numeric
+prerelease identifiers); the NSIS installer and the portable exe are enough.
+
 ## Getting a beta build
 
 - From the Actions tab: open the latest `build` run on `beta`, download the
