@@ -458,8 +458,12 @@ const editor = new MarkdownEditor(
 // ---------------------------------------------------------------- preview
 
 let lastPreviewSource = '';
-let previewScrollLock = false;
-let editorScrollLock = false;
+let lastPreviewScrollAt = 0;
+let lastEditorScrollAt = 0;
+let previewScrollTop: number | null = null;
+let previewScrollFrame = 0;
+let editorScrollRatio: number | null = null;
+let editorScrollFrame = 0;
 
 const renderPreviewNow = (): void => {
   const doc = store.activeDoc;
@@ -484,25 +488,41 @@ const schedulePreview = debounce(() => {
   renderPreviewNow();
 }, 90);
 
+// Scroll sync is throttled to one update per frame and measured right before the
+// write. Doing it on every scroll event read `scrollHeight` (forced layout) and
+// wrote `scrollTop` many times per frame, which made long previews feel frozen.
 function syncFromEditor(ratio: number): void {
   if (!store.settings.syncScroll || store.settings.mode !== 'split') return;
-  if (previewScrollLock || editorScrollLock) return;
-  previewScrollLock = true;
-  const max = dom.preview.scrollHeight - dom.preview.clientHeight;
-  dom.preview.scrollTop = ratio * Math.max(max, 0);
-  window.requestAnimationFrame(() => {
-    previewScrollLock = false;
+  if (performance.now() - lastEditorScrollAt < 80) return;
+  editorScrollRatio = ratio;
+  if (editorScrollFrame) return;
+  editorScrollFrame = window.requestAnimationFrame(() => {
+    editorScrollFrame = 0;
+    const targetRatio = editorScrollRatio;
+    editorScrollRatio = null;
+    if (targetRatio === null) return;
+    const max = dom.preview.scrollHeight - dom.preview.clientHeight;
+    const target = targetRatio * Math.max(max, 0);
+    if (Math.abs(dom.preview.scrollTop - target) < 1) return;
+    lastPreviewScrollAt = performance.now();
+    dom.preview.scrollTop = target;
   });
 }
 
 dom.preview.addEventListener('scroll', () => {
   if (!store.settings.syncScroll || store.settings.mode !== 'split') return;
-  if (previewScrollLock || editorScrollLock) return;
-  editorScrollLock = true;
-  const max = dom.preview.scrollHeight - dom.preview.clientHeight;
-  editor.scrollToRatio(max > 0 ? dom.preview.scrollTop / max : 0);
-  window.requestAnimationFrame(() => {
-    editorScrollLock = false;
+  if (performance.now() - lastPreviewScrollAt < 80) return;
+  previewScrollTop = dom.preview.scrollTop;
+  if (previewScrollFrame) return;
+  previewScrollFrame = window.requestAnimationFrame(() => {
+    previewScrollFrame = 0;
+    const top = previewScrollTop;
+    previewScrollTop = null;
+    if (top === null) return;
+    const max = dom.preview.scrollHeight - dom.preview.clientHeight;
+    if (max <= 0) return;
+    lastEditorScrollAt = performance.now();
+    editor.scrollToRatio(top / max);
   });
 }, { passive: true });
 
@@ -1208,9 +1228,17 @@ const actions: AppActions = {
         showToast('Откройте заметку для печати', 'error');
         return;
       }
-      const { html } = await buildExportDocument(doc);
+      // Printing a selection is the common case for a notepad: select a
+      // fragment, press Ctrl+P, get only that fragment on paper.
+      const selection = editor.selectionText.trim();
+      const content = selection || doc.content;
+      const { html } = await buildExportDocument({ ...doc, content });
       printHtml(html);
-      showToast('Выберите «Сохранить как PDF» в диалоге печати');
+      showToast(
+        selection
+          ? 'Печать выделенного фрагмента · выберите «Сохранить как PDF»'
+          : 'Печать заметки · выберите «Сохранить как PDF»',
+      );
     })();
   },
 
@@ -1533,7 +1561,27 @@ function mountShortcuts(): void {
     if (event.key === 'Escape' && overlayOpen()) return;
 
     const mod = event.ctrlKey || event.metaKey;
-    const key = event.key.toLowerCase();
+    // Shortcuts follow the physical key: on a Russian layout Ctrl+B arrives as
+    // `event.key === "и"` (and the webview may then treat it as a browser
+    // shortcut), so fall back to `event.code` whenever the produced character is
+    // not a Latin letter.
+    const codeKey = event.code.startsWith('Key') ? event.code.slice(3).toLowerCase() : '';
+    const codePunctuation: Record<string, string> = {
+      Backquote: '`',
+      Backslash: '\\',
+      BracketLeft: '[',
+      BracketRight: ']',
+      Comma: ',',
+      Equal: '=',
+      Minus: '-',
+      Period: '.',
+      Quote: "'",
+      Semicolon: ';',
+      Slash: '/',
+    };
+    const key = /^[a-z]$/i.test(event.key)
+      ? event.key.toLowerCase()
+      : codeKey || codePunctuation[event.code] || event.key.toLowerCase();
 
     if (event.key === 'F5') {
       event.preventDefault();
@@ -1564,7 +1612,8 @@ function mountShortcuts(): void {
         '2': 'h2',
         '3': 'h3',
       };
-      const blockType = blockByKey[event.key];
+      const digit = /^Digit[0-3]$/.test(event.code) ? event.code.slice(5) : event.key;
+      const blockType = blockByKey[digit];
       if (blockType) {
         event.preventDefault();
         actions.setBlockType(blockType);
