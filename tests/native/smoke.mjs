@@ -25,18 +25,26 @@ const marker = `правка из нативного теста ${Date.now()}`;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A watchdog: a broken WebDriver handshake must fail the job, not hang the runner.
+const watchdog = setTimeout(() => {
+  console.error('native smoke watchdog fired after 300 s');
+  process.exit(4);
+}, 300_000);
+watchdog.unref();
+
 async function request(method, url, body) {
   const response = await fetch(`${driverUrl}${url}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
   });
   const text = await response.text();
   let parsed = null;
   try {
     parsed = text ? JSON.parse(text) : null;
   } catch {
-    // Some endpoints (status) return plain text on older drivers.
+    // Some endpoints return plain text on older drivers.
   }
   return { status: response.status, body: parsed, text };
 }
@@ -56,14 +64,16 @@ async function waitForDriver() {
 
 async function createSession() {
   for (let attempt = 0; attempt < 30; attempt += 1) {
+    console.log(`creating session, attempt ${attempt + 1}`);
     const { status, body } = await request('POST', '/session', {
       capabilities: {
         alwaysMatch: {
           'tauri:options': { application: app },
         },
       },
-    });
+    }).catch((error) => ({ status: 0, body: { error: String(error) } }));
     if (status === 200 && body?.value?.sessionId) return body.value.sessionId;
+    console.log(`  -> ${status} ${JSON.stringify(body)?.slice(0, 300)}`);
     await sleep(1000);
   }
   throw new Error('webdriver session was not created');
@@ -96,8 +106,13 @@ async function findElement(selector) {
 async function main() {
   await mkdir(work, { recursive: true });
   await writeFile(notePath, '# Нативная заметка\n\nТекст до правки.\n', 'utf8');
+  console.log(`app: ${app}`);
+  console.log(`workspace: ${work}`);
   await waitForDriver();
+  console.log('tauri-driver is up');
   sessionId = await createSession();
+  console.log(`session: ${sessionId}`);
+  console.log(`title: ${await session('/title').catch(() => 'n/a')}`);
 
   // Point the app at the workspace and skip onboarding, then reboot the page.
   const escapedRoot = work.replace(/\\/g, '\\\\');

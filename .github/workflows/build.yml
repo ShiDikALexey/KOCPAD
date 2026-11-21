@@ -278,15 +278,34 @@ jobs:
           KOCPAD_WORK: ${{ runner.temp }}\kocpad-native-work
         run: |
           if (-not (Test-Path $env:KOCPAD_APP)) { throw "app not found: $env:KOCPAD_APP" }
+          Write-Host "edge driver: $env:MSEDGEDRIVER"
+          & $env:MSEDGEDRIVER --version
           $driverPath = Join-Path $HOME '.cargo\bin\tauri-driver.exe'
-          $driver = Start-Process -FilePath $driverPath -ArgumentList '--native-driver', $env:MSEDGEDRIVER -PassThru
+          $driver = Start-Process -FilePath $driverPath `
+            -ArgumentList '--native-driver', $env:MSEDGEDRIVER -PassThru `
+            -RedirectStandardOutput driver.out.log -RedirectStandardError driver.err.log
           Start-Sleep -Seconds 3
           try {
             node tests/native/smoke.mjs
             if ($LASTEXITCODE -ne 0) { throw "native smoke failed with code $LASTEXITCODE" }
           } finally {
             Stop-Process -Id $driver.Id -Force -ErrorAction SilentlyContinue
+            Write-Host '--- driver stdout ---'
+            Get-Content driver.out.log -ErrorAction SilentlyContinue | Select-Object -Last 30
+            Write-Host '--- driver stderr ---'
+            Get-Content driver.err.log -ErrorAction SilentlyContinue | Select-Object -Last 30
           }
+
+      - name: Upload native driver logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-driver-logs
+          path: |
+            driver.out.log
+            driver.err.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   release:
     name: Attach installers to a release
