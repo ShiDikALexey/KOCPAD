@@ -1,10 +1,9 @@
 <div align="center">
   <img src="docs/icon.png" alt="KOCPAD icon" width="80" height="80">
   <h1>KOCPAD · Experimental</h1>
-  <p><b>The ideas branch. Right now it holds the inline markup assistant.</b></p>
+  <p><b>A branch for things that are not ready for beta yet.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=Experimental)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![experimental](https://img.shields.io/badge/experimental-inline%20assistant-purple)](https://github.com/ShiDikALexey/KOCPAD/tree/Experimental)
   [![beta](https://img.shields.io/badge/beta-1.5.0--beta.4-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
@@ -12,73 +11,64 @@
 
 ---
 
-The **`Experimental`** branch is cut from `beta` (`1.5.0-beta.4`). Ideas that are
-not ready for beta live here. Nothing from this branch reaches `main` or `beta`
-until you accept it.
+Nothing from here reaches `main` or `beta` until you decide it is ready.
 
-**Already here:** [inline markup assistant](#inline-markup-assistant).
-**Being tested:** highlighting, the popover and «fix / ignore»; checklist below.
-**Planned:** [learning panel and style hints](#what-comes-next).
+Right now the branch has one thing: an inline markup assistant. The notepad notices
+places where the markdown is probably broken and tints them. A click opens a short
+explanation and three buttons: fix, ignore, never suggest again.
 
-## Inline markup assistant
+## What it looks like
 
-It is not a chat and not an "ask AI" panel. The notepad notices places where the
-markdown is likely broken and quietly tints them. Clicking a tint opens a short
-explanation and three buttons: **«Исправить»** (fix), **«Игнорировать»** (ignore),
-**«Больше не предлагать»** (never suggest again).
+You type `##Привет`. Half a second later `##Привет` gets a lavender background.
+Click it and you get: "a space after `#` is required, otherwise this is not a
+heading", the example `## Привет`, and a fix button. The fix is a normal edit, so
+`Ctrl+Z` reverts it.
 
-![Inline assistant: `##Встречи` is tinted, the popover explains the missing space and offers a fix](docs/screenshots/assistant.png)
+![Assistant: `##Встречи` is tinted, the popover explains the missing space](docs/screenshots/assistant.png)
 
-- **16 markup rules:** space after `#`, more than six `#`, skipped heading level,
-  bare URL, unclosed link, link without a protocol, missing space after a list
-  marker, mixed list markers, unclosed code fence, unclosed inline code, unclosed
-  `[[link]]`, tag glued to a word, missing blank line before a block, double blank
-  line, trailing space, double space.
-- Rules stay silent inside fenced code blocks.
-- **Background tint only** (lavender), 150 ms fade-in, at most 5 suggestions,
-  respects "reduce motion".
-- Fixes apply only on click, as one transaction; `Ctrl+Z` reverts.
-- "Never suggest again" is persisted in settings.
-- **No network, no model download.**
+There are sixteen rules: space after `#`, more than six `#`, skipped heading level,
+bare URL, unclosed link, link without a protocol, missing space after a list marker,
+mixed list markers, unclosed code fence, unclosed inline code, unclosed `[[link]]`,
+a tag glued to a word, missing blank line before a block, double blank line,
+trailing space, double space.
 
-Enable or disable it in settings: **«Помощник» → «Подсказки по разметке»**.
+Rules stay quiet inside code blocks. Only the background is tinted, at most five
+suggestions at a time. If Windows has "reduce motion" enabled, the fade is skipped.
+The assistant does not use the network and does not download anything. It is
+switched on in settings under "Помощник".
 
-## What is being tested
+## What to try
 
-- [ ] `##Привет` gets a lavender tint; the click explains and fixes it;
-- [ ] `-пункт` / `1)пункт` get the list-marker hint;
-- [ ] a bare `vk.com` line is offered as a markdown link;
-- [ ] unclosed `` `code ``, `[[Note`, `` ``` `` are found;
-- [ ] nothing is tinted inside fenced code;
-- [ ] «Игнорировать» hides the hint for the session;
-- [ ] «Больше не предлагать» keeps the rule off after a restart;
-- [ ] disabling the assistant removes every tint immediately;
-- [ ] typing in a 5,000-line note stays smooth.
+- `##Привет`, `-пункт`, `1)пункт`, `vk.com` get tinted and explained;
+- unclosed `` `code ``, `[[Note` and ``` ``` ``` are found;
+- nothing is tinted inside a code block;
+- "ignore" hides a hint until the app restarts;
+- "never suggest" keeps a rule off after a restart;
+- switching the assistant off removes every tint at once;
+- typing in a 5,000-line note does not slow down.
 
-Automated for this branch: **50 e2e scenarios** (4 cover the assistant),
-typecheck, build, Windows installers and the native smoke in CI.
+The branch runs 50 e2e tests, four of them for the assistant, plus typecheck, the
+build, the Windows installer and a launch of the packaged `.exe` in CI.
 
 ## What comes next
 
-**M2 — learning panel (next):**
-- accepted / ignored counters per rule;
-- rule confidence and how it changes suggestion frequency;
-- learned habits: how you format links, lists, quotes;
-- "reset learning";
-- a weekly "before / after" summary.
+Closest: a learning panel. How many suggestions you accepted or ignored, how
+confident each rule is, how you usually format links and lists, and a reset button.
 
-**M3 — style hints (later, opt-in):** long sentences, repeats, wordiness; off by
-default.
+Then, if the assistant earns its place, style hints: long sentences and repeats.
+They will be off by default.
 
-**M4 — tiny local LLM (only if M1–M3 prove useful):** better explanations and
-phrase rewrites, local and on demand.
+The idea of a tiny local model for explanations and rewrites is on hold. First we
+need to see whether the two steps above are useful at all.
 
-Full plan, rules and decisions: [docs/ASSISTANT.md](docs/ASSISTANT.md).
+Details and rules: [docs/ASSISTANT.md](docs/ASSISTANT.md).
 
-## Getting a build
+## Building
 
-Actions → the latest `Experimental` run → the **`kocpad-windows`** artifact
-(portable `kocpad.exe` + NSIS installer). Or locally:
+Actions → the latest `Experimental` run → the `kocpad-windows` artifact. It has the
+portable `kocpad.exe` and the NSIS installer.
+
+Or locally:
 
 ```powershell
 git checkout Experimental
@@ -86,10 +76,9 @@ npm ci
 npm run tauri:dev
 ```
 
-This branch is not merged into `beta`/`main` and is not released until you say the
-feature is ready.
+No releases are cut from this branch until you accept the feature.
 
 ## Other branches
 
-- **`main`** — stable `1.4.0`, full description: [README](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md).
-- **`beta`** — `1.5.0-beta.4`: changes and checklist: [README](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md).
+- [main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md) — stable `1.4.0`, full description.
+- [beta](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md) — `1.5.0-beta.4`, what changed and what is being tested.
