@@ -101,19 +101,19 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: Generate Cargo.lock for reproducible builds
+      - name: Verify Cargo.lock matches Cargo.toml
         shell: pwsh
         run: |
-          cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
-          if ($LASTEXITCODE -ne 0) { throw 'cargo generate-lockfile failed' }
-          if (Test-Path src-tauri/Cargo.lock) {
-            # Once the lockfile is committed, a Cargo.toml change without a lock
-            # bump must fail the build instead of silently resolving new versions.
-            git ls-files --error-unmatch src-tauri/Cargo.lock *> $null
-            if ($LASTEXITCODE -eq 0) {
-              git diff --exit-code -- src-tauri/Cargo.lock
-              if ($LASTEXITCODE -ne 0) { throw 'Cargo.lock is stale: commit the regenerated lockfile' }
-            }
+          if (-not (Test-Path src-tauri/Cargo.lock)) {
+            cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+            if ($LASTEXITCODE -ne 0) { throw 'cargo generate-lockfile failed' }
+          }
+          # --locked fails when the committed lockfile does not satisfy Cargo.toml.
+          # Do not run `cargo generate-lockfile` here: it re-resolves and would
+          # "update" pinned crates whenever a new version is published.
+          cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml *> $null
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Cargo.lock is stale: run cargo generate-lockfile locally and commit the result'
           }
           exit 0
 
