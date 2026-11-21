@@ -1,75 +1,78 @@
 <div align="center">
   <img src="docs/icon.png" alt="KOCPAD icon" width="80" height="80">
   <h1>KOCPAD · beta</h1>
-  <p><b>The next-version branch — only what changed and what is being tested.</b></p>
+  <p><b>The next version. Just what changed and what we are checking.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![beta](https://img.shields.io/badge/beta-1.5.0--beta.4-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
-  [![stable release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
+  [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
 </div>
 
 ---
 
-This is the **`beta`** branch, version **`1.5.0-beta.4`**. The full product
-description, screenshots and FAQ live in the
-[stable README](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md); this
-file only covers what changed since `1.4.0` and what is being verified.
+This is `beta`, version `1.5.0-beta.4`. The full product description lives in the
+[stable README](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md).
+This file covers what changed since `1.4.0` and what is worth testing.
 
 ## What changed since 1.4.0
 
-**No lost data**
-- external edits are detected before writing: conflict dialog «reload / keep mine /
-  save a copy»; clean notes are reloaded automatically;
-- a crash-recovery journal snapshots dirty files every ~0.5 s and offers restoration
-  after a kill;
-- encodings and line endings are preserved (UTF-8/BOM, UTF-16LE/BE, cp1251; CRLF);
-- an internal 30-day trash makes deletion reversible and purges old entries.
+The main point is that the notepad stopped losing text when things go wrong.
 
-**Boundaries and reproducibility**
-- file commands are scoped to the workspace (no `..`, symlinks or escapes);
-- file operations are async, so a large folder no longer freezes the window;
-- single-instance: a second launch focuses the existing window;
-- `Cargo.lock` is committed and the CSP is hardened.
+If a file was changed in another editor, KOCPAD no longer overwrites it silently: it
+compares the file version before writing and asks what to do. If the app was killed
+or the power went out, the next launch offers the recovered text. Old cp1251 `.txt`
+files and CRLF files open and save back in their original encoding. Deleted notes
+sit in the trash for 30 days and can be restored.
 
-**Export and interface**
-- HTML/PDF embed `assets/` images and style `[[links]]`;
-- `Del` in the tree, modal focus trap, better small-text contrast;
-- menu arrow navigation, create a note from a missing `[[link]]`, renaming rewrites
-  links, workspace-search race guard;
-- CI now runs a smoke launch of the built `.exe`.
+Then there are boundaries. File commands now only work inside the chosen folder. File
+operations no longer block the window on a large folder. A second launch focuses the
+existing window instead of starting another process. `Cargo.lock` is in the repo and
+the CSP is stricter.
 
-## What is being tested
+On the interface side: HTML and PDF export embed images and style `[[links]]`, `Del`
+removes selected notes, modals keep focus, small text has better contrast. Menus work
+with arrow keys, a missing `[[link]]` can be turned into a note with a click, renaming
+a note rewrites links in other notes, and search no longer shows results from a stale
+query.
 
-Manual checklist before merging into `main`:
+CI also launches the built `.exe` now; before, only the web page was tested.
 
-- [ ] edit a note, change the file in Notepad, return to KOCPAD → conflict dialog;
-- [ ] type and kill the process (`taskkill /F /IM kocpad.exe`) → restored text on
-      the next launch;
-- [ ] an old cp1251 `.txt` and a CRLF file open, edit and save in their encoding;
-- [ ] delete a note → «⋯» → «Корзина…» → restore;
-- [ ] launch the app twice → one window remains;
-- [ ] export HTML with an image and a `[[link]]`; print to PDF without a file path;
-- [ ] keyboard menus, note creation from a missing link, rename rewrites links.
+## What we are checking
 
-Automated: **46 e2e scenarios** (Chromium) plus a native smoke in the Windows CI job.
-A full native e2e against the `.exe` is blocked by the GitHub runner environment
-(elevated process and WebView2) — see [ROADMAP](docs/ROADMAP.md).
+Before merging into `main`, this needs a manual pass:
+
+- change a note in Notepad, come back and press `Ctrl+S` — a conflict question should
+  appear;
+- type, kill the process with `taskkill /F /IM kocpad.exe` — the next launch should
+  offer the recovered text;
+- open an old cp1251 `.txt` and a CRLF file, edit them and save — encoding and line
+  endings must stay the same;
+- delete a note and restore it from «⋯» → «Корзина…»;
+- launch the app twice — one window should remain;
+- export a note with an image and a link, print it to PDF;
+- use the menus with arrows, create a note from a missing link, rename a note and
+  check the links.
+
+There are 46 automated tests. There is also a launch of the `.exe` in CI, but a full
+native e2e against the packaged app is blocked by the GitHub runner environment; see
+[ROADMAP](docs/ROADMAP.md).
 
 ## Getting a beta build
 
-CI builds the **`kocpad-windows`** artifact on every push to `beta`: the portable
-`kocpad.exe` and the NSIS installer. MSI is intentionally skipped for prerelease
-versions (WiX rejects a non-numeric prerelease).
+On every push to `beta`, Actions builds the `kocpad-windows` artifact: the portable
+`kocpad.exe` and the NSIS installer. MSI is skipped for beta because WiX does not
+accept a version with a suffix.
 
-No tags and releases are cut from this branch — only after the checklist and a merge
-into `main`.
+No tags and no releases from this branch. First the checks, then the merge into
+`main` and the `1.5.0` release.
 
 ## What comes next
 
-1. Pass the checklist above and merge `beta` into `main` → release `1.5.0`.
-2. A separate [`Experimental`](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md)
-   branch holds the inline markup assistant; it is not part of beta.
-3. Known limitations and plans — [ROADMAP](docs/ROADMAP.md); honest version policy —
-   [VERSIONING](docs/VERSIONING.md).
+After the checks, beta merges into `main` and ships as `1.5.0`. The
+[Experimental](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md)
+branch holds the inline markup assistant; it is not part of beta.
+
+Limitations and plans: [ROADMAP](docs/ROADMAP.md). Version policy:
+[VERSIONING](docs/VERSIONING.md).
