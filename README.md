@@ -4,7 +4,7 @@
   <p><b>Следующая версия. Здесь коротко: что поменялось и что проверяем.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/база-1.5.1-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/база-1.5.1-a-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub>Русский · <a href="README.en.md">English</a> · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md">полное описание (main)</a></sub>
