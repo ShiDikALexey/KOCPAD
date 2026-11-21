@@ -105,11 +105,17 @@ jobs:
         shell: pwsh
         run: |
           cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
-          # Once the lockfile is committed, a Cargo.toml change without a lock bump
-          # must fail the build instead of silently resolving new versions.
-          if (git ls-files --error-unmatch src-tauri/Cargo.lock 2>$null) {
-            git diff --exit-code -- src-tauri/Cargo.lock
+          if ($LASTEXITCODE -ne 0) { throw 'cargo generate-lockfile failed' }
+          if (Test-Path src-tauri/Cargo.lock) {
+            # Once the lockfile is committed, a Cargo.toml change without a lock
+            # bump must fail the build instead of silently resolving new versions.
+            git ls-files --error-unmatch src-tauri/Cargo.lock *> $null
+            if ($LASTEXITCODE -eq 0) {
+              git diff --exit-code -- src-tauri/Cargo.lock
+              if ($LASTEXITCODE -ne 0) { throw 'Cargo.lock is stale: commit the regenerated lockfile' }
+            }
           }
+          exit 0
 
       - name: Upload Cargo.lock
         uses: actions/upload-artifact@v4
