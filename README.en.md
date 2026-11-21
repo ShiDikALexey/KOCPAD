@@ -5,7 +5,7 @@
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=release)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
-  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.3-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.4-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#requirements)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -19,10 +19,10 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `beta` branch — `1.5.0-beta.3`; latest published release — `1.4.0`.
+> **Status:** `beta` branch — `1.5.0-beta.4`; latest published release — `1.4.0`.
 > This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
 > install test and no long real-world use. An honest maturity assessment and the
-> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 43 e2e tests run
+> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 46 e2e tests run
 > in CI on every push; auto-updates are wired and switch on with one key secret
 > ([details](docs/PUBLISHING.md#5-auto-updates)).
 >
@@ -318,7 +318,7 @@ node scripts/bump-version.cjs <x.y.z>
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 43 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 46 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -362,7 +362,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                43 Playwright scenarios
+├─ tests/                46 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs, enable-updater.cjs, make-latest-json.cjs
 ```

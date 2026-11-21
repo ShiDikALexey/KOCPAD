@@ -502,7 +502,7 @@ dom.preview.addEventListener('click', (event) => {
     if (resolved) {
       void store.openNote(resolved.path);
     } else {
-      showToast(`Заметка «${linkTarget}» не найдена — создайте её через Ctrl+N`, 'error');
+      void createNoteFromLink(linkTarget);
     }
     return;
   }
@@ -730,6 +730,41 @@ async function buildExportDocument(doc: {
     baseDir,
   );
   return { title, html };
+}
+
+/** Creates a note for an unresolved `[[link]]` in the current folder. */
+async function createNoteFromLink(target: string): Promise<string | null> {
+  const clean = target.trim();
+  if (!clean) return null;
+  if (!store.storage.root) {
+    showToast('Сначала подключите папку с заметками', 'info');
+    return null;
+  }
+  const name = clean.replace(/[\\/:*?"<>|]/g, '-').replace(/^\.+/, '').slice(0, 120);
+  if (!name) return null;
+  const active = store.activeDoc;
+  const directory = active && !isDraftPath(active.path) ? dirname(active.path) : '';
+  const path = joinPath(directory, `${name}.md`);
+  if (await store.storage.exists(path).catch(() => false)) {
+    await store.openNote(path);
+    return path;
+  }
+  const confirmed = await confirmAction({
+    title: 'Создать заметку?',
+    message: `Заметки «${clean}» пока нет. Создать её в текущей папке?`,
+    confirmLabel: 'Создать',
+  });
+  if (!confirmed) return null;
+  try {
+    await store.storage.createFile(path, `# ${clean}\n\n`);
+    await store.refreshTree();
+    await store.openNote(path);
+    showToast(`Создана · ${name}.md`, 'success');
+    return path;
+  } catch (error) {
+    showToast(`Не удалось создать заметку: ${(error as Error).message}`, 'error');
+    return null;
+  }
 }
 
 /** Asks what to do when a file changed on disk while it had unsaved edits. */
@@ -1763,6 +1798,10 @@ async function boot(): Promise<void> {
   editor.setLinkSuggestions(() => store.linkSuggestions());
   store.onDocClosed = (path) => editor.forget(path);
   store.onDocRenamed = (from) => editor.forget(from);
+  store.onDocContentSynced = (path) => {
+    const doc = store.docs.find((item) => item.path === path);
+    if (doc && store.activePath === path) editor.applyText(doc.content);
+  };
   store.onConflict = (path) => void showConflictDialog(path);
   store.onExternalReload = (path) => {
     const doc = store.docs.find((item) => item.path === path);

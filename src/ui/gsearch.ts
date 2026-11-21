@@ -152,8 +152,12 @@ export class GlobalSearchPanel {
       this.actions.openNote(hit.path, { line: hit.line, column: hit.column });
     };
 
+    // A slower earlier query must never overwrite the results of a newer one.
+    let requestId = 0;
+
     const search = async (): Promise<void> => {
       const query = input.value.trim();
+      const id = ++requestId;
       this.lastQuery = query;
       if (query.length < 2) {
         hits = [];
@@ -161,7 +165,9 @@ export class GlobalSearchPanel {
         return;
       }
       results.appendChild(h('p', { class: 'gsearch__empty' }, 'Ищу…'));
-      hits = await this.store.searchAll(query);
+      const found = await this.store.searchAll(query);
+      if (id !== requestId) return;
+      hits = found;
       selected = 0;
       renderResults();
     };

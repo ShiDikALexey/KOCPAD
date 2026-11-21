@@ -169,9 +169,11 @@ Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 - [x] Export: embed `assets/` images and render `[[links]]` (wave 3,
       `1.5.0-beta.3`)
 - [x] Keyboard/a11y: `Del` in the tree, focus traps, contrast (wave 3)
+- [x] Menu arrow-key navigation (wave 4, `1.5.0-beta.4`)
+- [x] Wiki links: create a note from a missing link, rename rewrites `[[links]]`
+- [x] Workspace search: request-id guard against stale results
 - [x] Native smoke: CI launches the built `.exe` and checks the window (wave 3)
 - [ ] Full native e2e against the packaged app (tauri-driver/WebDriver)
-- [ ] Menu arrow-key navigation
 - [ ] Simplify duplicated formatting entry points (decision pending)
 - [ ] `spawn_blocking` for slow disks; stricter `script-src` after a packaged-build check
 

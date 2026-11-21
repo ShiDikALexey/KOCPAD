@@ -5,7 +5,7 @@
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![релиз](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=релиз)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
-  [![бета](https://img.shields.io/badge/beta-1.5.0--beta.3-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![бета](https://img.shields.io/badge/beta-1.5.0--beta.4-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#требования)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -19,11 +19,11 @@
 Заметки — обычные `.md` файлы: без аккаунтов, баз данных и своего формата, они
 открываются в любом другом редакторе.
 
-> **Статус:** ветка `beta` — `1.5.0-beta.3`; последний опубликованный релиз — `1.4.0`.
+> **Статус:** ветка `beta` — `1.5.0-beta.4`; последний опубликованный релиз — `1.4.0`.
 > Проект ещё не «стабильный 1.x»: подписи установщика нет, на чистой машине
 > установка не проверялась, реального длительного использования не было. Честная
 > оценка зрелости и правила нумерации — в [docs/VERSIONING.md](docs/VERSIONING.md).
-> 43 e2e-тестов гоняются в CI на каждый пуш; автообновление встроено и включается
+> 46 e2e-тестов гоняются в CI на каждый пуш; автообновление встроено и включается
 > секретом с ключом ([подробнее](docs/PUBLISHING.md#5-auto-updates)).
 >
 > **Скачать:** [последний релиз](https://github.com/ShiDikALexey/KOCPAD/releases/latest) —
@@ -331,7 +331,7 @@ node scripts/bump-version.cjs <x.y.z>
 ```bash
 npm run typecheck     # строгий TypeScript, без сборки
 npm run build         # типы + прод-сборка фронтенда
-npm run test:e2e      # 43 сценария Playwright (dev-сервер поднимается сам)
+npm run test:e2e      # 46 сценариев Playwright (dev-сервер поднимается сам)
 ```
 
 Что покрыто e2e: открытие рабочего пространства, живой предпросмотр,
@@ -382,7 +382,7 @@ KOCPAD/
 │  └─ style.css          темы, акценты, вёрстка
 ├─ src-tauri/            оболочка: окно, память геометрии, глобальный хоткей,
 │                        перехват закрытия, команды файловой системы
-├─ tests/                43 сценария Playwright
+├─ tests/                46 сценариев Playwright
 ├─ docs/                 архитектура, клавиши, планы, публикация, скриншоты
 └─ scripts/              версии, включение апдейтера, latest.json для обновлений
 ```

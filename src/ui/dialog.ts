@@ -381,6 +381,41 @@ export function showMenu(
 
   activeMenu = { key: options.key, close };
 
+  // Keyboard: arrows move between items, Home/End jump, Enter activates, Esc closes.
+  const menuItems = (): HTMLElement[] =>
+    [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+  menu.addEventListener('keydown', (event) => {
+    const list = menuItems();
+    if (!list.length) return;
+    const active = document.activeElement as HTMLElement | null;
+    const index = active ? list.indexOf(active) : -1;
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        list[(index + 1 + list.length) % list.length]?.focus();
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        list[(index - 1 + list.length) % list.length]?.focus();
+        break;
+      case 'Home':
+        event.preventDefault();
+        list[0]?.focus();
+        break;
+      case 'End':
+        event.preventDefault();
+        list[list.length - 1]?.focus();
+        break;
+      case 'Escape':
+        event.preventDefault();
+        close();
+        break;
+      default:
+        break;
+    }
+  });
+  window.setTimeout(() => menuItems()[0]?.focus(), 0);
+
   const rect = menu.getBoundingClientRect();
   const x = Math.min(anchor.x, window.innerWidth - rect.width - 8);
   const y = Math.min(anchor.y, window.innerHeight - rect.height - 8);

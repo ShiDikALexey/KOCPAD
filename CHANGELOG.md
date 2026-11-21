@@ -9,6 +9,31 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.0-beta.4] — 2026-11-21 (keyboard, links, search)
+
+### Added
+
+- **Menu keyboard navigation.** Arrow keys move between menu items, Home/End jump to
+  the first/last one, Enter activates, Escape closes; the first item receives focus
+  when a menu opens.
+- **Unresolved `[[links]]` can be created.** Clicking a missing wiki link offers
+  «Создать заметку?» and creates a note in the current folder (or opens the target
+  if it already exists).
+- **Renaming a note updates its `[[links]]`.** Every file and draft that references
+  the old title is rewritten through the normal save pipeline, so encoding and line
+  endings survive; labels (`[[Old|label]]`) and folder prefixes (`[[dir/Old]]`) are
+  preserved.
+
+### Fixed
+
+- **Workspace search race.** A slower earlier query can no longer overwrite the
+  results of a newer one (request-id guard).
+
+### Tests
+
+- 3 new e2e scenarios (46 total): menu arrow navigation, creating a note from a
+  missing wiki link, renaming a note updates links in other notes.
+
 ## [1.5.0-beta.3] — 2026-11-21 (export, keyboard, native smoke)
 
 Wave 3: the export became self-contained, the tree and dialogs got keyboard

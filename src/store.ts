@@ -67,6 +67,8 @@ export class Store {
   onDocClosed: (path: string) => void = () => undefined;
   /** Editor-state hook: the document moved, the old key must be dropped. */
   onDocRenamed: (from: string, to: string) => void = () => undefined;
+  /** The text of a document changed programmatically (e.g. [[links]] renamed). */
+  onDocContentSynced: (path: string) => void = () => undefined;
   /** The file changed on disk while the document had unsaved edits. */
   onConflict: (path: string) => void = () => undefined;
   /** A clean document was reloaded because the file changed on disk. */
@@ -1041,14 +1043,67 @@ export class Store {
         : target + this.activePath.slice(node.path.length);
     }
     this.onDocRenamed(node.path, target);
+    if (node.kind === 'file') {
+      await this.rewriteLinksToRenamedNote(titleFromPath(node.name), titleFromPath(nextName));
+    }
     await this.refreshTree();
     this.emit('docs', 'active');
     this.setStatus(`Переименовано · ${nextName}`);
     return true;
   }
 
-  async deleteEntry(node: NoteNode): Promise<boolean> {
-    // Deletions go through the internal trash: a misclick must be recoverable.
+  /**
+   * Renaming a note rewrites `[[old title]]` references in every note and draft.
+   * Links are matched by the title part, so `[[folder/Old]]` and `[[Old|label]]`
+   * both survive the rename with their label and folder prefix intact.
+   */
+  private async rewriteLinksToRenamedNote(oldTitle: string, newTitle: string): Promise<void> {
+    if (!oldTitle || !newTitle || oldTitle === newTitle) return;
+    const escaped = oldTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(\\[\\[[^\\]|]*?)${escaped}(\\s*(?:\\|[^\\]]*)?\\]\\])`, 'gi');
+    const paths = new Set([
+      ...this.flatFiles().map((file) => file.path),
+      ...this.docs.filter((doc) => isDraftPath(doc.path)).map((doc) => doc.path),
+    ]);
+    for (const path of paths) {
+      const doc = this.docs.find((item) => item.path === path);
+      let content = '';
+      try {
+        content = doc ? doc.content : await this.readCached(path);
+      } catch {
+        continue;
+      }
+      const updated = content.replace(
+        pattern,
+        (_match, before: string, after: string) => `${before}${newTitle}${after}`,
+      );
+      if (updated === content) continue;
+      if (doc) {
+        // Keep the edit in the normal save pipeline so encoding/EOL survive.
+        doc.content = updated;
+        this.scheduleSave(path);
+        this.onDocContentSynced(path);
+        this.emit('dirty');
+      } else {
+        const meta = this.meta.get(path) ?? {
+          encoding: 'utf-8' as const,
+          bom: false,
+          eol: '\n' as const,
+        };
+        try {
+          await this.storage.writeBinary(
+            path,
+            encodeText(updated, meta.encoding, meta.bom, meta.eol),
+          );
+          this.textCache.set(path, updated);
+        } catch {
+          // A note that cannot be rewritten keeps the old link; nothing is lost.
+        }
+      }
+    }
+  }
+
+  async deleteEntry(node: NoteNode): Promise<boolean> {    // Deletions go through the internal trash: a misclick must be recoverable.
     const stored = await trash.put(this.storage, node.path);
     if (!stored) {
       this.report(new Error('Не удалось переместить в корзину'), `Не удалось удалить ${node.name}`);

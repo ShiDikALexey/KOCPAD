@@ -378,6 +378,69 @@ test.describe('editor surfaces', () => {
     expect(inside).toBe(true);
   });
 
+  test('menu items are reachable with the arrow keys', async ({ page }) => {
+    await page.locator('#block-type').click();
+    const menu = page.locator('.menu');
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    const inside = await page.evaluate(() =>
+      !!document.activeElement?.closest('.menu__item'),
+    );
+    expect(inside).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+  });
+
+  test('clicking an unresolved wiki link offers to create the note', async ({ page }) => {
+    await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const doc = api.store.activeDoc;
+      const text = '# Ссылки\n\nПродолжение в [[Новая заметка]].\n';
+      api.editor.applyText(text);
+      await api.store.updateContent(doc.path, text);
+    });
+    await page.locator('.wikilink--missing').click();
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Создать заметку?');
+    await dialog.getByRole('button', { name: 'Создать' }).click();
+    await expect(page.locator('.tab').last()).toContainText('Новая заметка');
+    const exists = await page.evaluate(() =>
+      window.__kocpad.store.storage.exists('Новая заметка.md'),
+    );
+    expect(exists).toBe(true);
+  });
+
+  test('renaming a note updates wiki links in other notes', async ({ page }) => {
+    await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const doc = api.store.activeDoc;
+      const text = '# Ссылки\n\nСм. [[Шпаргалка по markdown]].\n';
+      api.editor.applyText(text);
+      await api.store.updateContent(doc.path, text);
+      await api.store.saveAll();
+    });
+    const renamed = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const node = api.store.flatFiles().find((file: { name: string }) => file.name === 'Шпаргалка по markdown.md');
+      if (!node) return false;
+      return await api.store.renameEntry(node, 'Шпаргалка новая');
+    });
+    expect(renamed).toBe(true);
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('[[Шпаргалка новая]]');
+    await expect
+      .poll(async () =>
+        page.evaluate(async () => {
+          const api = window.__kocpad;
+          const doc = api.store.activeDoc;
+          if (!doc) return '';
+          return api.encoding.decodeText(await api.store.storage.readBinary(doc.path)).text;
+        }),
+      )
+      .not.toContain('[[Шпаргалка по markdown]]');
+  });
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
