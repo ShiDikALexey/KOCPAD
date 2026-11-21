@@ -164,8 +164,12 @@ Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 - [x] Crash recovery journal for dirty buffers
 - [x] Encodings: cp1251/UTF-16 detection, BOM handling, keep CRLF on save
 - [x] Delete to the recycle bin or an app `.trash` (internal KOCPAD trash, 30 days)
-- [ ] Single-instance guard (focus the existing window)
+- [x] FS sandbox, async file commands, single-instance guard, committed Cargo.lock,
+      hardened CSP (wave 2, `1.5.0-beta.2`)
 - [ ] Native smoke test on Windows against the built `.exe`
+- [ ] Export: embed `assets/` images and render `[[links]]`
+- [ ] Keyboard/a11y: `Del` in the tree, focus traps, contrast
+- [ ] Simplify duplicated formatting entry points
 
 ## Later / ideas
 

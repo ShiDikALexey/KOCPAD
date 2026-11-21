@@ -24,6 +24,19 @@ fs.writeFileSync(confPath, `${JSON.stringify(conf, null, 2)}\n`);
 const cargo = fs.readFileSync(cargoPath, 'utf8').replace(/^version = "[^"]+"/m, `version = "${VERSION}"`);
 fs.writeFileSync(cargoPath, cargo);
 
+// The committed lockfile carries the workspace package version as well; CI fails
+// when it disagrees with Cargo.toml.
+const cargoLockPath = 'src-tauri/Cargo.lock';
+if (fs.existsSync(cargoLockPath)) {
+  const lockText = fs.readFileSync(cargoLockPath, 'utf8');
+  const updated = lockText.replace(
+    /(\[\[package\]\]\nname = "kocpad"\nversion = ")[^"]+(")/,
+    `$1${VERSION}$2`,
+  );
+  fs.writeFileSync(cargoLockPath, updated);
+  console.log(`Cargo.lock -> ${VERSION}`);
+}
+
 // The lockfile keeps its own copy of the root version; leaving it stale makes
 // npm ci print a mismatch warning.
 if (fs.existsSync(lockPath)) {

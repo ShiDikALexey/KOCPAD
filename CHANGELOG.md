@@ -9,6 +9,35 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.0-beta.2] — 2026-11-21 (boundaries and reproducibility)
+
+Wave 2: the native file layer is scoped to the workspace, fs commands no longer run
+on the UI thread, and Rust dependencies are pinned. Plan: [docs/WAVE-2.md](docs/WAVE-2.md).
+
+### Security
+
+- **File-system sandbox.** `WorkspaceRoot` state + `fs_set_root`; every native file
+  command rejects `..`, paths outside the canonical workspace root, symlinks and the
+  root itself. Binary reads are capped at 25 MB. The export/«Save as» path uses a
+  separate `fs_save_text` command because it comes from the native save dialog, not
+  from a note.
+- **CSP hardening:** `object-src`, `frame-src`, `base-uri` and `form-action` are now
+  `'none'` in both the production and development policies.
+
+### Changed
+
+- **File commands run asynchronously**, so Tauri executes them off the UI thread; a
+  large folder or a slow disk no longer freezes the window.
+- **Single instance:** `tauri-plugin-single-instance` (registered first) shows and
+  focuses the existing window instead of starting a second copy that would race on
+  the same files.
+
+### Build
+
+- `src-tauri/Cargo.lock` is committed; CI regenerates it, uploads it as an artifact
+  and fails when `Cargo.toml` changes without a matching lockfile. The version bump
+  script updates the lockfile's package version too.
+
 ## [1.5.0-beta.1] — 2026-11-21 (data-safety wave)
 
 Wave 1 of the "never loses a note" plan. Plan and acceptance criteria:

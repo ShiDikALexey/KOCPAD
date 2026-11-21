@@ -5,7 +5,7 @@
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=release)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
-  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.1-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.2-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#requirements)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -19,7 +19,7 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `beta` branch — `1.5.0-beta.1`; latest published release — `1.4.0`.
+> **Status:** `beta` branch — `1.5.0-beta.2`; latest published release — `1.4.0`.
 > This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
 > install test and no long real-world use. An honest maturity assessment and the
 > numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 40 e2e tests run
@@ -385,8 +385,8 @@ Honest about what is missing:
 - **No code signing** — SmartScreen warns on first launch until an OV/EV certificate
   is bought; the CI step is ready.
 - **One folder per window.** A deliberate simplification. The app runs in a single
-  window and a second launch is not coordinated with the first, so do not open the
-  same folder twice.
+  window and a second launch focuses the existing one instead of starting another
+  process (single-instance guard).
 - **No sync and no accounts.** Sync the folder with any tool you like — the files are
   plain markdown.
 - **No plugins.** It is a notepad, not a platform.

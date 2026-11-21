@@ -5,7 +5,7 @@
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![релиз](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=релиз)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
-  [![бета](https://img.shields.io/badge/beta-1.5.0--beta.1-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![бета](https://img.shields.io/badge/beta-1.5.0--beta.2-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#требования)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -19,7 +19,7 @@
 Заметки — обычные `.md` файлы: без аккаунтов, баз данных и своего формата, они
 открываются в любом другом редакторе.
 
-> **Статус:** ветка `beta` — `1.5.0-beta.1`; последний опубликованный релиз — `1.4.0`.
+> **Статус:** ветка `beta` — `1.5.0-beta.2`; последний опубликованный релиз — `1.4.0`.
 > Проект ещё не «стабильный 1.x»: подписи установщика нет, на чистой машине
 > установка не проверялась, реального длительного использования не было. Честная
 > оценка зрелости и правила нумерации — в [docs/VERSIONING.md](docs/VERSIONING.md).
@@ -406,8 +406,8 @@ DOMPurify 3.4, highlight.js 11, Playwright 1.65.
 - **Нет подписи сертификатом** — SmartScreen предупреждает при первом запуске.
   Нужен OV/EV-сертификат, шаг в CI уже готов.
 - **Одна папка на окно.** Осознанное упрощение: так нет путаницы «какая заметка из
-  какой папки». Приложение работает в одном окне; второй запуск не координируется
-  с первым, поэтому не открывайте одну и ту же папку дважды.
+  какой папки». Приложение работает в одном окне, а повторный запуск показывает и
+  фокусирует уже открытое окно (второго экземпляра нет).
 - **Нет синхронизации и аккаунтов.** Синхронизируйте папку любым удобным
   способом — файлы обычные.
 - **Нет плагинов и CMS-возможностей.** Это блокнот, а не платформа.

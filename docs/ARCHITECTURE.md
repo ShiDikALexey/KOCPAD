@@ -227,6 +227,23 @@ permanently. On startup `trash_purge(30)` removes entries older than 30 days and
 caps the trash at 200 items. Drafts are not files, so deleting a draft still removes
 it from the local drafts list.
 
+## Security boundary
+
+Custom Tauri commands are not covered by the capability ACL, so the file layer
+enforces its own boundary (`src-tauri/src/fs_ops.rs`):
+
+- `WorkspaceRoot` holds the canonical workspace path; the storage backend sets it via
+  `fs_set_root` on choose/restore/mount and clears it on close.
+- Every scoped command rejects `..` components, resolves the deepest existing
+  ancestor with `canonicalize` and requires the result to stay below the root,
+  refuses symlinks, and forbids renaming/deleting the root itself.
+- Binary reads are limited to 25 MB. Export/«Save as» uses a separate
+  `fs_save_text` command: its path comes from the native save dialog, not from a
+  note, so it is not workspace-scoped.
+- `tauri-plugin-single-instance` is registered first, so a second launch focuses the
+  existing window instead of starting another process that would race on writes.
+- `src-tauri/Cargo.lock` is committed and CI fails when it drifts from `Cargo.toml`.
+
 ## Bulk actions
 
 `TreeView` keeps a `Set<path>` of selected notes (files only; folders are not
