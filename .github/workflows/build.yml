@@ -101,6 +101,24 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
+      - name: Generate Cargo.lock for reproducible builds
+        shell: pwsh
+        run: |
+          cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+          # Once the lockfile is committed, a Cargo.toml change without a lock bump
+          # must fail the build instead of silently resolving new versions.
+          if (git ls-files --error-unmatch src-tauri/Cargo.lock 2>$null) {
+            git diff --exit-code -- src-tauri/Cargo.lock
+          }
+
+      - name: Upload Cargo.lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-lock
+          path: src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Install dependencies
         run: npm ci
 

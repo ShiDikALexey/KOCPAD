@@ -27,6 +27,16 @@ fn kocpad_close_window(app: tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(fs_ops::WorkspaceRoot::default())
+        // Must be the first plugin: a second launch focuses the running window
+        // instead of opening another copy that would write the same files.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         // Restores the window size and position from the previous run.
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
@@ -72,6 +82,8 @@ pub fn run() {
             fs_ops::open_external,
             fs_ops::reveal_in_explorer,
             fs_ops::fs_stat,
+            fs_ops::fs_set_root,
+            fs_ops::fs_save_text,
             recovery::recovery_write,
             recovery::recovery_list,
             recovery::recovery_remove,
