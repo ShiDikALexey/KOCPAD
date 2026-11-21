@@ -9,7 +9,7 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
-## [Unreleased]
+## [1.5.2-a] — 2026-11-21
 
 ### Added
 

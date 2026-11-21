@@ -4,7 +4,7 @@
   <p><b>The next version. Just what changed and what we are checking.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/base-1.5.2-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.2-a-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
@@ -12,13 +12,13 @@
 
 ---
 
-This is the `beta` branch. Its content (`1.5.0-beta.4`) has been merged into the
-stable `1.5.1`; it is now the base for the next version. The full product
-description lives in the
-[stable README](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md).
-Below is what went into `1.5.1` from this line and what was checked.
+This is the `beta` branch. It currently carries the pre-release `1.5.2-a`:
+printing only the text and the selection, the restored-draft fix, and batch assistant
+fixes. Stable `1.5.2` lives in
+[main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md); below is what
+the 1.5 line brought and what this build is checked against.
 
-## What went into 1.5.1 from this branch
+## What is already in stable 1.5.2
 
 The main point is that the notepad stopped losing text when things go wrong.
 
@@ -40,6 +40,15 @@ a note rewrites links in other notes, and search no longer shows results from a 
 query.
 
 CI also launches the built `.exe` now; before, only the web page was tested.
+
+## What is new in 1.5.2-a
+
+- `Ctrl+P` prints the selected fragment, or the whole note without a selection;
+  the app UI is no longer printed and WebView2 browser accelerators are off.
+- A restored draft is not hidden behind the «no folder» welcome screen on
+  launch.
+- Right-click on a selection with assistant suggestions: «apply all fixes (N)»
+  as one undo, and «dismiss suggestions (N)».
 
 ## What we are checking
 
