@@ -11,9 +11,10 @@ This page exists because the project overshot its own version numbers. Honest ac
   stopped distinguishing a test build from something worth installing.
 
 So: **do not read the version number as a maturity promise.** The project has since
-grown through the 1.5 line: `1.5.1` is the current release on `main`, with the
-data-safety work, the boundary hardening and the inline assistant. It is more mature
-than `1.4.0`, but the 2.0 gate below still says what "stable" will have to mean.
+grown through the 1.5 line: `1.5.1` is the last plain release on `main`, and
+`1.5.1-a` is the current pre-release with the print and shortcut fixes. Both carry
+the data-safety work, the boundary hardening and the inline assistant. It is more
+mature than `1.4.0`, but the 2.0 gate below still says what "stable" will have to mean.
 
 ## What we do with the existing versions
 
@@ -38,7 +39,7 @@ a `-beta` tag needs a `-beta` version).
 
 | Bump | What may go in | Gate |
 |---|---|---|
-| **patch** `1.5.x` | bug fixes, documentation, small UI corrections | typecheck + build + 54 e2e green; the bug's reproduction checked by hand |
+| **patch** `1.5.x` | bug fixes, documentation, small UI corrections | typecheck + build + 59 e2e green; the bug's reproduction checked by hand |
 | **minor** `1.5.0` | a coherent set of features or a data-model change | the above, plus: the owner uses the beta for at least a week, no data-loss bug open, the changes have e2e coverage, rollback plan for user data |
 | **major** `2.0.0` | a claim of stability | everything below in "2.0 gate" |
 

@@ -26,7 +26,7 @@
 | `F5` | Refresh the notes tree (and forget cached text, picking up external edits) |
 | — | Close the folder: the folder button in the sidebar header or «Ещё» → «Закрыть папку» |
 | `Ctrl+Shift+E` | Export the current note to HTML |
-| `Ctrl+P` | Print the note (Windows print dialog, so "save as PDF" works) |
+| `Ctrl+P` | Print the selected fragment, or the whole note without a selection (Windows print dialog, so "save as PDF" works) |
 
 Encodings, when the automatic detection is wrong: palette (`Ctrl+K`) →
 «Кодировка: открыть как UTF-8», «… cp1251», «… UTF-16LE». The status bar shows the

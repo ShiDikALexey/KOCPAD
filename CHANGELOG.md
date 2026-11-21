@@ -9,7 +9,16 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
-## [Unreleased]
+## [1.5.1-a] — 2026-11-21
+
+### Changed
+
+- **Printing prints the note, not the application.** `Ctrl+P` prints the selected
+  fragment when there is a selection and the whole note otherwise. Release builds
+  also turn off WebView2's browser accelerator keys (Ctrl+P, Ctrl+F, F5, zoom,
+  devtools) and its default context menu, so the app's own print, find and refresh
+  handlers receive those keys instead of the browser printing the whole UI.
+
 
 ### Fixed
 
@@ -19,6 +28,16 @@ All notable changes to KOCPAD are documented here. The format follows
 - **The inline assistant reacted to clicks on the empty part of a line.** Only the
   tinted fragment itself opens the popover now; clicking beside it leaves the caret
   alone.
+- **An inline tag at the start of a line was reported as a broken heading.**
+  `#Ячейка 262:` is recognized as a tag and left alone; `##Heading` and headings
+  with spaces after the first word still get the missing-space hint.
+- **Keyboard shortcuts depended on the keyboard layout.** `Ctrl+B`, `Ctrl+I`,
+  `Ctrl+K` and friends now use the physical key (`event.code`), so they work on a
+  Russian layout where `event.key` is `и`/`ш`, and `Ctrl+Alt+0…3` accepts the
+  physical digit even if the layout produces another character.
+- **Synced scrolling stuttered on long notes.** Scroll sync is now throttled to one
+  layout read and one write per animation frame, with programmatic scroll feedback
+  ignored instead of forcing layout on every event.
 
 ## [1.5.1] — 2026-11-21
 

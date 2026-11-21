@@ -23,6 +23,40 @@ fn kocpad_close_window(app: tauri::AppHandle) {
     }
 }
 
+/// Turns off WebView2's browser-specific accelerator keys and its default
+/// context menu in release builds.
+///
+/// By default WebView2 handles Ctrl+P, Ctrl+F, F5, Ctrl+Plus/Minus and the
+/// devtools shortcuts itself, before the page sees them. That is why Ctrl+P
+/// printed the whole application UI: the host printed the page instead of the
+/// note HTML that KOCPAD builds for printing. KOCPAD ships its own print path,
+/// find panel, refresh and zoom, and draws its own context menu, so the browser
+/// behaviour is both redundant and wrong here.
+#[cfg(all(windows, not(debug_assertions)))]
+fn harden_webview(window: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
+    use windows_core::Interface;
+
+    let result = window.with_webview(|webview| unsafe {
+        let controller = webview.controller();
+        let Ok(core) = controller.CoreWebView2() else {
+            return;
+        };
+        let Ok(settings) = core.Settings() else {
+            return;
+        };
+        let _ = settings.SetAreDefaultContextMenusEnabled(false);
+        // ICoreWebView2Settings3 is the interface that owns this flag; older
+        // WebView2 runtimes simply do not expose it.
+        if let Ok(settings3) = settings.cast::<ICoreWebView2Settings3>() {
+            let _ = settings3.SetAreBrowserAcceleratorKeysEnabled(false);
+        }
+    });
+    if let Err(error) = result {
+        eprintln!("webview hardening unavailable: {error}");
+    }
+}
+
 /// Entry point shared by the desktop binary and the mobile targets.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -64,6 +98,10 @@ pub fn run() {
             if let Err(error) = app.handle().global_shortcut().register(shortcut) {
                 // A hotkey owned by another app must not stop KOCPAD from starting.
                 eprintln!("quick-capture hotkey unavailable: {error}");
+            }
+            #[cfg(all(windows, not(debug_assertions)))]
+            if let Some(window) = app.get_webview_window("main") {
+                harden_webview(&window);
             }
             Ok(())
         })
