@@ -1937,7 +1937,11 @@ async function boot(): Promise<void> {
   // Any journal snapshot left by a crash is offered before the user starts typing.
   void offerRecovery();
 
-  if (!store.storage.root && store.storage.kind !== 'demo') {
+  // The onboarding/empty state is only for "no document at all". A restored draft
+  // (or any active note) must stay visible even when no workspace folder is
+  // connected; otherwise the welcome screen covers an open draft until the user
+  // creates another note.
+  if (!store.storage.root && store.storage.kind !== 'demo' && !store.activeDoc) {
     dom.emptyState.hidden = false;
   }
   document.body.dataset.backend = store.storage.kind;

@@ -916,6 +916,9 @@ test.describe('drafts without a folder', () => {
     await page.waitForSelector('.cm-content');
     await expect(page.locator('#preview')).toContainText('черновик без папки');
     await expect(page.locator('#status-saved')).toContainText('Черновик');
+    // A restored draft must not hide behind the "no folder" welcome screen.
+    await expect(page.locator('#empty-state')).toBeHidden();
+    await expect(page.locator('.cm-content')).toContainText('черновик без папки');
   });
 
   test('drafts panel lists stored drafts and keeps them after closing the tab', async ({ page }) => {
