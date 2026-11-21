@@ -160,9 +160,9 @@ Version numbering and the maturity bar are described separately in
 
 Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 
-- [ ] External-edit detection: mtime/hash check before overwrite, conflict dialog
-- [ ] Crash recovery journal for dirty buffers
-- [ ] Encodings: cp1251/UTF-16 detection, BOM handling, keep CRLF on save
+- [x] External-edit detection: mtime/hash check before overwrite, conflict dialog
+- [x] Crash recovery journal for dirty buffers
+- [x] Encodings: cp1251/UTF-16 detection, BOM handling, keep CRLF on save
 - [ ] Delete to the recycle bin or an app `.trash`
 - [ ] Single-instance guard (focus the existing window)
 - [ ] Native smoke test on Windows against the built `.exe`

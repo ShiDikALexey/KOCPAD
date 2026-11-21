@@ -290,12 +290,17 @@ export class DemoStorage implements Storage {
 
   async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
     const bytes = this.blobs.get(path);
-    if (!bytes) throw new Error(`Файл не найден: ${path}`);
-    return bytes;
+    if (bytes) return bytes;
+    // Seed notes live only as strings; expose their UTF-8 bytes so the editor can
+    // treat text files through the same byte-level path as the real backends.
+    const text = this.files.get(path);
+    if (text !== undefined) return new TextEncoder().encode(text);
+    throw new Error(`Файл не найден: ${path}`);
   }
 
   async writeBinary(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     this.blobs.set(path, bytes);
+    this.touch(path);
     const dir = path.split('/').slice(0, -1).join('/');
     if (dir) {
       let prefix = '';

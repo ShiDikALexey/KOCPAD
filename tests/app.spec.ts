@@ -216,7 +216,13 @@ test.describe('editor surfaces', () => {
     await expect(dialog).toContainText('Файл изменён на диске');
     await dialog.getByRole('button', { name: 'Оставить моё' }).click();
     await expect
-      .poll(async () => page.evaluate(async (target) => window.__kocpad.store.storage.readText(target), path))
+      .poll(async () =>
+        page.evaluate(async (target) => {
+          const api = window.__kocpad;
+          const bytes = await api.store.storage.readBinary(target);
+          return api.encoding.decodeText(bytes).text;
+        }, path),
+      )
       .toContain('моё');
   });
 
@@ -254,6 +260,46 @@ test.describe('editor surfaces', () => {
     await page.waitForTimeout(400);
     const after = await page.evaluate(() => window.__kocpad.journal.list());
     expect(after.length).toBe(0);
+  });
+
+  test('opens and preserves legacy cp1251 with CRLF', async ({ page }) => {
+    await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const text = 'Старая заметка из Блокнота: привет\nвторая строка';
+      await api.store.storage.writeBinary('legacy.txt', api.encoding.encodeText(text, 'cp1251', false, '\r\n'));
+      await api.store.openNote('legacy.txt');
+    });
+    await expect(page.locator('#preview')).toContainText('Старая заметка из Блокнота');
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('!');
+    await page.keyboard.press('Control+s');
+
+    const saved = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const bytes = await api.store.storage.readBinary('legacy.txt');
+      const decoded = api.encoding.decodeText(bytes);
+      return { encoding: decoded.encoding, eol: decoded.eol, text: decoded.text };
+    });
+    expect(saved.encoding).toBe('cp1251');
+    expect(saved.eol).toBe('\r\n');
+    expect(saved.text).toContain('!');
+  });
+
+  test('opens UTF-16LE with a BOM and keeps it on save', async ({ page }) => {
+    const info = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      await api.store.storage.writeBinary(
+        'unicode.txt',
+        api.encoding.encodeText('Юникод текст', 'utf-16le', true, '\n'),
+      );
+      await api.store.openNote('unicode.txt');
+      return api.store.encodingInfo('unicode.txt');
+    });
+    expect(info.encoding).toBe('utf-16le');
+    expect(info.bom).toBe(true);
+    await expect(page.locator('#preview')).toContainText('Юникод текст');
   });
 
   test('typing does not rebuild the sidebar tree', async ({ page }) => {

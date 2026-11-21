@@ -27,6 +27,13 @@ Plan and acceptance criteria: [docs/WAVE-1.md](docs/WAVE-1.md).
   build, localStorage in the browser fallback). After a kill or a power cut the next
   start offers «Восстановить / Открыть файл с диска / Удалить снапшот». A normal
   save or tab close removes the snapshot.
+- **Encodings and line endings are preserved.** Files are read through the byte
+  level: UTF-8 (with or without BOM), UTF-16LE/BE with a BOM, BOM-less UTF-16
+  heuristics and cp1251 (old Russian Notepad). The detected encoding and EOL are
+  shown in the status bar, «Кодировка: открыть как…» in the palette overrides a
+  wrong guess, and saving writes the file back in its original encoding, BOM and
+  line endings instead of silently converting it.
+- Two e2e scenarios (38 total): cp1251+CRLF round trip, UTF-16LE with BOM.
 - Two e2e scenarios (36 total): the recovery dialog restores the text; saving
   clears the journal.
 - Three e2e scenarios (36 total): conflict dialog and reload, silent reload of a

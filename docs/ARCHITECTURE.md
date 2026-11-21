@@ -188,6 +188,19 @@ is no persistent tag index: the panel rebuilds it when opened or when the tree
 changes. That is fine for hundreds of notes; thousands would need an on-disk index
 (on the roadmap).
 
+## Text encoding and line endings
+
+Text is read and written as bytes, never through a UTF-8-only text reader:
+
+- `src/encoding.ts` detects UTF-8 (BOM or strict validation), UTF-16LE/BE with a BOM,
+  BOM-less UTF-16 by the zero-byte pattern, and falls back to cp1251 for legacy
+  Russian files. The cp1251 encoder is derived from the platform decoder, so it
+  cannot drift; unrepresentable characters become `?`.
+- A document keeps `{encoding, bom, eol}`; the editor always works on normalised LF
+  text, and `saveDoc` converts it back to the original EOL, BOM and encoding.
+- The status bar shows the encoding/EOL when they differ from UTF-8/LF; the palette
+  exposes «Кодировка: открыть как UTF-8 / cp1251 / UTF-16LE» for a wrong guess.
+
 ## Crash recovery
 
 Autosave is delayed, so a kill or a power cut could lose the last keystrokes. While a

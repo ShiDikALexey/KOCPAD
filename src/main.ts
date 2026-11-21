@@ -2,6 +2,7 @@ import './style.css';
 
 import { Store } from './store';
 import { journal } from './journal';
+import { decodeAs, decodeText, encodeText, type TextEncoding } from './encoding';
 import { createStorage } from './storage';
 import { MarkdownEditor, BLOCK_LABELS, BLOCK_TYPES, type BlockType } from './editor';
 import {
@@ -704,6 +705,19 @@ async function showConflictDialog(path: string): Promise<void> {
   if (choice === 'mine') showToast('Записана ваша версия');
 }
 
+/** Re-reads the active note with a forced encoding ("Open as…"). */
+async function reopenAs(encoding: TextEncoding): Promise<void> {
+  const doc = store.activeDoc;
+  if (!doc || isDraftPath(doc.path)) {
+    showToast('Кодировка применяется к файлу заметки, а не к черновику', 'info');
+    return;
+  }
+  const ok = await store.reopenWithEncoding(doc.path, encoding);
+  if (!ok) return;
+  editor.applyText(doc.content);
+  showToast(`Открыто как ${encoding}`, 'success');
+}
+
 /** Offers text left behind by a kill or a power cut (written by the journal). */
 async function offerRecovery(): Promise<void> {
   const pending = await store.recoverPending();
@@ -1183,6 +1197,9 @@ function palette(): void {
     })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
     { label: 'Черновики без файла…', run: () => openDraftsPanel(store) },
+    { label: 'Кодировка: открыть как UTF-8', run: () => void reopenAs('utf-8') },
+    { label: 'Кодировка: открыть как cp1251', run: () => void reopenAs('cp1251') },
+    { label: 'Кодировка: открыть как UTF-16LE', run: () => void reopenAs('utf-16le') },
     { label: 'Новая папка', hint: 'Ctrl+Shift+N', run: () => actions.createFolder() },
     // Recently opened notes, newest first: the quick switcher most editors have.
     ...store
@@ -1785,6 +1802,7 @@ async function boot(): Promise<void> {
       actions,
       closeFlow: handleCloseRequest,
       journal,
+      encoding: { decodeText, decodeAs, encodeText },
     };
   }
 }

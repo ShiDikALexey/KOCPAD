@@ -70,7 +70,7 @@ a `-beta` tag needs a `-beta` version).
 
 ## Release checklist (short)
 
-1. `beta` is green in CI (typecheck, 36 e2e, Windows build).
+1. `beta` is green in CI (typecheck, 38 e2e, Windows build).
 2. Manual pass: create/edit/close/reopen, drafts panel, large note, images, export,
    search, tags/links, settings persistence.
 3. Cleanup: no `TODO`/debug code, versions consistent (`npm run check:versions`),

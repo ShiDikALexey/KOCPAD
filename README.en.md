@@ -22,7 +22,7 @@ other editor.
 > **Status:** `beta` branch — `1.4.1`; latest published release — `1.4.0`.
 > This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
 > install test and no long real-world use. An honest maturity assessment and the
-> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 36 e2e tests run
+> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 38 e2e tests run
 > in CI on every push; auto-updates are wired and switch on with one key secret
 > ([details](docs/PUBLISHING.md#5-auto-updates)).
 >
@@ -150,8 +150,10 @@ What **does not** exist yet (the limits of "never loses a note"):
   works inside an open tab.
 - **A power cut** can lose the last keystrokes: autosave is delayed (under a second
   by default) and there is no recovery journal.
-- **Encodings are not detected**: files are read as UTF-8, old cp1251/UTF-16 `.txt`
-  files do not open, and a CRLF file is saved back with LF after the first edit.
+- **Encodings are detected**: UTF-8 (with or without BOM), UTF-16LE/BE and cp1251
+  (old Notepad); the status bar shows the encoding and CRLF, and a wrong guess can
+  be overridden with «Кодировка: открыть как…» in the palette. Files are saved back
+  in their original encoding and line endings.
 
 ## Installation
 
@@ -308,7 +310,7 @@ node scripts/bump-version.cjs <x.y.z>
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 36 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 38 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -352,7 +354,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                36 Playwright scenarios
+├─ tests/                38 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs, enable-updater.cjs, make-latest-json.cjs
 ```

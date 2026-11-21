@@ -1,5 +1,7 @@
 /** Shared types for KOCPAD. */
 
+import type { Eol, TextEncoding } from './encoding';
+
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type ViewMode = 'editor' | 'split' | 'preview';
@@ -36,6 +38,10 @@ export interface Doc {
   savedContent: string;
   /** Version stamp of the file as last read or written; drafts have none. */
   disk?: { mtimeMs: number; size: number } | null;
+  /** Original encoding and line endings, preserved on save. */
+  encoding?: TextEncoding;
+  bom?: boolean;
+  eol?: Eol;
 }
 
 export interface Settings {

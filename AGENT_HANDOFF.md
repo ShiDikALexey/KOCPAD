@@ -30,7 +30,7 @@ git checkout beta          # активная ветка разработки (1
 npm ci
 npm run dev                # фронтенд в браузере на :1420 (демо-режим)
 npm run tauri:dev          # полноценное приложение
-npm run test:e2e           # 36 сценариев Playwright
+npm run test:e2e           # 38 сценариев Playwright
 npm run tauri:build        # установщики в src-tauri/target/release/bundle
 ```
 
@@ -129,7 +129,7 @@ npm run tauri:build        # установщики в src-tauri/target/release/
 | Джоб | Что делает |
 |---|---|
 | frontend | `npm ci`, проверка версий/тега, typecheck, `vite build`, BOM-guard |
-| e2e | Playwright Chromium, 36 сценариев, отчёт в артефактах |
+| e2e | Playwright Chromium, 38 сценариев, отчёт в артефактах |
 | windows | `npm run tauri:build`; включает `createUpdaterArtifacts`, если есть секрет ключа; артефакты установщиков |
 | release | на тег `v*`: `latest.json` (если есть `.sig`), `SHA256SUMS.txt`, публикация |
 
@@ -280,8 +280,9 @@ npm run tauri:build        # установщики в src-tauri/target/release/
   «Восстановить / Открыть файл / Удалить», после сохранения журнал чистится.
 - **Удаление необратимо** — нет корзины/истории версий; по решению владельца
   будет внутренняя корзина KOCPAD с авт удалением через 30 дней (шаг 4 волны 1).
-- **Кодировки:** только UTF-8; cp1251/UTF-16 `.txt` не откроются, CRLF после
-  правки сохраняется как LF, BOM не снимается (шаг 3 волны 1).
+- ✅ **Кодировки и переносы строк** (волна 1, шаг 3): определение UTF-8/BOM,
+  UTF-16LE/BE, cp1251; сохранение в исходной кодировке и EOL; «открыть как…» в
+  палитре; подсказка в строке состояния.
 - **`Cargo.lock` не закоммичен** (нет локального Rust для генерации) — сборки
   менее воспроизводимы; `tauri = "2"` не запинен.
 
@@ -305,7 +306,7 @@ npm run tauri:build        # установщики в src-tauri/target/release/
 - Нет file associations / tray / jump list; формат MSI-обновления не проверен.
 
 **Процесс**
-- Нет нативного e2e на Windows против собранного `.exe` (все 36 тестов — Chromium
+- Нет нативного e2e на Windows против собранного `.exe` (все 38 тестов — Chromium
   на Vite), чистая машина не проверялась.
 - Нет ревью второй парой глаз: коммиты идут прямо в `main`/`beta`.
 

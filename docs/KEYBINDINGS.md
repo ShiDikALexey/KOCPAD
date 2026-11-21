@@ -28,6 +28,10 @@
 | `Ctrl+Shift+E` | Export the current note to HTML |
 | `Ctrl+P` | Print the note (Windows print dialog, so "save as PDF" works) |
 
+Encodings, when the automatic detection is wrong: palette (`Ctrl+K`) →
+«Кодировка: открыть как UTF-8», «… cp1251», «… UTF-16LE». The status bar shows the
+detected encoding, BOM and CRLF.
+
 ## Editing
 
 | Keys | Action |

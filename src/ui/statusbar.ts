@@ -1,5 +1,6 @@
 import type { Store } from '../store';
 import { countWords, debounce, formatBytes, plural } from '../util';
+import { encodingLabel } from '../encoding';
 import { basename, dirname } from '../path';
 import { isDraftPath } from '../drafts';
 
@@ -92,6 +93,12 @@ export class StatusBar {
       parts.push(`выделено ${this.cursor.selectionLength}`);
     } else if (doc) {
       parts.push(`стр. ${this.cursor.line}, стлб. ${this.cursor.column}`);
+    }
+    if (doc) {
+      const info = this.store.encodingInfo(doc.path);
+      if (info && (info.encoding !== 'utf-8' || info.bom || info.eol === '\r\n')) {
+        parts.push(encodingLabel(info.encoding, info.bom, info.eol));
+      }
     }
     this.stats.textContent = doc ? parts.join(' · ') : '';
 

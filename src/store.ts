@@ -2,6 +2,7 @@ import type { Doc, NoteNode, SearchHit, Settings, ThemeMode, ViewMode } from './
 import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
 import { journal, journalKeyFor, type JournalEntry } from './journal';
+import { decodeAs, decodeText, encodeText, type Eol, type TextEncoding } from './encoding';
 import type { FileStat } from './storage/types';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
 import { titleFromPath } from './util';
@@ -56,6 +57,8 @@ export class Store {
   private writes = new Map<string, Promise<void>>();
   /** Cached file text, so search/tags/links do not re-read the workspace. */
   private textCache = new Map<string, string>();
+  /** Encoding and line endings of every file that has been read this session. */
+  private meta = new Map<string, { encoding: TextEncoding; bom: boolean; eol: Eol }>();
   /** Drafts kept between sessions independently of the open tabs. */
   private storedDrafts: StoredDraft[] = [];
   onError: (message: string) => void = () => undefined;
@@ -188,14 +191,55 @@ export class Store {
   private async readCached(path: string): Promise<string> {
     const cached = this.textCache.get(path);
     if (cached !== undefined) return cached;
-    const text = await this.storage.readText(path);
-    this.textCache.set(path, text);
-    return text;
+    // Read bytes, not `readText`: the file may be cp1251/UTF-16, and the encoding
+    // must survive the round trip, otherwise saving silently converts the file.
+    const bytes = await this.storage.readBinary(path);
+    const decoded = decodeText(bytes);
+    this.textCache.set(path, decoded.text);
+    this.meta.set(path, { encoding: decoded.encoding, bom: decoded.bom, eol: decoded.eol });
+    return decoded.text;
+  }
+
+  /** Encoding/EOL metadata of a document (null for drafts). */
+  encodingInfo(path: string): { encoding: TextEncoding; bom: boolean; eol: Eol } | null {
+    if (isDraftPath(path)) return null;
+    const meta = this.meta.get(path);
+    if (meta) return meta;
+    const doc = this.docs.find((item) => item.path === path);
+    if (doc?.encoding) return { encoding: doc.encoding, bom: doc.bom ?? false, eol: doc.eol ?? '\n' };
+    return null;
+  }
+
+  /** "Open as…": re-reads the file with a forced encoding. */
+  async reopenWithEncoding(path: string, encoding: TextEncoding): Promise<boolean> {
+    const doc = this.docs.find((item) => item.path === path);
+    if (!doc || isDraftPath(path)) return false;
+    try {
+      const bytes = await this.storage.readBinary(path);
+      const decoded = decodeAs(bytes, encoding);
+      doc.content = decoded.text;
+      doc.savedContent = decoded.text;
+      doc.encoding = decoded.encoding;
+      doc.bom = decoded.bom;
+      doc.eol = decoded.eol;
+      doc.disk = await this.storage.stat(path).catch(() => null);
+      this.textCache.set(path, decoded.text);
+      this.meta.set(path, { encoding: decoded.encoding, bom: decoded.bom, eol: decoded.eol });
+      this.conflicts.delete(path);
+      this.forgetJournal(path);
+      this.emit('docs', 'active');
+      this.setStatus(`Открыто как ${encoding}`);
+      return true;
+    } catch (error) {
+      this.report(error, `Не удалось перечитать ${doc.name} как ${encoding}`);
+      return false;
+    }
   }
 
   /** F5 / «Обновить»: forget cached text so external edits are picked up. */
   clearTextCache(): void {
     this.textCache.clear();
+    this.meta.clear();
   }
 
   /** All openable files in the workspace, flattened. */
@@ -416,7 +460,17 @@ export class Store {
     try {
       const content = await this.readCached(path);
       const disk = await this.storage.stat(path).catch(() => null);
-      const doc: Doc = { path, name: basename(path), content, savedContent: content, disk };
+      const meta = this.meta.get(path);
+      const doc: Doc = {
+        path,
+        name: basename(path),
+        content,
+        savedContent: content,
+        disk,
+        encoding: meta?.encoding,
+        bom: meta?.bom,
+        eol: meta?.eol,
+      };
       this.docs = [...this.docs, doc];
       this.activePath = path;
       // A newly opened note is also a "recent note"; activate() would return
@@ -605,7 +659,14 @@ export class Store {
         throw new SaveConflict();
       }
       try {
-        await this.storage.writeText(path, snapshot);
+        // Write in the encoding and line endings the file came with.
+        const meta = this.meta.get(path) ?? {
+          encoding: doc.encoding ?? 'utf-8',
+          bom: doc.bom ?? false,
+          eol: doc.eol ?? '\n',
+        };
+        const bytes = encodeText(snapshot, meta.encoding, meta.bom, meta.eol);
+        await this.storage.writeBinary(path, bytes);
       } catch (error) {
         this.report(error, `Не удалось сохранить ${doc.name}`);
         throw error;
@@ -758,9 +819,14 @@ export class Store {
     if (!doc) return;
     try {
       this.textCache.delete(path);
+      this.meta.delete(path);
       const content = await this.readCached(path);
+      const meta = this.meta.get(path);
       doc.content = content;
       doc.savedContent = content;
+      doc.encoding = meta?.encoding;
+      doc.bom = meta?.bom;
+      doc.eol = meta?.eol;
       doc.disk = await this.storage.stat(path).catch(() => null);
       this.conflicts.delete(path);
       this.forgetJournal(path);
