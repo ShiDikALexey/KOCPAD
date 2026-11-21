@@ -404,6 +404,7 @@ DOMPurify 3.4, highlight.js 11, Playwright 1.65.
 | [docs/WAVE-2.md](docs/WAVE-2.md) | План волны «границы и воспроизводимость»: песочница fs, async, single-instance, Cargo.lock, CSP |
 | [docs/WAVE-3.md](docs/WAVE-3.md) | План волны «экспорт, клавиатура, нативный smoke» |
 | [docs/GRAPHIFY.md](docs/GRAPHIFY.md) | Граф знаний проекта: как собран, что показывает, как пересобрать |
+| [docs/ASSISTANT.md](docs/ASSISTANT.md) | Inline-помощник по разметке (ветка `Experimental`): правила, подсветка, обучение |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Как устроено: хранилища, жизненный цикл документов, темы событий, панели |
 | [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Все клавиши, мышь, режим Vim |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Что сделано и что дальше, включая честные «не будем» |

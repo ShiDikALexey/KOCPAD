@@ -441,6 +441,68 @@ test.describe('editor surfaces', () => {
       )
       .not.toContain('[[Шпаргалка по markdown]]');
   });
+  test('the assistant highlights a broken heading and fixes it on click', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad;
+      api.editor.applyText('# Тест\n\n##Hello world\n');
+    });
+    const marks = page.locator('.cm-lint-suggestion');
+    await expect(marks).toHaveCount(1);
+    await marks.first().click();
+
+    const popover = page.locator('.lint-popover');
+    await expect(popover).toContainText('После «#» нужен пробел');
+    await expect(popover).toContainText('## Hello');
+    await popover.getByRole('button', { name: 'Исправить' }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('## Hello world');
+    await expect(marks).toHaveCount(0);
+  });
+
+  test('a suggestion can be ignored or turned off for good', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('##Hello world\n');
+    });
+    await page.locator('.cm-lint-suggestion').first().click();
+    await page.locator('.lint-popover').getByRole('button', { name: 'Игнорировать' }).click();
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    await expect.poll(async () => page.evaluate(() => window.__kocpad.editor.text)).toBe('##Hello world\n');
+
+    // A fresh document reports it again, now permanently disabled.
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('\n##Hello again\n');
+    });
+    await page.locator('.cm-lint-suggestion').first().click();
+    await page.locator('.lint-popover').getByRole('button', { name: 'Больше не предлагать' }).click();
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    const disabled = await page.evaluate(() => window.__kocpad.store.settings.disabledLintRules);
+    expect(disabled).toContain('heading-space');
+  });
+
+  test('turning the assistant off removes every mark', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('##Hello\n\n-пункт\n');
+    });
+    await expect(page.locator('.cm-lint-suggestion').first()).toBeVisible();
+    await page.evaluate(() => window.__kocpad.store.patchSettings({ assistant: false }));
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    await page.evaluate(() => window.__kocpad.store.patchSettings({ assistant: true }));
+    await expect(page.locator('.cm-lint-suggestion').first()).toBeVisible();
+  });
+
+  test('rules skip fenced code and can be inspected directly', async ({ page }) => {
+    const diagnostics = await page.evaluate(() => {
+      const lint = window.__kocpad.lint;
+      return {
+        broken: lint.diagnostics('##Hello').map((item: { rule: string }) => item.rule),
+        insideFence: lint.diagnostics('```\n##Hello\n```').map((item: { rule: string }) => item.rule),
+      };
+    });
+    expect(diagnostics.broken).toContain('heading-space');
+    expect(diagnostics.insideFence).not.toContain('heading-space');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

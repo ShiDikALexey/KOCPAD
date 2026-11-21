@@ -1440,6 +1440,10 @@ function loadSettings(): Settings {
     merged.autosaveDelay = Number.isFinite(merged.autosaveDelay)
       ? Math.min(Math.max(merged.autosaveDelay, 200), 5000)
       : DEFAULT_SETTINGS.autosaveDelay;
+    merged.disabledLintRules = Array.isArray(merged.disabledLintRules)
+      ? merged.disabledLintRules.filter((item): item is string => typeof item === 'string')
+      : [];
+    merged.assistant = merged.assistant !== false;
     // Schema 2: Notepad-like line breaks and subtle line numbers on by default.
     if ((parsed.schema ?? 1) < 2) {
       merged.softBreaks = true;

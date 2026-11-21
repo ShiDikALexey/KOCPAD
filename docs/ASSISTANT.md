@@ -4,9 +4,12 @@ A small, local assistant that watches what you type and quietly highlights place
 where the markdown is likely wrong or could be sharper. It is **not** a chat and
 it never rewrites anything on its own: a highlight is only an invitation to look.
 
-Status: **planned, no code yet.** The implementation will land on the
-`Experimental` branch, cut from `beta`, and will not be merged or released until
-the owner accepts it.
+Status: **M1 implemented on `Experimental`** (rules engine, lavender marks,
+click-to-fix popover, settings toggle, e2e tests). M2 (learning panel) is next.
+The branch is cut from `beta` and is not merged or released until the owner
+accepts it.
+
+![Inline assistant: a missing space after ## is highlighted, the popover explains it and offers «Исправить / Игнорировать / Больше не предлагать»](screenshots/assistant.png)
 
 ## Decisions
 

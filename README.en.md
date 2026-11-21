@@ -384,6 +384,7 @@ highlight.js 11, Playwright 1.65.
 | [docs/WAVE-2.md](docs/WAVE-2.md) | Boundaries and reproducibility: fs sandbox, async commands, single instance, Cargo.lock, CSP |
 | [docs/WAVE-3.md](docs/WAVE-3.md) | Export, keyboard and the native smoke test |
 | [docs/GRAPHIFY.md](docs/GRAPHIFY.md) | Knowledge graph of the project: how it was built, what it shows, how to rebuild |
+| [docs/ASSISTANT.md](docs/ASSISTANT.md) | Inline markup assistant (branch `Experimental`): rules, highlight, learning |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Storage seam, document lifecycle, event topics, panels |
 | [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Every key, the mouse, Vim mode |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Done, planned and deliberately out of scope |

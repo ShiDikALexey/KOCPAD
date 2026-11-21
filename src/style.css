@@ -42,6 +42,8 @@ html[data-theme="light"] {
   --accent-ink: #1e2126;
   --accent-soft: rgba(217, 166, 46, 0.16);
   --selection: rgba(217, 166, 46, 0.3);
+  --assistant-tint: rgba(167, 139, 250, 0.16);
+  --assistant-tint-strong: rgba(167, 139, 250, 0.28);
   --active-line: rgba(217, 166, 46, 0.045);
   --sel-match: rgba(217, 166, 46, 0.12);
 
@@ -88,6 +90,8 @@ html[data-theme="dark"] {
   --accent-ink: #1a1d22;
   --accent-soft: rgba(240, 194, 67, 0.14);
   --selection: rgba(240, 194, 67, 0.24);
+  --assistant-tint: rgba(190, 170, 255, 0.18);
+  --assistant-tint-strong: rgba(190, 170, 255, 0.32);
   --active-line: rgba(240, 194, 67, 0.05);
   --sel-match: rgba(240, 194, 67, 0.12);
 
@@ -2840,4 +2844,57 @@ body.focus-mode .statusbar__stats {
 
 .settings__head .settings__shortcut {
   margin-left: auto;
+}
+
+/* --- inline assistant: lavender suggestion marks + popover --- */
+
+@keyframes kocpad-lint-in {
+  from { background-color: transparent; }
+  to { background-color: var(--assistant-tint); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-lint-suggestion { animation: none !important; }
+}
+
+.lint-popover {
+  position: fixed;
+  z-index: 1200;
+  width: min(380px, calc(100vw - 24px));
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.lint-popover__message { margin-bottom: 8px; }
+
+.lint-popover__preview {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lint-popover__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.lint-popover__actions .btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
 }

@@ -8,6 +8,7 @@ import {
   lineNumbers,
   placeholder,
 } from '@codemirror/view';
+import { lintExtension, type LintOptions } from './lint/extension';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { HighlightStyle, bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language';
@@ -205,6 +206,7 @@ export class MarkdownEditor {
   private currentKeymap: EditorKeymap = 'default';
   private vimExtension: Extension | null = null;
   private linkSuggestionsProvider: () => { title: string; path: string }[] = () => [];
+  private lintOptions?: LintOptions;
 
   /** The shell plugs the workspace note list into `[[…]]` autocomplete. */
   setLinkSuggestions(provider: () => { title: string; path: string }[]): void {
@@ -229,8 +231,13 @@ export class MarkdownEditor {
     return { from: match.from + 2, options, filter: false };
   };
 
-  constructor(parent: HTMLElement, callbacks: EditorCallbacks, options: { showLineNumbers: boolean }) {
+  constructor(
+    parent: HTMLElement,
+    callbacks: EditorCallbacks,
+    options: { showLineNumbers: boolean; lint?: LintOptions },
+  ) {
     this.callbacks = callbacks;
+    this.lintOptions = options.lint;
     this.view = new EditorView({
       parent,
       state: this.createState('', options),
@@ -264,6 +271,7 @@ export class MarkdownEditor {
         ]),
         this.keymapCompartment.of(this.currentKeymap === 'vim' && this.vimExtension ? this.vimExtension : []),
         EditorView.updateListener.of((update) => this.handleUpdate(update)),
+        this.lintOptions ? lintExtension(this.lintOptions) : [],
       ],
     });
   }
@@ -289,6 +297,11 @@ export class MarkdownEditor {
 
   get text(): string {
     return this.view.state.doc.toString();
+  }
+
+  /** Re-runs the inline assistant after a settings change. */
+  refreshLint(): void {
+    this.view.dispatch({});
   }
 
   get cursorLine(): number {

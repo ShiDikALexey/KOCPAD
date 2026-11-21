@@ -3,6 +3,7 @@ import './style.css';
 import { Store } from './store';
 import { journal } from './journal';
 import { decodeAs, decodeText, encodeText, type TextEncoding } from './encoding';
+import { runRules } from './lint/engine';
 import { createStorage } from './storage';
 import { MarkdownEditor, BLOCK_LABELS, BLOCK_TYPES, type BlockType } from './editor';
 import {
@@ -437,7 +438,18 @@ const editor = new MarkdownEditor(
       updateFormatBar();
     },
   },
-  { showLineNumbers: store.settings.showLineNumbers },
+  { showLineNumbers: store.settings.showLineNumbers, lint: {
+    enabled: () => store.settings.assistant,
+    disabledRules: () => store.settings.disabledLintRules,
+    onEvent: (rule, outcome) => {
+      if (outcome !== 'disabled') return;
+      if (store.settings.disabledLintRules.includes(rule)) return;
+      store.patchSettings({
+        disabledLintRules: [...store.settings.disabledLintRules, rule],
+      });
+      showToast('Правило больше не будет предлагаться · вернуть можно в настройках', 'info');
+    },
+  } },
 );
 
 // ---------------------------------------------------------------- preview
@@ -1829,7 +1841,10 @@ async function boot(): Promise<void> {
     dom.workspaceName.title = store.storage.root ?? '';
     applyWorkspaceChrome();
   });
-  store.on('settings', () => applyLayout());
+  store.on('settings', () => {
+    applyLayout();
+    editor.refreshLint();
+  });
   store.on('status', () => {
     // Any status text is already shown in the status bar; real errors arrive
     // through `onError`, so this handler must not show a second toast.
@@ -1908,6 +1923,7 @@ async function boot(): Promise<void> {
       closeFlow: handleCloseRequest,
       journal,
       encoding: { decodeText, decodeAs, encodeText },
+      lint: { diagnostics: (text: string) => runRules(text) },
       trash,
       openTrash: () => openTrashPanel(store),
       buildExport: async () => {

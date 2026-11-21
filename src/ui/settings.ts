@@ -285,6 +285,14 @@ export function openSettings(store: Store): void {
             ),
           ),
           section(
+            'Помощник',
+            row(
+              'Подсказки по разметке',
+              toggle('Показывать', settings.assistant, (assistant) => patch({ assistant })),
+              'Заметные ошибки Markdown подсвечиваются фоном; клик — объяснение и исправление',
+            ),
+          ),
+          section(
             'Экспорт',
             row(
               'Тема HTML и PDF',

@@ -74,6 +74,10 @@ export interface Settings {
   schema: number;
   lastRoot: string | null;
   syncScroll: boolean;
+  /** Inline assistant: subtle markup suggestions while typing. */
+  assistant: boolean;
+  /** Rules the user asked not to suggest again. */
+  disabledLintRules: string[];
 }
 
 export interface SearchHit {
@@ -113,4 +117,6 @@ export const DEFAULT_SETTINGS: Settings = {
   schema: 2,
   lastRoot: null,
   syncScroll: true,
+  assistant: true,
+  disabledLintRules: [],
 };
