@@ -1298,7 +1298,7 @@ function palette(): void {
       run: () => actions.openRecentFolder(path),
     })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
-    { label: 'Черновики без файла…', run: () => openDraftsPanel(store) },
+    { label: 'Черновики без файла…', run: () => openDraftsPanel(store, () => editor.focus()) },
     { label: 'Корзина…', run: () => openTrashPanel(store) },
     { label: 'Кодировка: открыть как UTF-8', run: () => void reopenAs('utf-8') },
     { label: 'Кодировка: открыть как cp1251', run: () => void reopenAs('cp1251') },
@@ -1402,7 +1402,7 @@ function mountToolbar(): void {
   document.getElementById('btn-new-note')?.addEventListener('click', () => actions.createNote());
   document.getElementById('btn-new-folder')?.addEventListener('click', () => actions.createFolder());
   document.getElementById('btn-refresh')?.addEventListener('click', () => actions.refreshWorkspace());
-  document.getElementById('btn-drafts')?.addEventListener('click', () => openDraftsPanel(store));
+  document.getElementById('btn-drafts')?.addEventListener('click', () => openDraftsPanel(store, () => editor.focus()));
   document.getElementById('btn-search')?.addEventListener('click', () => actions.openGlobalSearch());
   document.getElementById('btn-palette')?.addEventListener('click', () => actions.openPalette());
   document.getElementById('btn-theme')?.addEventListener('click', () => actions.toggleTheme());

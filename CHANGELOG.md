@@ -9,6 +9,17 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [Unreleased]
+
+### Fixed
+
+- **Drafts panel: «Перейти» on the already open draft did nothing visible.** The
+  active draft row now shows «В редакторе» instead of a no-op button; navigating to
+  another open draft closes the panel, activates the tab and focuses the editor.
+- **The inline assistant reacted to clicks on the empty part of a line.** Only the
+  tinted fragment itself opens the popover now; clicking beside it leaves the caret
+  alone.
+
 ## [1.5.1] — 2026-11-21
 
 The first stable release since `1.4.0`. It collects the 1.5 beta line (data safety,
