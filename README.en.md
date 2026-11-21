@@ -282,6 +282,10 @@ Full list with context (including Vim): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.m
 | --- | --- |
 | ![Drafts list](docs/screenshots/drafts.png) | ![KOCPAD trash](docs/screenshots/trash.png) |
 
+| Knowledge graph of the project (graphify) |
+| --- |
+| ![KOCPAD knowledge graph: 1106 nodes, 2497 edges, 65 communities](docs/screenshots/graphify-graph.png) |
+
 ## Building from source
 
 Requirements: Node.js 20+, Rust 1.77.2+ (MSVC toolchain) and the WebView2 Runtime.
@@ -379,6 +383,7 @@ highlight.js 11, Playwright 1.65.
 | [docs/WAVE-1.md](docs/WAVE-1.md) | Data-safety wave plan: external edits, recovery journal, encodings, trash |
 | [docs/WAVE-2.md](docs/WAVE-2.md) | Boundaries and reproducibility: fs sandbox, async commands, single instance, Cargo.lock, CSP |
 | [docs/WAVE-3.md](docs/WAVE-3.md) | Export, keyboard and the native smoke test |
+| [docs/GRAPHIFY.md](docs/GRAPHIFY.md) | Knowledge graph of the project: how it was built, what it shows, how to rebuild |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Storage seam, document lifecycle, event topics, panels |
 | [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Every key, the mouse, Vim mode |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Done, planned and deliberately out of scope |

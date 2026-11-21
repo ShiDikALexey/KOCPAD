@@ -44,3 +44,8 @@ blob-report/
 
 # Local notes used while developing
 scratch/
+
+# graphify generated artifacts
+graphify-out/
+.graphify_*
+
