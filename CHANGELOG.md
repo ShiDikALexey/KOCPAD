@@ -11,6 +11,15 @@ All notable changes to KOCPAD are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Printing prints the note, not the application.** `Ctrl+P` prints the selected
+  fragment when there is a selection and the whole note otherwise. Release builds
+  also turn off WebView2's browser accelerator keys (Ctrl+P, Ctrl+F, F5, zoom,
+  devtools) and its default context menu, so the app's own print, find and refresh
+  handlers receive those keys instead of the browser printing the whole UI.
+
+
 ### Fixed
 
 - **Drafts panel: «Перейти» on the already open draft did nothing visible.** The

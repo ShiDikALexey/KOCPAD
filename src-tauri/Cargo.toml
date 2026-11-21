@@ -26,6 +26,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
 
+# WebView2 settings live in the COM interfaces; used on Windows to turn off the
+# browser-specific accelerator keys (Ctrl+P, Ctrl+F, F5, devtools) in release
+# builds so the app's own shortcuts receive them.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows-core = "0.62"
+
 [profile.release]
 codegen-units = 1
 lto = true

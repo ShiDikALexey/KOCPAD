@@ -1228,9 +1228,17 @@ const actions: AppActions = {
         showToast('Откройте заметку для печати', 'error');
         return;
       }
-      const { html } = await buildExportDocument(doc);
+      // Printing a selection is the common case for a notepad: select a
+      // fragment, press Ctrl+P, get only that fragment on paper.
+      const selection = editor.selectionText.trim();
+      const content = selection || doc.content;
+      const { html } = await buildExportDocument({ ...doc, content });
       printHtml(html);
-      showToast('Выберите «Сохранить как PDF» в диалоге печати');
+      showToast(
+        selection
+          ? 'Печать выделенного фрагмента · выберите «Сохранить как PDF»'
+          : 'Печать заметки · выберите «Сохранить как PDF»',
+      );
     })();
   },
 

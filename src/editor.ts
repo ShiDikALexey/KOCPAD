@@ -299,6 +299,12 @@ export class MarkdownEditor {
     return this.view.state.doc.toString();
   }
 
+  /** Selected text, or an empty string when there is no selection. */
+  get selectionText(): string {
+    const range = this.view.state.selection.main;
+    return range.empty ? '' : this.view.state.sliceDoc(range.from, range.to);
+  }
+
   /** Re-runs the inline assistant after a settings change. */
   refreshLint(): void {
     this.view.dispatch({});

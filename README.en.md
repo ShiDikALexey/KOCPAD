@@ -19,7 +19,7 @@ plain `.md` files: no accounts, no database, no proprietary format — they open
 other editor.
 
 > **Status:** `1.5.1` — the stable release; this file is the full description.
-> 58 UI tests run in CI on every push. Auto-updates are active: the signing key is
+> 59 UI tests run in CI on every push. Auto-updates are active: the signing key is
 > already configured in CI ([details](docs/PUBLISHING.md#5-auto-updates)). Installer
 > signing is still blocked on a certificate — see [the roadmap](docs/ROADMAP.md).
 >
@@ -137,7 +137,7 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 | Feature | How it works |
 |---|---|
 | HTML | A standalone file with inline styles; light or dark export theme |
-| PDF | Printing through the system dialog (Windows PDF printer) |
+| PDF | System dialog: the selected fragment or the whole note (Windows PDF printer) |
 | Updates | «⋯» → «Проверить обновления…»: compares the version with the release `latest.json`, verifies the update signature and installs it; enabled by a CI key |
 | Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, line numbers, line breaks, tab width, Vim, line numbers, synced scrolling, autosave delay, export theme |
 | Window memory | Window size and position, last folder, open tabs, recent folders and notes |
@@ -244,7 +244,7 @@ Uninstalling the app does not remove your notes: they stay in your folder.
 | `Ctrl+Shift+O` | Outline panel |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Font size up / down / reset |
 | `Ctrl+\` | Collapse the notes sidebar |
-| `Ctrl+P` | Print to PDF |
+| `Ctrl+P` | Print to PDF: the selection or the whole note |
 | `Ctrl+Shift+E` | Toggle theme |
 | `F2` / `F5` | Rename the current note or draft / refresh the tree |
 | `Ctrl+Click`, `Shift+Click`, `Esc` | Multi-select notes in the tree / clear selection |
@@ -325,7 +325,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 58 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 59 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -366,7 +366,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                58 Playwright scenarios
+├─ tests/                59 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```

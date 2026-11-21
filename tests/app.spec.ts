@@ -638,6 +638,26 @@ test.describe('editor surfaces', () => {
     expect(editorTop).toBeGreaterThan(0);
   });
 
+  test('printing a selection prints only that fragment', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('Первый абзац\n\nВторой абзац\n');
+      window.__kocpad.editor.focus();
+    });
+    await page.keyboard.press('Control+Home');
+    await page.keyboard.press('Shift+End');
+    await page.evaluate(() => window.__kocpad.actions.printPdf());
+    await page.waitForTimeout(500);
+
+    const printed = await page.evaluate(() =>
+      [...document.querySelectorAll('iframe')]
+        .map((frame) => frame.contentDocument?.body?.innerText ?? '')
+        .join('\n'),
+    );
+    expect(printed).toContain('Первый абзац');
+    expect(printed).not.toContain('Второй абзац');
+    await expect(page.locator('.toast')).toContainText('выделенного');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
