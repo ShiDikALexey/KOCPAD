@@ -10,16 +10,16 @@ This page exists because the project overshot its own version numbers. Honest ac
   `v0.2.0` to `v1.4.0`). Most of them were UI polish or a single feature. Versions
   stopped distinguishing a test build from something worth installing.
 
-So: **do not read the version number as a maturity promise.** The project has since
-grown through the 1.5 line: `1.5.1` is the last plain release on `main`, and
-`1.5.1-a` is the current pre-release with the print and shortcut fixes. Both carry
-the data-safety work, the boundary hardening and the inline assistant. It is more
-mature than `1.4.0`, but the 2.0 gate below still says what "stable" will have to mean.
+So: **do not read the version number as a maturity promise.** The 1.5 line has grown
+a lot: `1.5.2` is the current release on `main`, carrying the data-safety work, the
+boundary hardening, the inline assistant, and the print/shortcut fixes that follow
+`1.5.1`. It is more mature than `1.4.0`, but the 2.0 gate below still says what
+"stable" will have to mean.
 
 ## What we do with the existing versions
 
 - **No renumbering backwards.** Tags and releases are public, the updater compares
-  semver (`latest.json`), and installed copies are on `1.4.0` or `1.5.1`. A
+  semver (`latest.json`), and installed copies are on `1.4.0`, `1.5.1` or `1.5.2`. A
   "downgrade" to 0.x would break update continuity without making the software any
   better.
 - **No deleting releases.** They are the history. The fix is labelling, not erasing.
