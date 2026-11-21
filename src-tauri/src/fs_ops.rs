@@ -72,10 +72,13 @@ fn canonical_for_check(path: &Path) -> Result<PathBuf, String> {
     let mut prefix = path.to_path_buf();
     let mut tail: Vec<std::ffi::OsString> = Vec::new();
     while !prefix.exists() {
-        match (prefix.file_name(), prefix.pop()) {
-            (Some(name), true) => tail.push(name.to_os_string()),
-            _ => break,
+        let Some(name) = prefix.file_name().map(|value| value.to_os_string()) else {
+            break;
+        };
+        if !prefix.pop() {
+            break;
         }
+        tail.push(name);
     }
     let base = fs::canonicalize(&prefix)
         .map_err(|error| format!("Путь недоступен «{}»: {error}", path.display()))?;
@@ -314,11 +317,14 @@ pub async fn fs_remove(state: State<'_, WorkspaceRoot>, path: String) -> Result<
 }
 
 #[tauri::command]
-pub async fn fs_exists(state: State<'_, WorkspaceRoot>, path: String) -> bool {
-    match scoped(&state, &path, true) {
+pub async fn fs_exists(
+    state: State<'_, WorkspaceRoot>,
+    path: String,
+) -> Result<bool, String> {
+    Ok(match scoped(&state, &path, true) {
         Ok(target) => target.exists(),
         Err(_) => false,
-    }
+    })
 }
 
 /// Version stamp of a file: mtime plus size, used to notice edits made by other
