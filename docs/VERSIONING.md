@@ -11,9 +11,10 @@ This page exists because the project overshot its own version numbers. Honest ac
   stopped distinguishing a test build from something worth installing.
 
 So: **do not read the version number as a maturity promise.** The project has since
-grown through the 1.5 line: `1.5.1` is the current release on `main`, with the
-data-safety work, the boundary hardening and the inline assistant. It is more mature
-than `1.4.0`, but the 2.0 gate below still says what "stable" will have to mean.
+grown through the 1.5 line: `1.5.1` is the last plain release on `main`, and
+`1.5.1-a` is the current pre-release with the print and shortcut fixes. Both carry
+the data-safety work, the boundary hardening and the inline assistant. It is more
+mature than `1.4.0`, but the 2.0 gate below still says what "stable" will have to mean.
 
 ## What we do with the existing versions
 
