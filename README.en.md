@@ -18,8 +18,8 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.4.0` — the stable release; this file is the full description of
-> every feature. 27 UI tests run in CI on every push. Auto-updates are active: the
+> **Status:** `1.4.0` — the latest stable release; this file is the full
+> description. 27 UI tests run in CI on every push. Auto-updates are active: the
 > signing key is already configured in CI
 > ([details](docs/PUBLISHING.md#5-auto-updates)). Installer signing is still blocked
 > on a certificate — see [the roadmap](docs/ROADMAP.md).
@@ -29,14 +29,13 @@ other editor.
 
 ### Branches
 
-| Branch | What lives there |
-|---|---|
-| `main` | the stable release; full feature description — this file |
-| `beta` | the next version (`1.5.0-beta.4`): only what changed and what is being tested — [branch README](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md) |
-| `Experimental` | the inline markup assistant: new features and plans — [branch README](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md) |
+This README describes the stable version. New work goes to `beta` first and merges
+here only after it has been tested. Raw ideas live in `Experimental`.
 
-New features and fixes land on `beta` first, get tested, and only then merge into
-`main`.
+- [beta](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md) — the next
+  version (`1.5.0-beta.4`). Short: what changed and what is being checked.
+- [Experimental](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md) —
+  the inline markup assistant. Also short: what is new and what is planned.
 
 ![KOCPAD light theme: note tree, editor and live preview](docs/screenshots/light.png)
 
