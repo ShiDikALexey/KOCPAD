@@ -18,11 +18,10 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.4.0` — the latest stable release; this file is the full
-> description. 27 UI tests run in CI on every push. Auto-updates are active: the
-> signing key is already configured in CI
-> ([details](docs/PUBLISHING.md#5-auto-updates)). Installer signing is still blocked
-> on a certificate — see [the roadmap](docs/ROADMAP.md).
+> **Status:** `1.5.1` — the stable release; this file is the full description.
+> 52 UI tests run in CI on every push. Auto-updates are active: the signing key is
+> already configured in CI ([details](docs/PUBLISHING.md#5-auto-updates)). Installer
+> signing is still blocked on a certificate — see [the roadmap](docs/ROADMAP.md).
 >
 > **Download:** [latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest) —
 > `.exe` installer, `.msi` package, portable `kocpad.exe` and `SHA256SUMS.txt`.
@@ -30,12 +29,13 @@ other editor.
 ### Branches
 
 This README describes the stable version. New work goes to `beta` first and merges
-here only after it has been tested. Raw ideas live in `Experimental`.
+here only after it has been tested. Raw ideas live in `Experimental` — the inline
+markup assistant that shipped in `1.5.1` came from there.
 
-- [beta](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md) — the next
-  version (`1.5.0-beta.4`). Short: what changed and what is being checked.
+- [beta](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md) — preparation
+  of the next version. Short: what changed and what is being checked.
 - [Experimental](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md) —
-  the inline markup assistant. Also short: what is new and what is planned.
+  experiments. Also short: what is new and what is planned.
 
 ![KOCPAD light theme: note tree, editor and live preview](docs/screenshots/light.png)
 
@@ -44,6 +44,7 @@ here only after it has been tested. Raw ideas live in `Experimental`.
 - [What it is](#what-it-is)
 - [How it differs](#how-it-differs)
 - [Features](#features)
+- [Inline assistant](#inline-assistant)
 - [Installation](#installation)
 - [First launch](#first-launch)
 - [Where data lives](#where-data-lives)
@@ -149,6 +150,27 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
   a folder, keep them, delete them).
 - No background migrations rewriting your files.
 
+## Inline assistant
+
+A small local assistant notices places where the markdown is probably broken and
+tints them. A click opens an explanation and three buttons: fix, ignore, never
+suggest again. A fix is a normal edit, so `Ctrl+Z` reverts it.
+
+There are sixteen rules: space after `#`, more than six `#`, skipped heading level,
+bare URL, unclosed link, link without a protocol, missing space after a list marker,
+mixed list markers, unclosed code fence, unclosed inline code, unclosed `[[link]]`, a
+tag glued to a word, missing blank line before a block, double blank line, trailing
+space, double space. Rules stay quiet inside code blocks.
+
+The assistant does not use the network and does not download models. In settings
+under "Помощник" it can be switched off, and the panel shows how many suggestions per
+rule you accepted or ignored and how you usually format links, lists and quotes.
+Confidence affects the order of suggestions.
+
+![Inline assistant: a tint and its explanation](docs/screenshots/assistant.png)
+
+Details: [docs/ASSISTANT.md](docs/ASSISTANT.md).
+
 ## Installation
 
 ### Requirements
@@ -174,7 +196,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.4.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.5.1_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
@@ -263,6 +285,10 @@ Full list with context (including Vim): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.m
 | --- | --- |
 | ![Format bar](docs/screenshots/formatbar.png) | ![Context menu](docs/screenshots/contextmenu.png) |
 
+| Inline assistant | Assistant learning |
+| --- | --- |
+| ![Inline assistant](docs/screenshots/assistant.png) | ![Assistant learning panel](docs/screenshots/assistant-settings.png) |
+
 ## Building from source
 
 Requirements: Node.js 20+, Rust 1.77.2+ (MSVC toolchain) and the WebView2 Runtime.
@@ -299,7 +325,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 27 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 52 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -340,7 +366,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                27 Playwright scenarios
+├─ tests/                52 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```
@@ -356,6 +382,8 @@ highlight.js 11, Playwright 1.65.
 | [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Every key, the mouse, Vim mode |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Done, planned and deliberately out of scope |
 | [docs/PUBLISHING.md](docs/PUBLISHING.md) | Releases, CI secrets, installer signing |
+| [docs/ASSISTANT.md](docs/ASSISTANT.md) | Inline assistant: rules, highlights, learning |
+| [docs/VERSIONING.md](docs/VERSIONING.md) | Honest version policy and the "stable" gate |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, verify and submit a change |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 

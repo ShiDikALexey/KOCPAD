@@ -10,22 +10,24 @@ This page exists because the project overshot its own version numbers. Honest ac
   `v0.2.0` to `v1.4.0`). Most of them were UI polish or a single feature. Versions
   stopped distinguishing a test build from something worth installing.
 
-So: **do not read the version number as a maturity promise.** Right now the code on
-`beta` is `1.5.0-beta.4`; the project is closer to a well-tested beta than to a stable
-release.
+So: **do not read the version number as a maturity promise.** The project has since
+grown through the 1.5 line: `1.5.1` is the current release on `main`, with the
+data-safety work, the boundary hardening and the inline assistant. It is more mature
+than `1.4.0`, but the 2.0 gate below still says what "stable" will have to mean.
 
 ## What we do with the existing versions
 
 - **No renumbering backwards.** Tags and releases are public, the updater compares
-  semver (`latest.json`), and installed copies are on `1.4.0`. A "downgrade" to 0.x
-  would break update continuity without making the software any better.
+  semver (`latest.json`), and installed copies are on `1.4.0` or `1.5.1`. A
+  "downgrade" to 0.x would break update continuity without making the software any
+  better.
 - **No deleting releases.** They are the history. The fix is labelling, not erasing.
-- The README now states the real state (beta) and links here.
+- The README states what each branch is and links here.
 - Beta builds carry a suffix and are published as **pre-releases**
   (`v1.5.0-beta.1`): `/releases/latest` — and therefore the updater — keeps pointing
   at the last plain release, so a rejected beta can never reach users.
-- A plain version (`1.5.0`) is only tagged from `main`, after the beta has been used
-  for a while, and is published as a normal release so the updater delivers it.
+- A plain version is only tagged from `main`, after the beta has been used for a
+  while, and is published as a normal release so the updater delivers it.
 
 ## Rules for the next versions
 
@@ -36,13 +38,14 @@ a `-beta` tag needs a `-beta` version).
 
 | Bump | What may go in | Gate |
 |---|---|---|
-| **patch** `1.4.x` | bug fixes, documentation, small UI corrections | typecheck + build + 31 e2e green; the bug's reproduction checked by hand |
+| **patch** `1.4.x` | bug fixes, documentation, small UI corrections | typecheck + build + 52 e2e green; the bug's reproduction checked by hand |
 | **minor** `1.5.0` | a coherent set of features or a data-model change | the above, plus: the owner uses the beta for at least a week, no data-loss bug open, the changes have e2e coverage, rollback plan for user data |
 | **major** `2.0.0` | a claim of stability | everything below in "2.0 gate" |
 
 ### 2.0 gate (what "stable" must mean here)
 
-1. No open P0/P1 data-loss bug; the four known gaps are closed:
+1. No open P0/P1 data-loss bug; the four data-safety gaps that used to be open are
+   verifiably closed:
    external-edit detection, crash recovery, encodings (cp1251/UTF-16/BOM/CRLF) and
    permanent deletion (recycle bin or version history).
 2. At least one native smoke test on Windows against the built `.exe`

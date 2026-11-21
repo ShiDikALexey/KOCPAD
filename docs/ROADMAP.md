@@ -156,7 +156,22 @@ Version numbering and the maturity bar are described separately in
   without updater metadata
 - [x] 31 e2e tests
 
-## After 1.4.1 — correctness wave (next)
+## 1.5.1 — stable release (done)
+
+Collected the four beta waves and the inline assistant that grew on `Experimental`.
+
+- [x] Data safety: external-edit conflicts, crash-recovery journal, encodings/EOL,
+      internal 30-day trash
+- [x] Boundaries: workspace fs sandbox, async file commands, single instance,
+      committed `Cargo.lock`, hardened CSP
+- [x] Export and interface: images and `[[links]]` in HTML/PDF, `Del` in the tree,
+      focus traps, native smoke in CI
+- [x] Menus with arrow keys, create a note from a missing `[[link]]`, rename rewrites
+      links, workspace-search race guard
+- [x] Inline markup assistant: 16 deterministic rules, lavender highlights,
+      click-to-fix popover, learning panel with confidence and habits (M1–M2)
+
+## After 1.4.1 — correctness wave (done in 1.5.1)
 
 Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 
@@ -183,6 +198,8 @@ Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 
 ## Later / ideas
 
+- [ ] Style hints (M3) in the inline assistant: long sentences and repeats, opt-in,
+      off by default
 - [ ] Per-document export themes and a PDF stylesheet setting
 - [ ] Export: embed `assets/` images and render `[[links]]`
 - [ ] Split view of two notes side by side

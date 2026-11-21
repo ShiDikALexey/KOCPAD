@@ -9,6 +9,50 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.1] — 2026-11-21
+
+The first stable release since `1.4.0`. It collects the 1.5 beta line (data safety,
+boundaries, export/keyboard/search) and the inline markup assistant that grew on the
+`Experimental` branch.
+
+### Added
+
+- **Inline markup assistant.** Sixteen deterministic markdown checks (heading spaces,
+  bare and unclosed links, list markers, code fences, inline code, wiki links, glued
+  tags, blank lines, trailing and double spaces). Suspicious ranges get a subtle
+  lavender background; a click opens an explanation with the fixed example and
+  «Исправить / Игнорировать / Больше не предлагать». Fully local: no network, no model
+  download, no telemetry.
+- **Assistant learning panel** in settings: per-rule accepted/ignored counters,
+  confidence that reorders suggestions, formatting habits inferred from the active
+  note (links, list markers, quotes, headings), and «Сбросить обучение».
+- **Crash-recovery journal.** Dirty notes are snapshotted about twice a second; after
+  a kill or power loss the next launch offers the recovered text.
+- **External-edit conflict detection.** Before writing, KOCPAD compares the file
+  version and asks «перечитать / оставить моё / сохранить копию» instead of silently
+  overwriting; clean notes reload automatically.
+- **Internal 30-day trash.** Deletion is reversible, old entries are purged
+  automatically.
+- **Encoding and line-ending preservation.** UTF-8/BOM, UTF-16LE/BE and cp1251 files
+  open and save in their original encoding; CRLF stays CRLF.
+- **Export improvements.** HTML/PDF embed `assets/` images and style `[[links]]`.
+- **Keyboard and link work.** Arrow/Home/End navigation in menus, `Del` in the tree,
+  creating a note from an unresolved `[[link]]`, renaming rewrites links in other
+  notes, workspace-search race guard.
+
+### Changed
+
+- File commands are scoped to the workspace (no `..`, symlinks or escapes).
+- File I/O is async: a large folder no longer freezes the window.
+- Single-instance: a second launch focuses the existing window.
+- `Cargo.lock` is committed; the CSP is stricter.
+- CI launches the packaged `.exe` as a native smoke test.
+
+### Fixed
+
+- Modal focus trap, small-text contrast, duplicate menu/selection edge cases, typing
+  performance (the sidebar tree is not rebuilt on every keystroke).
+
 ## [1.5.0-beta.4] — 2026-11-21 (keyboard, links, search)
 
 ### Added

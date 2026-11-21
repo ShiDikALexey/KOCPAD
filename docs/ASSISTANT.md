@@ -4,10 +4,10 @@ A small, local assistant that watches what you type and quietly highlights place
 where the markdown is likely wrong or could be sharper. It is **not** a chat and
 it never rewrites anything on its own: a highlight is only an invitation to look.
 
-Status: **M1 and M2 are implemented on `Experimental`.** The editor highlights
-likely markup mistakes, the popover fixes them on click, and the settings panel now
-shows what the assistant has learned. M3 (style hints) is next. The branch is cut
-from `beta` and is not merged or released until the owner accepts it.
+Status: **shipped in `1.5.1` on `main`.** The editor highlights likely markup
+mistakes, the popover fixes them on click, and the settings panel shows what the
+assistant has learned. It is still developed further on the `Experimental` branch
+(M3 style hints are next); nothing reaches `main` until it is accepted there.
 
 ![Inline assistant: a missing space after ## is highlighted, the popover explains it and offers «Исправить / Игнорировать / Больше не предлагать»](screenshots/assistant.png)
 
