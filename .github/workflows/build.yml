@@ -235,6 +235,59 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  native-e2e:
+    name: Native e2e (WebDriver)
+    needs: windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: kocpad-windows
+          path: native-app
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install msedgedriver matching the runner Edge
+        shell: pwsh
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          if ($LASTEXITCODE -ne 0) { throw 'msedgedriver-tool install failed' }
+          $out = (& "$HOME\.cargo\bin\msedgedriver-tool.exe" $PWD.Path | Select-Object -Last 1).Trim()
+          $exe = if ($out.EndsWith('.exe')) { $out } else { Join-Path $out 'msedgedriver.exe' }
+          if (-not (Test-Path $exe)) {
+            $exe = (Get-ChildItem -Recurse -Filter msedgedriver.exe $PWD.Path | Select-Object -First 1).FullName
+          }
+          if (-not $exe -or -not (Test-Path $exe)) { throw 'msedgedriver.exe was not downloaded' }
+          "MSEDGEDRIVER=$exe" >> $env:GITHUB_ENV
+          Write-Host "driver: $exe"
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Run native smoke against the built exe
+        shell: pwsh
+        env:
+          KOCPAD_APP: ${{ github.workspace }}\native-app\kocpad.exe
+          KOCPAD_WORK: ${{ runner.temp }}\kocpad-native-work
+        run: |
+          if (-not (Test-Path $env:KOCPAD_APP)) { throw "app not found: $env:KOCPAD_APP" }
+          $driverPath = Join-Path $HOME '.cargo\bin\tauri-driver.exe'
+          $driver = Start-Process -FilePath $driverPath -ArgumentList '--native-driver', $env:MSEDGEDRIVER -PassThru
+          Start-Sleep -Seconds 3
+          try {
+            node tests/native/smoke.mjs
+            if ($LASTEXITCODE -ne 0) { throw "native smoke failed with code $LASTEXITCODE" }
+          } finally {
+            Stop-Process -Id $driver.Id -Force -ErrorAction SilentlyContinue
+          }
+
   release:
     name: Attach installers to a release
     if: startsWith(github.ref, 'refs/tags/v')
