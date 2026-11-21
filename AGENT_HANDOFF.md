@@ -30,7 +30,7 @@ git checkout beta          # активная ветка разработки (1
 npm ci
 npm run dev                # фронтенд в браузере на :1420 (демо-режим)
 npm run tauri:dev          # полноценное приложение
-npm run test:e2e           # 34 сценария Playwright
+npm run test:e2e           # 36 сценариев Playwright
 npm run tauri:build        # установщики в src-tauri/target/release/bundle
 ```
 
@@ -129,7 +129,7 @@ npm run tauri:build        # установщики в src-tauri/target/release/
 | Джоб | Что делает |
 |---|---|
 | frontend | `npm ci`, проверка версий/тега, typecheck, `vite build`, BOM-guard |
-| e2e | Playwright Chromium, 34 сценария, отчёт в артефактах |
+| e2e | Playwright Chromium, 36 сценариев, отчёт в артефактах |
 | windows | `npm run tauri:build`; включает `createUpdaterArtifacts`, если есть секрет ключа; артефакты установщиков |
 | release | на тег `v*`: `latest.json` (если есть `.sig`), `SHA256SUMS.txt`, публикация |
 
@@ -305,7 +305,7 @@ npm run tauri:build        # установщики в src-tauri/target/release/
 - Нет file associations / tray / jump list; формат MSI-обновления не проверен.
 
 **Процесс**
-- Нет нативного e2e на Windows против собранного `.exe` (все 34 теста — Chromium
+- Нет нативного e2e на Windows против собранного `.exe` (все 36 тестов — Chromium
   на Vite), чистая машина не проверялась.
 - Нет ревью второй парой глаз: коммиты идут прямо в `main`/`beta`.
 

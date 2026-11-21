@@ -22,7 +22,7 @@ other editor.
 > **Status:** `beta` branch — `1.4.1`; latest published release — `1.4.0`.
 > This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
 > install test and no long real-world use. An honest maturity assessment and the
-> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 34 e2e tests run
+> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 36 e2e tests run
 > in CI on every push; auto-updates are wired and switch on with one key secret
 > ([details](docs/PUBLISHING.md#5-auto-updates)).
 >
@@ -308,7 +308,7 @@ node scripts/bump-version.cjs <x.y.z>
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 34 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 36 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -352,7 +352,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                34 Playwright scenarios
+├─ tests/                36 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs, enable-updater.cjs, make-latest-json.cjs
 ```
