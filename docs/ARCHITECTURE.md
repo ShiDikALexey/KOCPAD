@@ -33,7 +33,9 @@ Every filesystem operation goes through `Storage` (`src/storage/types.ts`):
 ```ts
 interface Storage {
   chooseRoot(): Promise<boolean>;
+  mountRoot(path: string): Promise<boolean>;
   restoreRoot(): Promise<boolean>;
+  closeRoot(): Promise<void>;
   listTree(): Promise<NoteNode[]>;
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
@@ -93,7 +95,15 @@ Guarantees:
 - **Clean means written.** A document is only marked clean after the write for
   that exact snapshot resolved; edits made during the write keep it dirty.
 - **Flush points.** Tab close, window blur, `visibilitychange` and `pagehide` all
-  push pending saves. Closing the window with unsaved changes asks first.
+  push pending saves. Closing the window flushes writes, then closes silently:
+  drafts stay in local storage and the tabs come back on the next launch. Only a
+  write that failed asks for confirmation before quitting.
+- **External edits.** A document remembers the `{mtimeMs, size}` stamp it was read
+  from (`Storage.stat` → Tauri `fs_stat`). Before every write the stamp is compared;
+  if another program changed the file, the write is skipped and `Store.onConflict`
+  asks the user (reload / keep mine / save copy). Focus and `visibilitychange` run a
+  cheap re-check: a clean note is reloaded and a toast is shown, a dirty one raises
+  the conflict dialog. F5 re-reads the active note but never discards unsaved text.
 
 ## Editor
 
@@ -172,10 +182,82 @@ above.
 - comparison is case-insensitive (`toLocaleLowerCase('ru')`), display uses the
   first spelling that was seen.
 
-`Store.indexTags()` walks drafts and every workspace file, reads the text and
-aggregates `{ tag, key, count, paths }`, sorted by count. There is no cache yet:
-the panel re-indexes when it is opened or when the tree changes, which is fine for
-hundreds of notes (an index is on the roadmap for thousands).
+`Store.indexTags()` walks every stored draft and every workspace file through
+`readCached()` and aggregates `{ tag, key, count, paths }`, sorted by count. There
+is no persistent tag index: the panel rebuilds it when opened or when the tree
+changes. That is fine for hundreds of notes; thousands would need an on-disk index
+(on the roadmap).
+
+## Text encoding and line endings
+
+Text is read and written as bytes, never through a UTF-8-only text reader:
+
+- `src/encoding.ts` detects UTF-8 (BOM or strict validation), UTF-16LE/BE with a BOM,
+  BOM-less UTF-16 by the zero-byte pattern, and falls back to cp1251 for legacy
+  Russian files. The cp1251 encoder is derived from the platform decoder, so it
+  cannot drift; unrepresentable characters become `?`.
+- A document keeps `{encoding, bom, eol}`; the editor always works on normalised LF
+  text, and `saveDoc` converts it back to the original EOL, BOM and encoding.
+- The status bar shows the encoding/EOL when they differ from UTF-8/LF; the palette
+  exposes «Кодировка: открыть как UTF-8 / cp1251 / UTF-16LE» for a wrong guess.
+
+## Crash recovery
+
+Autosave is delayed, so a kill or a power cut could lose the last keystrokes. While a
+file document is dirty, the store writes a snapshot about twice a second:
+
+- native build: `recovery_write` into `%APPDATA%\app.kocpad.desktop\recovery\<key>.json`
+  (atomic temp + rename, key = FNV-1a of the document path);
+- browser/demo: the `kocpad.recovery` localStorage record.
+
+A successful save, a tab close or a reload removes the snapshot. On startup
+`Store.recoverPending()` compares every snapshot with the file on disk and only keeps
+the ones that differ; the UI then offers «Восстановить / Открыть файл с диска /
+Удалить снапшот». Restored text is marked dirty and is never written to disk until
+the user saves.
+
+## Trash
+
+Deletion is recoverable: `src/trash.ts` moves a file into
+`%APPDATA%\app.kocpad.desktop\trash\<id>\` (`payload` + `meta.json` with the original
+path, name and timestamp) through Rust `trash_*` commands; the browser/demo fallback
+keeps the content in `kocpad.trash`. The panel lists entries with the days left,
+restores them (to a free name when the original path is occupied) or deletes them
+permanently. On startup `trash_purge(30)` removes entries older than 30 days and
+caps the trash at 200 items. Drafts are not files, so deleting a draft still removes
+it from the local drafts list.
+
+## Export and print
+
+`buildExportDocument()` in `src/main.ts` is the single builder for both `Ctrl+Shift+E`
+and printing:
+
+1. render the markdown with `renderMarkdown()`;
+2. `renderWikiLinks()` turns `[[target]]` into `<span class="wikilink" title="…">`
+   outside `<pre>`/`<code>` blocks;
+3. `inlineExportImages()` parses the result, resolves every relative `<img src>`
+   against the note folder, reads the bytes through the storage seam and replaces
+   the source with a `data:` URL (missing files become alt text);
+4. `buildExportHtml()` adds the document CSS and title;
+5. export hands the HTML to `saveAs`; print writes it into a hidden iframe and calls
+   `printHtml`, so PDF gets the same inlined document and no file path in the header.
+
+## Security boundary
+
+Custom Tauri commands are not covered by the capability ACL, so the file layer
+enforces its own boundary (`src-tauri/src/fs_ops.rs`):
+
+- `WorkspaceRoot` holds the canonical workspace path; the storage backend sets it via
+  `fs_set_root` on choose/restore/mount and clears it on close.
+- Every scoped command rejects `..` components, resolves the deepest existing
+  ancestor with `canonicalize` and requires the result to stay below the root,
+  refuses symlinks, and forbids renaming/deleting the root itself.
+- Binary reads are limited to 25 MB. Export/«Save as» uses a separate
+  `fs_save_text` command: its path comes from the native save dialog, not from a
+  note, so it is not workspace-scoped.
+- `tauri-plugin-single-instance` is registered first, so a second launch focuses the
+  existing window instead of starting another process that would race on writes.
+- `src-tauri/Cargo.lock` is committed and CI fails when it drifts from `Cargo.toml`.
 
 ## Bulk actions
 
@@ -267,34 +349,41 @@ Two UI surfaces sit on top of the same editor primitives:
 
 ## Drafts
 
-A note does not need a folder to exist. Documents without a file are represented
-by a `draft:<id>` path inside the same `Doc` list, so tabs, the editor, the
-outline, search and export treat them exactly like files.
+A note does not need a folder to exist. Drafts are stored as a separate list in
+`kocpad.drafts` (localStorage) independently of the open tabs, so closing a tab or
+the whole app never deletes one.
 
-- `src/drafts.ts` owns the `kocpad.drafts` localStorage record:
-  `{ id, title, content, updatedAt }[]`.
-- The autosave path for a draft writes to localStorage instead of the storage
-  backend; a draft is never a reason to touch the disk.
+- `src/drafts.ts` owns the record: `{ id, title, content, updatedAt }[]`.
+- `Store.openDraft(id)` materialises a draft as a tab with the synthetic
+  `draft:<id>` path, so tabs, the editor, outline, search and export treat it like
+  any other document.
+- Autosave for a draft writes to localStorage instead of the storage backend; a
+  draft never touches the disk. A failed localStorage write keeps the document
+  dirty and surfaces an error — silent close refuses to pretend the text was saved.
+- The sidebar button with a counter opens `src/ui/drafts.ts`: open, «В папку…»,
+  delete (two-step inline confirmation). "Новый черновик" always creates a draft,
+  even when a folder is connected.
 - «Сохранить в папку…» writes the content into the chosen folder and rewrites the
-  document in place: `path` becomes the real file, the editor state is dropped by
-  its old key, and the draft record disappears.
-- Closing a folder keeps drafts open, because they are not attached to it.
+  document in place: `path` becomes the real file and the draft record disappears.
+- Session restore brings draft tabs back with their order; if there is no saved tab
+  list, the most recent draft opens. Closing a folder keeps drafts open.
 
 ## Closing the window
 
-A notepad should not quit silently with unsaved drafts, but the webview cannot
-block the OS close by itself in a way that survives a broken frontend. The split:
+A notepad should not quit silently with unsaved text, but the webview cannot block
+the OS close by itself in a way that survives a broken frontend. The split:
 
 1. The frontend calls `kocpad_ready` once it is interactive.
 2. Rust's `on_window_event` sees `CloseRequested`, and only if that flag is set it
    calls `prevent_close()` and evaluates `window.__kocpadRequestClose()`.
-3. The handler saves pending file changes, then asks about drafts:
-   «Сохранить в папку…» / «Оставить черновиками» / «Удалить и закрыть»
-   (three-button `choiceDialog`; `Esc` cancels and keeps the window open).
+3. The handler calls `store.saveAll()` (files through the atomic write, drafts into
+   localStorage). If a write failed, a single confirmation offers to close anyway;
+   otherwise the window closes with no questions. Drafts and the tab list are
+   already persisted, so nothing is lost.
 4. The final close goes through the `kocpad_close_window` command, which destroys
-   the webview window. Custom commands need no extra ACL permissions, and if the
-   `eval` itself fails Rust destroys the window, so the app can never become
-   unclosable.
+   the webview window. Custom commands need no extra ACL permissions. If the
+   `eval` fails, Rust destroys the window anyway — the app is never left unclosable
+   (the known edge case is a crashed webview that keeps `FRONTEND_READY` set).
 
 File changes that failed to reach the disk take a separate, simpler confirmation.
 

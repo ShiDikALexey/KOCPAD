@@ -1,83 +1,73 @@
 # Publishing KOCPAD on GitHub
 
 > **Status:** the repository is live at
-> <https://github.com/ShiDikALexey/KOCPAD>, branch `main`, with CI building the
-> Windows installers on every push. The steps below are kept for reference — how
-> the repo was created and how to cut the next release.
+> <https://github.com/ShiDikALexey/KOCPAD>. `main` is the release line (currently
+> `1.4.0`), `beta` is the next version (`1.4.1`). CI builds Windows installers on
+> every push and publishes a release on every `v*` tag. This page documents the
+> workflow and how to cut the next release.
 
-The repository is ready to push; only the remote is missing. Nothing in the code
-refers to a hard-coded GitHub account, so pick your own name.
+## 1. Repository
 
-## 1. Create an empty repository
+The repository already exists; there is nothing to create or push the first time.
+`origin` points at GitHub, and both branches are built by
+`.github/workflows/build.yml`. If you ever move the project, update `origin` and the
+updater endpoint in `src-tauri/tauri.conf.json`.
 
-On <https://github.com/new>:
+## 2. Check the build
 
-- **Repository name:** `KOCPAD`
-- **Visibility:** your choice (the MIT license already allows anything)
-- **Do not** initialise it with a README, `.gitignore` or license — this repo
-  already has all three, and an empty remote keeps the first push trivial.
+`.github/workflows/build.yml` runs on every push to `main` and `beta`, on pull
+requests and on tags:
 
-With the GitHub CLI installed (`winget install GitHub.cli`, then `gh auth login`),
-one command does the same:
-
-```bash
-gh repo create KOCPAD --public --source=. --remote=origin --push
-```
-
-## 2. Push
-
-```bash
-git branch -M main
-git remote add origin https://github.com/<your-account>/KOCPAD.git
-git push -u origin main
-```
-
-If you use SSH instead:
-
-```bash
-git remote add origin git@github.com:<your-account>/KOCPAD.git
-git push -u origin main
-```
-
-## 3. Check the build
-
-`.github/workflows/build.yml` runs on the first push:
-
-- **frontend** (Ubuntu): `npm ci` → `npm run typecheck` → `vite build`
+- **frontend** (Ubuntu): `npm ci` → version/tag check → `npm run typecheck` →
+  `vite build`
 - **e2e** (Ubuntu): `npm ci` → Playwright Chromium → `npm run test:e2e`
 - **windows**: `npm ci` → `npm run tauri:build` → uploads the NSIS installer, the
-  MSI and the portable `kocpad.exe` as the `kocpad-windows` artifact
+  MSI and the portable `kocpad.exe` as the `kocpad-windows` artifact. The upload
+  fails if the installers are missing.
 - **release**: on a `v*` tag the installers and `SHA256SUMS.txt` are attached to a
-  GitHub Release
+  GitHub Release; the tag must match the version in all four files.
 
 Give the Windows job 10–15 minutes the first time (Rust dependencies compile from
 scratch). Later runs reuse the cargo cache.
 
-## 4. Cut a release
+## 3. Cut a release
+
+The rules live in [VERSIONING.md](VERSIONING.md). In short: features land on
+`beta`, get used there, then merge to `main` and are tagged. One release per week at
+most.
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git checkout main
+git merge beta                    # after the beta has been used for a while
+npm run check:versions            # tag/version sanity while working
+node scripts/bump-version.cjs 1.4.2
+# write the "## [1.4.2]" section in CHANGELOG.md — the release job requires it
+git commit -am "release: 1.4.2"
+git tag -a v1.4.2 -m "KOCPAD 1.4.2"
+git push origin main v1.4.2
 ```
 
-The workflow builds the installers and publishes a release with generated notes.
-The release job also writes `SHA256SUMS.txt` next to the installers, so anyone can
-verify a download. Bump the version with the script — it updates `package.json`,
-`src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` in one go and writes plain
-UTF-8 (PowerShell's `Set-Content` adds a BOM, which Tauri's config parser rejects):
+The release job extracts the `CHANGELOG.md` section for the tag as the release
+body, writes `SHA256SUMS.txt` next to the installers, and publishes `latest.json`
+when the updater key is configured.
 
-```bash
-node scripts/bump-version.cjs 0.2.2
-git commit -am "release: 0.2.2"
-git tag -a v0.2.2 -m "KOCPAD 0.2.2"
-git push origin main v0.2.2
-```
+- A tag with a suffix (`v1.5.0-beta.1`) is published as a **pre-release**: it does
+  not become `/releases/latest`, so the updater never offers a beta to stable users.
+  Such builds ship the NSIS installer only: WiX/MSI rejects non-numeric prerelease
+  identifiers (`scripts/prepare-build.cjs` removes the MSI target for them).
+- A pre-release tag needs a matching `-beta` version; CI fails otherwise.
+- Do not renumber backwards and do not delete releases — see VERSIONING.md.
 
-## 5. Auto-updates
+The bump script updates `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`
+and `src-tauri/tauri.conf.json` in one go and writes plain UTF-8 (PowerShell's
+`Set-Content` adds a BOM, which Tauri's config parser rejects).
 
-The in-app updater is wired up but inactive until one secret exists. It needs its
-own minisign keypair — this is **not** the Windows Authenticode certificate and it
-does not remove SmartScreen warnings.
+## 4. Auto-updates
+
+The updater is **active**: the project keypair exists, the public half is committed
+and `TAURI_SIGNING_PRIVATE_KEY` is set in the repository secrets. This is a
+minisign key, **not** the Windows Authenticode certificate, and it does not remove
+SmartScreen warnings.
 
 How it is built:
 
@@ -89,7 +79,7 @@ How it is built:
 - the endpoint is
   `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`.
 
-Steps to turn it on:
+How it was switched on (already done):
 
 1. Keep the private key safe. If it is lost, already installed copies can never
    receive another update — they would have to be reinstalled by hand.
@@ -109,8 +99,10 @@ Steps to turn it on:
 
 Notes:
 
-- only NSIS installs (the default installer) update in place; the portable
-  `kocpad.exe` and a manually installed MSI are updated by downloading a new release;
+- the updater channel is the NSIS installer (`installMode: passive`); the portable
+  `kocpad.exe` and a manually installed MSI are updated by downloading a new
+  release. The MSI in-place update path has **not** been verified — do not promise
+  it;
 - update signatures and Windows code signing are independent: without a certificate
   the first install still shows SmartScreen, while the update itself is verified by
   the minisign key;
@@ -124,6 +116,12 @@ Notes:
   `WINDOWS_CERTIFICATE_PASSWORD` set, the portable exe, the NSIS installer and the
   MSI are signed with `signtool` plus a timestamp. Without the secrets the step is
   skipped and the build stays unsigned.
+
+  **Important:** Authenticode rewrites the installer bytes and would invalidate the
+  updater `.sig`, so after signing the job re-signs the NSIS installer with the
+  updater key (`tauri signer sign`). Without that step every auto-update would fail
+  the signature check. The signing secrets are scoped to their steps so `npm ci` and
+  crate build scripts never see them.
 
   What changed in 2023–2026 matters here:
 

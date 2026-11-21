@@ -8,6 +8,7 @@ import {
   lineNumbers,
   placeholder,
 } from '@codemirror/view';
+import { lintExtension, type LintOptions } from './lint/extension';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { HighlightStyle, bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language';
@@ -205,6 +206,7 @@ export class MarkdownEditor {
   private currentKeymap: EditorKeymap = 'default';
   private vimExtension: Extension | null = null;
   private linkSuggestionsProvider: () => { title: string; path: string }[] = () => [];
+  private lintOptions?: LintOptions;
 
   /** The shell plugs the workspace note list into `[[…]]` autocomplete. */
   setLinkSuggestions(provider: () => { title: string; path: string }[]): void {
@@ -229,8 +231,13 @@ export class MarkdownEditor {
     return { from: match.from + 2, options, filter: false };
   };
 
-  constructor(parent: HTMLElement, callbacks: EditorCallbacks, options: { showLineNumbers: boolean }) {
+  constructor(
+    parent: HTMLElement,
+    callbacks: EditorCallbacks,
+    options: { showLineNumbers: boolean; lint?: LintOptions },
+  ) {
     this.callbacks = callbacks;
+    this.lintOptions = options.lint;
     this.view = new EditorView({
       parent,
       state: this.createState('', options),
@@ -264,6 +271,7 @@ export class MarkdownEditor {
         ]),
         this.keymapCompartment.of(this.currentKeymap === 'vim' && this.vimExtension ? this.vimExtension : []),
         EditorView.updateListener.of((update) => this.handleUpdate(update)),
+        this.lintOptions ? lintExtension(this.lintOptions) : [],
       ],
     });
   }
@@ -291,6 +299,11 @@ export class MarkdownEditor {
     return this.view.state.doc.toString();
   }
 
+  /** Re-runs the inline assistant after a settings change. */
+  refreshLint(): void {
+    this.view.dispatch({});
+  }
+
   get cursorLine(): number {
     return this.view.state.doc.lineAt(this.view.state.selection.main.head).number;
   }
@@ -313,9 +326,12 @@ export class MarkdownEditor {
     }
     this.path = path;
     const cached = this.states.get(path);
-    if (cached) {
+    // Reuse the cached state only while it still matches the stored text: after
+    // an external reload or a rename the old buffer would show stale content.
+    if (cached && cached.doc.toString() === content) {
       this.replaceState(cached);
     } else {
+      if (cached) this.states.delete(path);
       this.replaceState(this.createState(content));
     }
   }
@@ -632,21 +648,6 @@ export class MarkdownEditor {
     this.view.focus();
   }
 
-  /** Wraps the selection, or inserts a placeholder between the markers. */
-  wrapSelection(before: string, after = before, placeholderText = 'текст'): void {    const state = this.view.state;
-    const range = state.selection.main;
-    const selected = state.sliceDoc(range.from, range.to) || placeholderText;
-    const insert = before + selected + after;
-    this.view.dispatch({
-      changes: { from: range.from, to: range.to, insert },
-      selection: {
-        anchor: range.from + before.length,
-        head: range.from + before.length + selected.length,
-      },
-    });
-    this.view.focus();
-  }
-
   /** Inserts a block on its own line(s), keeping surrounding lines intact. */
   insertBlock(block: string): void {
     const state = this.view.state;
@@ -669,9 +670,6 @@ export class MarkdownEditor {
     this.view.destroy();
   }
 }
-
-/** Kept as an explicit alias so module imports stay readable. */
-export type EditorExtension = Extension;
 
 // ------------------------------------------------------------------ blocks
 

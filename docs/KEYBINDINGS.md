@@ -19,15 +19,19 @@
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
 | `Ctrl+S` | Save now; for a draft this opens «Сохранить в папку…» |
+| `Ctrl+Shift+S` | Save every dirty note and draft |
+| `Ctrl+W` | Close the current tab (autosaves first). Closing a draft tab keeps the draft in the drafts list |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `F2` | Rename the current note or draft title |
+| `F5` | Refresh the notes tree (and forget cached text, picking up external edits) |
 | — | Close the folder: the folder button in the sidebar header or «Ещё» → «Закрыть папку» |
-| `Ctrl+S` | Save the current note now |
-| `Ctrl+W` | Close the current tab (autosaves first) |
-| `Ctrl+Tab` | Next tab |
-| `Ctrl+Shift+Tab` | Previous tab |
-| `F2` | Rename the current note |
-| `F5` | Refresh the notes tree from disk |
 | `Ctrl+Shift+E` | Export the current note to HTML |
+| `Ctrl+P` | Print the note (Windows print dialog, so "save as PDF" works) |
+
+Encodings, when the automatic detection is wrong: palette (`Ctrl+K`) →
+«Кодировка: открыть как UTF-8», «… cp1251», «… UTF-16LE». The status bar shows the
+detected encoding, BOM and CRLF. Deleted files wait in «⋯» → «Корзина…» (or the
+palette) for 30 days.
 
 ## Editing
 
@@ -105,6 +109,19 @@ and the global shortcuts (`Ctrl+N`, `Ctrl+F`, `Ctrl+K`, …) keep working.
 
 Tab width is a separate setting (2 / 4 / 8 spaces); it affects how existing tab
 characters are displayed and how `Tab` indents.
+
+## Drafts
+
+A draft is a note without a file: it is stored locally and survives closing the tab
+or the whole app.
+
+| Action | Result |
+| --- | --- |
+| `Ctrl+N` | New draft, no folder required |
+| Sidebar button with a counter | Opens the drafts panel: open, «В папку…», delete |
+| `Ctrl+S` on a draft | «Сохранить в папку…» — turns it into a real `.md` file |
+| `Ctrl+W` on a draft tab | Closes the tab only; the draft stays in the list |
+| Closing the window | Saves nothing extra and asks nothing; drafts and tabs come back next launch |
 
 ## Mouse
 

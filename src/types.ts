@@ -1,5 +1,7 @@
 /** Shared types for KOCPAD. */
 
+import type { Eol, TextEncoding } from './encoding';
+
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type ViewMode = 'editor' | 'split' | 'preview';
@@ -34,6 +36,12 @@ export interface Doc {
   content: string;
   /** Content as last written to disk, used for dirty tracking. */
   savedContent: string;
+  /** Version stamp of the file as last read or written; drafts have none. */
+  disk?: { mtimeMs: number; size: number } | null;
+  /** Original encoding and line endings, preserved on save. */
+  encoding?: TextEncoding;
+  bom?: boolean;
+  eol?: Eol;
 }
 
 export interface Settings {
@@ -66,6 +74,10 @@ export interface Settings {
   schema: number;
   lastRoot: string | null;
   syncScroll: boolean;
+  /** Inline assistant: subtle markup suggestions while typing. */
+  assistant: boolean;
+  /** Rules the user asked not to suggest again. */
+  disabledLintRules: string[];
 }
 
 export interface SearchHit {
@@ -105,4 +117,6 @@ export const DEFAULT_SETTINGS: Settings = {
   schema: 2,
   lastRoot: null,
   syncScroll: true,
+  assistant: true,
+  disabledLintRules: [],
 };

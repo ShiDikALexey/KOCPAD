@@ -159,6 +159,376 @@ test.describe('editor surfaces', () => {
       .toBe('dark');
   });
 
+  test('a horizontal rule at the start is not eaten as front matter', async ({ page }) => {
+    // `---` at the top followed by another `---` used to be parsed as front
+    // matter, hiding everything between them from the preview and the tags.
+    await page.evaluate(async () => {
+      const doc = window.__kocpad.store.activeDoc;
+      if (!doc) return;
+      window.__kocpad.editor.applyText('---\n\nважная строка\n\n---\n\nконец\n');
+      await window.__kocpad.store.updateContent(doc.path, window.__kocpad.editor.text);
+    });
+    await expect(page.locator('#preview')).toContainText('важная строка');
+    await expect(page.locator('#preview')).toContainText('конец');
+  });
+
+  test('an external edit is detected instead of overwritten', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    // Another program rewrites the file while KOCPAD holds the old text.
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.storage.writeText(target, '# версия из другой программы\n');
+    }, path);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' моя правка');
+    await page.keyboard.press('Control+s');
+
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Файл изменён на диске');
+    await dialog.getByRole('button', { name: 'Перечитать с диска' }).click();
+    await expect(page.locator('#preview')).toContainText('версия из другой программы');
+    await expect(page.locator('#preview')).not.toContainText('моя правка');
+  });
+
+  test('a clean note is reloaded when the file changes on disk', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.storage.writeText(target, '# снаружи\n');
+    }, path);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.locator('#preview')).toContainText('снаружи');
+    await expect(page.locator('#toasts')).toContainText('изменена на диске');
+  });
+
+  test('keeping my version overwrites the external edit', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.storage.writeText(target, '# снаружи\n');
+    }, path);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' моё');
+    await page.keyboard.press('Control+s');
+
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Файл изменён на диске');
+    await dialog.getByRole('button', { name: 'Оставить моё' }).click();
+    await expect
+      .poll(async () =>
+        page.evaluate(async (target) => {
+          const api = window.__kocpad;
+          const bytes = await api.store.storage.readBinary(target);
+          return api.encoding.decodeText(bytes).text;
+        }, path),
+      )
+      .toContain('моё');
+  });
+
+  test('offers text left by a crash', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.journal.write({
+        key: 'crash-test',
+        path: target,
+        text: 'текст, который не успел сохраниться',
+        savedAt: Date.now(),
+      });
+    }, path);
+
+    await page.reload();
+    await page.waitForSelector('.cm-content');
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Найден несохранённый текст');
+    await dialog.getByRole('button', { name: 'Восстановить' }).click();
+    await expect(page.locator('#preview')).toContainText('текст, который не успел сохраниться');
+    await expect(page.locator('#status-saved')).toContainText('не сохранены');
+  });
+
+  test('the recovery journal is removed after a normal save', async ({ page }) => {
+    // Keep autosave out of the way, otherwise it saves (and clears the journal)
+    // before the assertion can see the snapshot.
+    await page.evaluate(() => window.__kocpad.store.patchSettings({ autosaveDelay: 5000 }));
+    await page.locator('.cm-content').click();
+    await page.keyboard.type(' быстрая правка');
+    await page.waitForTimeout(900);
+    const before = await page.evaluate(() => window.__kocpad.journal.list());
+    expect(before.length).toBeGreaterThan(0);
+
+    await page.keyboard.press('Control+s');
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => window.__kocpad.journal.list());
+    expect(after.length).toBe(0);
+  });
+
+  test('opens and preserves legacy cp1251 with CRLF', async ({ page }) => {
+    await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const text = 'Старая заметка из Блокнота: привет\nвторая строка';
+      await api.store.storage.writeBinary('legacy.txt', api.encoding.encodeText(text, 'cp1251', false, '\r\n'));
+      await api.store.openNote('legacy.txt');
+    });
+    await expect(page.locator('#preview')).toContainText('Старая заметка из Блокнота');
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('!');
+    await page.keyboard.press('Control+s');
+
+    const saved = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const bytes = await api.store.storage.readBinary('legacy.txt');
+      const decoded = api.encoding.decodeText(bytes);
+      return { encoding: decoded.encoding, eol: decoded.eol, text: decoded.text };
+    });
+    expect(saved.encoding).toBe('cp1251');
+    expect(saved.eol).toBe('\r\n');
+    expect(saved.text).toContain('!');
+  });
+
+  test('opens UTF-16LE with a BOM and keeps it on save', async ({ page }) => {
+    const info = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      await api.store.storage.writeBinary(
+        'unicode.txt',
+        api.encoding.encodeText('Юникод текст', 'utf-16le', true, '\n'),
+      );
+      await api.store.openNote('unicode.txt');
+      return api.store.encodingInfo('unicode.txt');
+    });
+    expect(info.encoding).toBe('utf-16le');
+    expect(info.bom).toBe(true);
+    await expect(page.locator('#preview')).toContainText('Юникод текст');
+  });
+
+  test('deleted notes go to the trash and can be restored', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.deleteMany([target]);
+    }, path);
+    await expect
+      .poll(async () => page.evaluate(async (target) => window.__kocpad.store.storage.exists(target), path))
+      .toBe(false);
+
+    await page.evaluate(() => window.__kocpad.openTrash());
+    const panel = page.locator('.drafts');
+    await expect(panel).toContainText('Корзина');
+    await panel.getByRole('button', { name: 'Восстановить' }).first().click();
+    await expect
+      .poll(async () => page.evaluate(async (target) => window.__kocpad.store.storage.exists(target), path))
+      .toBe(true);
+  });
+
+  test('the trash purges entries older than 30 days', async ({ page }) => {
+    const removed = await page.evaluate(async () => {
+      const day = 24 * 60 * 60 * 1000;
+      localStorage.setItem(
+        'kocpad.trash',
+        JSON.stringify([
+          { id: 'old', originalPath: 'old.md', name: 'old.md', deletedAt: Date.now() - 40 * day, isDir: false, size: 1, data: 'aGVsbG8=' },
+          { id: 'new', originalPath: 'new.md', name: 'new.md', deletedAt: Date.now(), isDir: false, size: 1, data: 'aGVsbG8=' },
+        ]),
+      );
+      return window.__kocpad.trash.purge(30);
+    });
+    expect(removed).toBe(1);
+    const left = await page.evaluate(async () => (await window.__kocpad.trash.list()).length);
+    expect(left).toBe(1);
+  });
+
+  test('export embeds relative images and renders wiki links', async ({ page }) => {
+    const exported = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      // A real 1x1 transparent PNG.
+      const base64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      await api.store.storage.writeBinary('assets/pic.png', bytes);
+      const doc = api.store.activeDoc;
+      const text = '# Экспорт\n\n![картинка](assets/pic.png)\n\nСсылка на [[Другая заметка|другую]].\n';
+      api.editor.applyText(text);
+      await api.store.updateContent(doc.path, text);
+      return await api.buildExport();
+    });
+    expect(exported).not.toBeNull();
+    const html = exported!.html;
+    expect(html).toContain('data:image/png;base64,');
+    expect(html).toContain('class="wikilink"');
+    expect(html).toContain('другую');
+    expect(html).not.toContain('assets/pic.png');
+    expect(html).not.toContain('[[Другая заметка');
+  });
+
+  test('Delete removes selected notes from the tree', async ({ page }) => {
+    const note = page.locator('[role="treeitem"]', { hasText: 'Добро пожаловать' }).first();
+    await note.click({ modifiers: ['Control'] });
+    await page.keyboard.press('Delete');
+    await expect(page.locator('.dialog')).toContainText('Удалить');
+  });
+
+  test('a modal keeps keyboard focus inside itself', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const settings = page.locator('.settings');
+    await expect(settings).toBeVisible();
+    for (let index = 0; index < 8; index += 1) await page.keyboard.press('Tab');
+    const inside = await page.evaluate(() =>
+      !!document.activeElement?.closest('.settings, .dialog, .overlay'),
+    );
+    expect(inside).toBe(true);
+  });
+
+  test('menu items are reachable with the arrow keys', async ({ page }) => {
+    await page.locator('#block-type').click();
+    const menu = page.locator('.menu');
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    const inside = await page.evaluate(() =>
+      !!document.activeElement?.closest('.menu__item'),
+    );
+    expect(inside).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+  });
+
+  test('clicking an unresolved wiki link offers to create the note', async ({ page }) => {
+    await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const doc = api.store.activeDoc;
+      const text = '# Ссылки\n\nПродолжение в [[Новая заметка]].\n';
+      api.editor.applyText(text);
+      await api.store.updateContent(doc.path, text);
+    });
+    await page.locator('.wikilink--missing').click();
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Создать заметку?');
+    await dialog.getByRole('button', { name: 'Создать' }).click();
+    await expect(page.locator('.tab').last()).toContainText('Новая заметка');
+    const exists = await page.evaluate(() =>
+      window.__kocpad.store.storage.exists('Новая заметка.md'),
+    );
+    expect(exists).toBe(true);
+  });
+
+  test('renaming a note updates wiki links in other notes', async ({ page }) => {
+    await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const doc = api.store.activeDoc;
+      const text = '# Ссылки\n\nСм. [[Шпаргалка по markdown]].\n';
+      api.editor.applyText(text);
+      await api.store.updateContent(doc.path, text);
+      await api.store.saveAll();
+    });
+    const renamed = await page.evaluate(async () => {
+      const api = window.__kocpad;
+      const node = api.store.flatFiles().find((file: { name: string }) => file.name === 'Шпаргалка по markdown.md');
+      if (!node) return false;
+      return await api.store.renameEntry(node, 'Шпаргалка новая');
+    });
+    expect(renamed).toBe(true);
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('[[Шпаргалка новая]]');
+    await expect
+      .poll(async () =>
+        page.evaluate(async () => {
+          const api = window.__kocpad;
+          const doc = api.store.activeDoc;
+          if (!doc) return '';
+          return api.encoding.decodeText(await api.store.storage.readBinary(doc.path)).text;
+        }),
+      )
+      .not.toContain('[[Шпаргалка по markdown]]');
+  });
+  test('the assistant highlights a broken heading and fixes it on click', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad;
+      api.editor.applyText('# Тест\n\n##Hello world\n');
+    });
+    const marks = page.locator('.cm-lint-suggestion');
+    await expect(marks).toHaveCount(1);
+    await marks.first().click();
+
+    const popover = page.locator('.lint-popover');
+    await expect(popover).toContainText('После «#» нужен пробел');
+    await expect(popover).toContainText('## Hello');
+    await popover.getByRole('button', { name: 'Исправить' }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('## Hello world');
+    await expect(marks).toHaveCount(0);
+  });
+
+  test('a suggestion can be ignored or turned off for good', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('##Hello world\n');
+    });
+    await page.locator('.cm-lint-suggestion').first().click();
+    await page.locator('.lint-popover').getByRole('button', { name: 'Игнорировать' }).click();
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    await expect.poll(async () => page.evaluate(() => window.__kocpad.editor.text)).toBe('##Hello world\n');
+
+    // A fresh document reports it again, now permanently disabled.
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('\n##Hello again\n');
+    });
+    await page.locator('.cm-lint-suggestion').first().click();
+    await page.locator('.lint-popover').getByRole('button', { name: 'Больше не предлагать' }).click();
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    const disabled = await page.evaluate(() => window.__kocpad.store.settings.disabledLintRules);
+    expect(disabled).toContain('heading-space');
+  });
+
+  test('turning the assistant off removes every mark', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('##Hello\n\n-пункт\n');
+    });
+    await expect(page.locator('.cm-lint-suggestion').first()).toBeVisible();
+    await page.evaluate(() => window.__kocpad.store.patchSettings({ assistant: false }));
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    await page.evaluate(() => window.__kocpad.store.patchSettings({ assistant: true }));
+    await expect(page.locator('.cm-lint-suggestion').first()).toBeVisible();
+  });
+
+  test('rules skip fenced code and can be inspected directly', async ({ page }) => {
+    const diagnostics = await page.evaluate(() => {
+      const lint = window.__kocpad.lint;
+      return {
+        broken: lint.diagnostics('##Hello').map((item: { rule: string }) => item.rule),
+        insideFence: lint.diagnostics('```\n##Hello\n```').map((item: { rule: string }) => item.rule),
+      };
+    });
+    expect(diagnostics.broken).toContain('heading-space');
+    expect(diagnostics.insideFence).not.toContain('heading-space');
+  });
+
+  test('the learning panel counts accepted suggestions and can be reset', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.editor.applyText('##Hello world\n'));
+    await page.locator('.cm-lint-suggestion').first().click();
+    await page.locator('.lint-popover').getByRole('button', { name: 'Исправить' }).click();
+
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const panel = page.locator('.assistant');
+    await expect(panel).toContainText('Пробел после #');
+    await expect(panel).toContainText('1 / 0');
+
+    await page.locator('.settings').getByRole('button', { name: 'Сбросить обучение' }).click();
+    await expect(panel).toContainText('Пока нет данных');
+  });
+
+  test('the learning panel shows formatting habits from the note', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText(
+        '# План\n\n[раз](https://a.ru) [два](https://b.ru) [три](https://c.ru)\n\n- один\n- два\n- три\n',
+      );
+    });
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const panel = page.locator('.assistant');
+    await expect(panel).toContainText('Ссылки: [текст](url)');
+    await expect(panel).toContainText('Списки: -');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
@@ -208,7 +578,7 @@ test.describe('editor surfaces', () => {
 
     await page.locator('#block-type').click();
     await expect(page.locator('.menu')).toBeVisible();
-    await page.locator('.menu .menu__tile', { hasText: 'Список' }).click();
+    await page.locator('.menu .menu__item', { hasText: 'Список' }).click();
 
     await expect(page.locator('#block-type-label')).toHaveText('Список');
     await expect
@@ -357,6 +727,24 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('.settings')).toHaveCount(0);
   });
 
+  test('selection keeps the theme accent colour', async ({ page }) => {
+    await page.evaluate(() => {
+      const view = window.__kocpad.editor.view;
+      view.dispatch({ selection: { anchor: 0, head: 5 } });
+      // Opening a menu blurs the editor, which is when CodeMirror falls back to
+      // its own base theme unless our rule outranks it.
+      document.querySelector('.cm-content')?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }),
+      );
+    });
+    await expect(page.locator('.menu')).toBeVisible();
+    const colour = await page.evaluate(() => {
+      const layer = document.querySelector('.cm-selectionBackground');
+      return layer ? getComputedStyle(layer).backgroundColor : 'missing';
+    });
+    expect(colour).toBe('rgba(217, 166, 46, 0.3)');
+  });
+
   test('a single newline becomes a line break in the preview', async ({ page }) => {
     await page.evaluate(() => {
       window.__kocpad.editor.applyText('первая строка\nвторая строка');
@@ -399,5 +787,48 @@ test.describe('drafts without a folder', () => {
     await page.waitForSelector('.cm-content');
     await expect(page.locator('#preview')).toContainText('черновик без папки');
     await expect(page.locator('#status-saved')).toContainText('Черновик');
+  });
+
+  test('drafts panel lists stored drafts and keeps them after closing the tab', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+
+    await page.locator('.dialog').getByRole('button', { name: 'Начать с черновика' }).click();
+    await page.locator('.cm-content').click();
+    await page.keyboard.type('заметка в черновике');
+    await expect(page.locator('#drafts-badge')).toBeVisible();
+
+    // Closing the tab must keep the draft in the list, not delete it.
+    await page.keyboard.press('Control+w');
+    await expect(page.locator('.tab')).toHaveCount(0);
+
+    await page.locator('#btn-drafts').click();
+    const panel = page.locator('.drafts');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('Новая заметка');
+
+    await panel.getByRole('button', { name: 'Открыть' }).click();
+    await expect(page.locator('.tab')).toHaveCount(1);
+    await expect(page.locator('#preview')).toContainText('заметка в черновике');
+  });
+
+  test('drafts panel creates a draft and deletes it in two steps', async ({ page }) => {
+    await page.goto('/?demo=1');
+    await page.waitForSelector('.cm-content');
+
+    await page.locator('#btn-drafts').click();
+    const panel = page.locator('.drafts');
+    await panel.getByRole('button', { name: 'Новый черновик' }).click();
+
+    // Even with a folder connected, "Новый черновик" must create a draft, not a file.
+    await expect(page.locator('#status-saved')).toContainText('Черновик');
+
+    await page.locator('#btn-drafts').click();
+    await page.locator('.drafts').getByRole('button', { name: 'Удалить черновик' }).click();
+    const confirmButton = page.locator('.drafts').getByRole('button', { name: 'Подтвердить удаление' });
+    await expect(confirmButton).toBeVisible();
+    await confirmButton.click();
+    await expect(page.locator('.drafts')).toContainText('Черновиков пока нет');
   });
 });

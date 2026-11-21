@@ -1,5 +1,8 @@
 # Roadmap
 
+Version numbering and the maturity bar are described separately in
+[VERSIONING.md](VERSIONING.md): the version is not a stability promise yet.
+
 ## 0.1.0 — first working notepad (done)
 
 - [x] Folder of `.md` files as the workspace, tree sidebar
@@ -132,25 +135,57 @@
 - [x] All modals dismiss on a backdrop click
 - [x] Notepad-style line breaks by default, markdown-style as a setting
 - [x] Faint line numbers on by default
-- [x] Compact context menu: icon toolbar plus a block tile grid
+- [x] Compact context menu: icon toolbar plus a block tile grid *(reverted in 1.4.1:
+  icons turned out to be unreadable, the menu is text again)*
 - [x] Softer visual language: radii, shadows, cards in settings, accent checkboxes
 - [x] 5 more e2e tests (27 total)
 
-## After 1.0 (backlog)
+## 1.4.1 — notepad exit, drafts, correctness (beta)
 
-- [ ] Two notes side by side
-- [ ] Optional workspace encryption
-- [ ] Mobile build (Tauri 2 targets) — the storage seam already allows it
-- [ ] Sync server or cloud accounts are explicitly out of scope
+- [x] Closing the window keeps drafts and restores tabs on the next launch
+- [x] Drafts live in their own list: a sidebar button with a counter opens the panel
+- [x] Draft tab can be closed without losing the draft; search/tags/links see all drafts
+- [x] Context menus back to clear text labels in a compact two-column layout
+- [x] Selection colour follows the theme even when the editor is unfocused
+- [x] `beta` branch + CI builds it; `docs/BETA.md` describes the workflow
+- [x] Audit pass: images in the packaged build (CSP), draft save failures, stale
+  editor cache, front-matter horizontal rule, delete-many data loss, shell-free
+  external links, unique atomic temp files, status-bar debounce
+- [x] CI gates: versions/tag must agree, release notes from `CHANGELOG.md`,
+  pre-releases for `-beta` tags, re-signing after Authenticode, no silent releases
+  without updater metadata
+- [x] 31 e2e tests
+
+## After 1.4.1 — correctness wave (next)
+
+Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
+
+- [x] External-edit detection: mtime/hash check before overwrite, conflict dialog
+- [x] Crash recovery journal for dirty buffers
+- [x] Encodings: cp1251/UTF-16 detection, BOM handling, keep CRLF on save
+- [x] Delete to the recycle bin or an app `.trash` (internal KOCPAD trash, 30 days)
+- [x] FS sandbox, async file commands, single-instance guard, committed Cargo.lock,
+      hardened CSP (wave 2, `1.5.0-beta.2`)
+- [x] Export: embed `assets/` images and render `[[links]]` (wave 3,
+      `1.5.0-beta.3`)
+- [x] Keyboard/a11y: `Del` in the tree, focus traps, contrast (wave 3)
+- [x] Menu arrow-key navigation (wave 4, `1.5.0-beta.4`)
+- [x] Wiki links: create a note from a missing link, rename rewrites `[[links]]`
+- [x] Workspace search: request-id guard against stale results
+- [x] Native smoke: CI launches the built `.exe` and checks the window (wave 3)
+- [ ] Full native e2e against the packaged app (tauri-driver/WebDriver).
+      Prepared in `tests/native/smoke.mjs` and the manual `native-e2e` job, but
+      GitHub-hosted Windows runners are elevated and WebView2 ignores remote
+      debugging there (tauri-apps/wry#1782); needs a non-elevated/self-hosted
+      runner. The enforced native check today is the smoke launch in CI.
+- [ ] Simplify duplicated formatting entry points (decision pending)
+- [ ] `spawn_blocking` for slow disks; stricter `script-src` after a packaged-build check
 
 ## Later / ideas
 
-- [ ] Quick capture window on a global hotkey
-- [ ] Optional front-matter rendering (title, date, tags)
 - [ ] Per-document export themes and a PDF stylesheet setting
+- [ ] Export: embed `assets/` images and render `[[links]]`
 - [ ] Split view of two notes side by side
-- [ ] Optional encryption of the workspace (age / gpg)
-- [ ] Mobile build (Tauri 2 targets) — the storage seam already allows it
 
 ## Explicitly out of scope
 

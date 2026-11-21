@@ -1,7 +1,7 @@
 import type { NoteNode } from '../types';
 import { basename, isTextFile } from '../path';
 import { downloadText } from '../util';
-import type { Storage } from './types';
+import type { FileStat, Storage } from './types';
 import { getDirectoryPicker, type FsaDirectoryHandle, type FsaFileHandle } from './fsa';
 
 const DB_NAME = 'kocpad';
@@ -155,6 +155,16 @@ export class BrowserStorage implements Storage {
   private async fileHandle(path: string, create = false): Promise<FsaFileHandle> {
     const parent = await this.parentDir(path, create);
     return parent.getFileHandle(basename(path), { create });
+  }
+
+  async stat(path: string): Promise<FileStat | null> {
+    try {
+      const handle = await this.fileHandle(path);
+      const file = await handle.getFile();
+      return { mtimeMs: file.lastModified, size: file.size };
+    } catch {
+      return null;
+    }
   }
 
   async readText(path: string): Promise<string> {

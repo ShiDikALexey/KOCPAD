@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { NoteNode } from '../types';
 import { base64ToBytes, bytesToBase64 } from '../util';
-import type { Storage } from './types';
+import type { FileStat, Storage } from './types';
 
 /** Shape returned by the Rust `fs_list_tree` command. */
 interface RawNode {
@@ -51,17 +51,23 @@ export class TauriStorage implements Storage {
       title: 'Выберите папку с заметками',
     });
     if (typeof picked !== 'string') return false;
+    try {
+      await invoke('fs_set_root', { root: picked });
+    } catch {
+      return false;
+    }
     this.currentRoot = picked;
     return true;
   }
 
   async mountRoot(path: string): Promise<boolean> {
-    const isDirectory = await invoke<boolean>('fs_exists', { path }).catch(() => false);
-    if (!isDirectory) return false;
-    // Listing throws when the path is a file rather than a folder.
+    // The Rust commands only accept paths below the mounted root, so the root
+    // must be set before anything is listed or read.
     try {
+      await invoke('fs_set_root', { root: path });
       await invoke('fs_list_tree', { path });
     } catch {
+      await invoke('fs_set_root', { root: null }).catch(() => undefined);
       return false;
     }
     this.currentRoot = path;
@@ -72,8 +78,9 @@ export class TauriStorage implements Storage {
   async restoreRoot(): Promise<boolean> {
     const remembered = localStorage.getItem('kocpad.root');
     if (!remembered) return false;
-    const exists = await invoke<boolean>('fs_exists', { path: remembered }).catch(() => false);
-    if (!exists) {
+    try {
+      await invoke('fs_set_root', { root: remembered });
+    } catch {
       localStorage.removeItem('kocpad.root');
       return false;
     }
@@ -84,6 +91,7 @@ export class TauriStorage implements Storage {
   async closeRoot(): Promise<void> {
     this.currentRoot = null;
     localStorage.removeItem('kocpad.root');
+    await invoke('fs_set_root', { root: null }).catch(() => undefined);
   }
 
   async listTree(): Promise<NoteNode[]> {
@@ -130,6 +138,10 @@ export class TauriStorage implements Storage {
     return invoke<boolean>('fs_exists', { path }).catch(() => false);
   }
 
+  async stat(path: string): Promise<FileStat | null> {
+    return invoke<FileStat | null>('fs_stat', { path }).catch(() => null);
+  }
+
   async saveAs(defaultName: string, content: string, _mime = 'text/plain;charset=utf-8'): Promise<string | null> {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const ext = defaultName.split('.').pop() ?? 'txt';
@@ -139,7 +151,8 @@ export class TauriStorage implements Storage {
       filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
     });
     if (!target) return null;
-    await this.writeText(target, content);
+    // The chosen export path can be anywhere, so it bypasses the workspace scope.
+    await invoke('fs_save_text', { path: target, contents: content });
     return target;
   }
 

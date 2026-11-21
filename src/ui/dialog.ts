@@ -16,7 +16,9 @@ interface ModalHandle {
 /** Opens a modal overlay and lets the caller render its content. */
 export function openModal(build: (close: () => void) => HTMLElement, onEscape?: () => void): ModalHandle {
   const root = overlayRoot();
+  const previousFocus = document.activeElement as HTMLElement | null;
   let closed = false;
+  let content: HTMLElement;
   const close = (): void => {
     if (closed) return;
     closed = true;
@@ -24,6 +26,8 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
     root.removeEventListener('mousedown', onBackdrop);
     root.classList.remove('overlay--visible');
     clear(root);
+    // Return focus where it was before the modal opened.
+    if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
   };
   /** A click on the dimmed area outside the panel dismisses the modal. */
   const onBackdrop = (event: MouseEvent): void => {
@@ -31,20 +35,47 @@ export function openModal(build: (close: () => void) => HTMLElement, onEscape?: 
     onEscape?.();
     close();
   };
+  const focusable = (): HTMLElement[] =>
+    [...content.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => element.offsetParent !== null);
   const onKey = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       onEscape?.();
       close();
+      return;
+    }
+    // Keep Tab inside the dialog: a modal must not let the caret escape behind it.
+    if (event.key === 'Tab') {
+      const items = focusable();
+      const active = document.activeElement as HTMLElement | null;
+      if (!items.length) {
+        event.preventDefault();
+        content.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const outside = !active || !content.contains(active);
+      if (event.shiftKey && (active === first || outside)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || outside)) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   };
   document.addEventListener('keydown', onKey, true);
   root.addEventListener('mousedown', onBackdrop);
   root.classList.add('overlay--visible');
   clear(root);
-  const content = build(close);
+  content = build(close);
+  content.tabIndex = -1;
   root.appendChild(content);
+  window.setTimeout(() => content.focus(), 0);
   return { close, root: content };
 }
 
@@ -251,16 +282,12 @@ export function choiceDialog(options: ChoiceOptions): Promise<string | null> {
 
 export interface MenuItem {
   label?: string;
-  /** Short label for compact grid tiles. */
-  tileLabel?: string;
   hint?: string;
-  /** Short symbol in the left column (clipboard/format/block marks). */
-  glyph?: string;
   danger?: boolean;
   /** Renders a thin line instead of an item. */
   separator?: boolean;
-  /** Compact rendering: a row of icon buttons or a grid of tiles. */
-  group?: 'toolbar' | 'grid';
+  /** Items in this group are laid out in two columns to keep the menu short. */
+  group?: 'columns';
   onClick?: () => void;
 }
 
@@ -295,55 +322,26 @@ export function showMenu(
 
   const children: HTMLElement[] = [];
   let bucket: HTMLElement | null = null;
-  let bucketKind: string | null = null;
 
   const flush = (): void => {
     bucket = null;
-    bucketKind = null;
   };
 
-  const renderItem = (item: MenuItem, kind?: 'toolbar' | 'grid'): HTMLElement => {
-    const className =
-      kind === 'toolbar' ? 'menu__tool' : kind === 'grid' ? 'menu__tile' : 'menu__item';
+  const renderItem = (item: MenuItem): HTMLElement => {
     const title = [item.label, item.hint].filter(Boolean).join(' · ');
-    const onActivate = (): void => {
-      close();
-      item.onClick?.();
-    };
-    const glyph = h('span', {
-      class: kind === 'toolbar' ? 'menu__tool-glyph' : kind === 'grid' ? 'menu__tile-glyph' : 'menu__glyph',
-      'aria-hidden': 'true',
-    }, item.glyph ?? '');
-
-    if (kind === 'toolbar') {
-      return h('button', {
-        class: className,
+    return h(
+      'button',
+      {
+        class: `menu__item${item.danger ? ' menu__item--danger' : ''}`,
         type: 'button',
         role: 'menuitem',
         title,
         'aria-label': item.label ?? '',
-        onclick: onActivate,
-      }, glyph);
-    }
-    if (kind === 'grid') {
-      return h('button', {
-        class: className,
-        type: 'button',
-        role: 'menuitem',
-        title,
-        'aria-label': item.label ?? '',
-        onclick: onActivate,
-      }, glyph, h('span', { class: 'menu__tile-label' }, item.tileLabel ?? item.label ?? ''));
-    }
-    return h('button', {
-      class: `${className}${item.danger ? ' menu__item--danger' : ''}`,
-      type: 'button',
-      role: 'menuitem',
-      title,
-      'aria-label': item.label ?? '',
-      onclick: onActivate,
-    },
-      glyph,
+        onclick: () => {
+          close();
+          item.onClick?.();
+        },
+      },
       h('span', { class: 'menu__label' }, item.label ?? ''),
       item.hint ? h('span', { class: 'menu__hint' }, item.hint) : null,
     );
@@ -355,13 +353,12 @@ export function showMenu(
       children.push(h('div', { class: 'menu__sep', role: 'separator' }));
       continue;
     }
-    if (item.group) {
-      if (!bucket || bucketKind !== item.group) {
-        bucket = h('div', { class: `menu__group menu__group--${item.group}`, role: 'group' });
-        bucketKind = item.group;
+    if (item.group === 'columns') {
+      if (!bucket) {
+        bucket = h('div', { class: 'menu__group menu__group--columns', role: 'group' });
         children.push(bucket);
       }
-      bucket.appendChild(renderItem(item, item.group));
+      bucket.appendChild(renderItem(item));
       continue;
     }
     flush();
@@ -383,6 +380,41 @@ export function showMenu(
   }
 
   activeMenu = { key: options.key, close };
+
+  // Keyboard: arrows move between items, Home/End jump, Enter activates, Esc closes.
+  const menuItems = (): HTMLElement[] =>
+    [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+  menu.addEventListener('keydown', (event) => {
+    const list = menuItems();
+    if (!list.length) return;
+    const active = document.activeElement as HTMLElement | null;
+    const index = active ? list.indexOf(active) : -1;
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        list[(index + 1 + list.length) % list.length]?.focus();
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        list[(index - 1 + list.length) % list.length]?.focus();
+        break;
+      case 'Home':
+        event.preventDefault();
+        list[0]?.focus();
+        break;
+      case 'End':
+        event.preventDefault();
+        list[list.length - 1]?.focus();
+        break;
+      case 'Escape':
+        event.preventDefault();
+        close();
+        break;
+      default:
+        break;
+    }
+  });
+  window.setTimeout(() => menuItems()[0]?.focus(), 0);
 
   const rect = menu.getBoundingClientRect();
   const x = Math.min(anchor.x, window.innerWidth - rect.width - 8);

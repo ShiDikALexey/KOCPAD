@@ -46,10 +46,3 @@ export function isInside(path: string, parent: string): boolean {
   if (!root) return false;
   return p === root || p.startsWith(root + '/');
 }
-
-export function replaceExtension(path: string, ext: string): string {
-  const name = basename(path);
-  const dot = name.lastIndexOf('.');
-  const stem = dot <= 0 ? name : name.slice(0, dot);
-  return joinPath(dirname(path), stem + ext);
-}

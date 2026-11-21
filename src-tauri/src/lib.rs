@@ -1,8 +1,10 @@
 mod fs_ops;
+mod recovery;
+mod trash;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
-use tauri_plugin_global_shortcut::ShortcutState;
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 /// Set once the webview is alive and has registered its close handler.
 /// Before that the window closes normally instead of being held open.
@@ -25,14 +27,24 @@ fn kocpad_close_window(app: tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(fs_ops::WorkspaceRoot::default())
+        // Must be the first plugin: a second launch focuses the running window
+        // instead of opening another copy that would write the same files.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         // Restores the window size and position from the previous run.
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         // Quick capture: Ctrl+Alt+N works even when KOCPAD is in the background.
+        // The shortcut itself is registered in `setup` below, so a conflict with
+        // another application logs a warning instead of aborting startup.
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut("CommandOrControl+Alt+N")
-                .expect("valid quick-capture shortcut")
                 .with_handler(|app, _shortcut, event| {
                     if event.state() != ShortcutState::Pressed {
                         return;
@@ -47,6 +59,14 @@ pub fn run() {
                 })
                 .build(),
         )
+        .setup(|app| {
+            let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyN);
+            if let Err(error) = app.handle().global_shortcut().register(shortcut) {
+                // A hotkey owned by another app must not stop KOCPAD from starting.
+                eprintln!("quick-capture hotkey unavailable: {error}");
+            }
+            Ok(())
+        })
         // In-app updates: checks the release JSON and installs signed updates.
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -61,6 +81,19 @@ pub fn run() {
             fs_ops::fs_exists,
             fs_ops::open_external,
             fs_ops::reveal_in_explorer,
+            fs_ops::fs_stat,
+            fs_ops::fs_set_root,
+            fs_ops::fs_save_text,
+            recovery::recovery_write,
+            recovery::recovery_list,
+            recovery::recovery_remove,
+            recovery::recovery_clear,
+            trash::trash_put,
+            trash::trash_list,
+            trash::trash_restore,
+            trash::trash_delete,
+            trash::trash_purge,
+            trash::trash_empty,
             kocpad_ready,
             kocpad_close_window,
         ])

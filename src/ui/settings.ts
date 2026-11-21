@@ -4,6 +4,7 @@ import type { Store } from '../store';
 import { h } from '../util';
 import { openModal } from './dialog';
 import { icon } from './icons';
+import { detectHabits, resetLearning, ruleStats } from '../lint/learning';
 
 const ACCENTS: { id: AccentName; label: string; color: string }[] = [
   { id: 'marker', label: 'Маркер', color: '#d9a62e' },
@@ -196,6 +197,82 @@ export function openSettings(store: Store): void {
     'Сбросить всё',
   );
 
+  // Assistant: toggle + learning statistics + habits found in the active note.
+  const assistantBody = h('div', { class: 'assistant' });
+  const renderAssistant = (): void => {
+    const stats = ruleStats();
+    const habits = detectHabits(store.activeDoc?.content ?? '');
+    const children: HTMLElement[] = [];
+    if (!stats.length) {
+      children.push(
+        h(
+          'p',
+          { class: 'assistant__empty' },
+          'Пока нет данных. Исправьте или отклоните несколько подсказок — здесь появится статистика.',
+        ),
+      );
+    } else {
+      const rows = h('div', { class: 'assistant__stats' });
+      for (const stat of stats.slice(0, 8)) {
+        const percent = Math.round(stat.confidence * 100);
+        rows.appendChild(
+          h(
+            'div',
+            { class: 'assistant__row' },
+            h('span', { class: 'assistant__label' }, stat.label),
+            h(
+              'span',
+              { class: 'assistant__bar', title: `Уверенность ${percent}%` },
+              h('span', { class: 'assistant__bar-fill', style: `width: ${percent}%` }),
+            ),
+            h('span', { class: 'assistant__counts' }, `${stat.applied} / ${stat.ignored}`),
+          ),
+        );
+      }
+      children.push(rows);
+      children.push(
+        h('p', { class: 'assistant__hint' }, 'Слева — сколько раз исправили, справа — сколько отклонили.'),
+      );
+    }
+    if (habits.length) {
+      children.push(h('p', { class: 'assistant__subtitle' }, 'Из ваших заметок'));
+      const habitList = h('div', { class: 'assistant__habits' });
+      for (const habit of habits) {
+        habitList.appendChild(
+          h('div', { class: 'assistant__habit' }, `${habit.label}: ${habit.value} · ${habit.count}`),
+        );
+      }
+      children.push(habitList);
+    }
+    assistantBody.replaceChildren(...children);
+  };
+  renderAssistant();
+
+  const assistantReset = h(
+    'button',
+    {
+      class: 'btn btn--sm',
+      type: 'button',
+      onclick: () => {
+        resetLearning();
+        renderAssistant();
+        store.setStatus('Обучение помощника сброшено');
+      },
+    },
+    'Сбросить обучение',
+  );
+
+  const assistantSection = section(
+    'Помощник',
+    row(
+      'Подсказки по разметке',
+      toggle('Показывать', settings.assistant, (assistant) => patch({ assistant })),
+      'Заметные ошибки Markdown подсвечиваются фоном; клик — объяснение и исправление',
+    ),
+    assistantBody,
+    h('div', { class: 'settings__row settings__row--actions' }, assistantReset),
+  );
+
   openModal(
     (closeModal) => {
       close = closeModal;
@@ -284,6 +361,7 @@ export function openSettings(store: Store): void {
               'Задержка после последнего нажатия',
             ),
           ),
+          assistantSection,
           section(
             'Экспорт',
             row(

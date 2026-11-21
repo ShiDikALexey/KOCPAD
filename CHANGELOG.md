@@ -4,6 +4,211 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+> **On version numbers.** 0.x–1.x releases were daily checkpoints: 14 releases in
+> three days, and `1.0.0` was called "stable" too early. See
+> [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
+> the rules used from now on. The history below is left as written.
+
+## [1.5.0-beta.4] — 2026-11-21 (keyboard, links, search)
+
+### Added
+
+- **Menu keyboard navigation.** Arrow keys move between menu items, Home/End jump to
+  the first/last one, Enter activates, Escape closes; the first item receives focus
+  when a menu opens.
+- **Unresolved `[[links]]` can be created.** Clicking a missing wiki link offers
+  «Создать заметку?» and creates a note in the current folder (or opens the target
+  if it already exists).
+- **Renaming a note updates its `[[links]]`.** Every file and draft that references
+  the old title is rewritten through the normal save pipeline, so encoding and line
+  endings survive; labels (`[[Old|label]]`) and folder prefixes (`[[dir/Old]]`) are
+  preserved.
+
+### Fixed
+
+- **Workspace search race.** A slower earlier query can no longer overwrite the
+  results of a newer one (request-id guard).
+
+### Tests
+
+- 3 new e2e scenarios (46 total): menu arrow navigation, creating a note from a
+  missing wiki link, renaming a note updates links in other notes.
+
+## [1.5.0-beta.3] — 2026-11-21 (export, keyboard, native smoke)
+
+Wave 3: the export became self-contained, the tree and dialogs got keyboard
+attention, and CI now starts the real Windows binary. Plan: [docs/WAVE-3.md](docs/WAVE-3.md).
+
+### Changed
+
+- **HTML export embeds images.** Relative images from `assets/` are inlined as data
+  URLs (a missing file becomes alt text), `[[links]]` are rendered as link-styled
+  spans with a tooltip, and the absolute file path is no longer printed under the
+  title. Print/PDF uses the same inlined document, so images appear there too.
+- **Delete in the tree.** `Delete` removes the selected notes (with confirmation)
+  and is ignored while the caret is in the editor or a text field.
+- **Modal focus handling.** Tab is trapped inside an open dialog, the dialog gets
+  focus when it opens, and the previous element is focused again after closing.
+- **Contrast.** `--ink-faint` is darker in both themes; the "unsaved" status uses the
+  accessible amber instead of the light accent colour.
+
+### Added
+
+- **Native smoke test in CI.** The Windows job launches the freshly built
+  `kocpad.exe`, verifies that the process stays alive and opens a window, then
+  stops it — the first automated check of the packaged app.
+
+### Tests
+
+- 3 new e2e scenarios (43 total): export embeds images and renders wiki links;
+  Delete removes a selected note; a modal keeps keyboard focus inside itself.
+
+## [1.5.0-beta.2] — 2026-11-21 (boundaries and reproducibility)
+
+Wave 2: the native file layer is scoped to the workspace, fs commands no longer run
+on the UI thread, and Rust dependencies are pinned. Plan: [docs/WAVE-2.md](docs/WAVE-2.md).
+
+### Security
+
+- **File-system sandbox.** `WorkspaceRoot` state + `fs_set_root`; every native file
+  command rejects `..`, paths outside the canonical workspace root, symlinks and the
+  root itself. Binary reads are capped at 25 MB. The export/«Save as» path uses a
+  separate `fs_save_text` command because it comes from the native save dialog, not
+  from a note.
+- **CSP hardening:** `object-src`, `frame-src`, `base-uri` and `form-action` are now
+  `'none'` in both the production and development policies.
+
+### Changed
+
+- **File commands run asynchronously**, so Tauri executes them off the UI thread; a
+  large folder or a slow disk no longer freezes the window.
+- **Single instance:** `tauri-plugin-single-instance` (registered first) shows and
+  focuses the existing window instead of starting a second copy that would race on
+  the same files.
+
+### Build
+
+- `src-tauri/Cargo.lock` is committed; CI regenerates it, uploads it as an artifact
+  and fails when `Cargo.toml` changes without a matching lockfile. The version bump
+  script updates the lockfile's package version too.
+
+## [1.5.0-beta.1] — 2026-11-21 (data-safety wave)
+
+Wave 1 of the "never loses a note" plan. Plan and acceptance criteria:
+[docs/WAVE-1.md](docs/WAVE-1.md).
+
+### Added
+
+- **External-edit detection.** Every open file remembers the `{mtime, size}` stamp
+  it was read from; `Storage.stat()` is implemented by all three backends (Tauri
+  `fs_stat`, File System Access, demo). Before a write the stamp is compared: a file
+  changed by another program aborts the write and asks what to do —
+  **перечитать с диска / оставить моё / сохранить копию**. Window focus and
+  `visibilitychange` trigger a cheap re-check; a clean note is reloaded silently,
+  `F5` re-reads the active note, and autosave never repeats the same dialog.
+- **Crash-recovery journal.** While a document has unsaved edits, a snapshot is
+  written to the app profile every ~0.5 s (Rust `recovery_*` commands on the native
+  build, localStorage in the browser fallback). After a kill or a power cut the next
+  start offers «Восстановить / Открыть файл с диска / Удалить снапшот». A normal
+  save or tab close removes the snapshot.
+- **Encodings and line endings are preserved.** Files are read through the byte
+  level: UTF-8 (with or without BOM), UTF-16LE/BE with a BOM, BOM-less UTF-16
+  heuristics and cp1251 (old Russian Notepad). The detected encoding and EOL are
+  shown in the status bar, «Кодировка: открыть как…» in the palette overrides a
+  wrong guess, and saving writes the file back in its original encoding, BOM and
+  line endings instead of silently converting it.
+- **Internal trash with 30-day retention.** Deleting a note (or a bulk selection)
+  moves it into `%APPDATA%\app.kocpad.desktop\trash\<id>\` with its original path;
+  «⋯» → «Корзина…» or the palette lists the entries with the days left, restores
+  them (to a free name if the original is occupied) or deletes them permanently.
+  Expired entries (older than 30 days) and anything beyond 200 items are purged on
+  startup. The browser/demo fallback keeps the content in localStorage.
+
+### Tests
+
+- 6 new e2e scenarios (40 total): conflict dialog, silent reload of a clean note,
+  "keep mine", restore-from-crash, journal cleanup on save, cp1251+CRLF round trip,
+  UTF-16LE with BOM, trash restore and 30-day purge.
+
+## [1.4.1] — 2026-11-21 (beta branch)
+
+Notepad-style exit, a real drafts list, and two interface fixes from the review.
+
+### Added
+
+- **Drafts panel.** The sidebar header has a button with a count badge; it opens a
+  list of every stored draft — open in a tab or not. From the list a draft can be
+  opened, saved into the workspace folder, or deleted (with confirmation).
+- **Drafts are stored independently of tabs.** Closing a draft tab no longer deletes
+  it; the note stays in the list. Search, tags, links and backlinks now include
+  drafts that are not open.
+- **Session restore covers drafts.** On launch the saved tab order comes back,
+  including draft tabs; if there are no saved tabs, the most recent draft opens.
+
+### Changed
+
+- **Closing the window asks nothing.** File notes are already written by autosave,
+  drafts stay in local storage, and the tabs return on the next launch. The exit
+  dialog is gone; only a failed write asks for confirmation.
+- Context menus are text again: the glyph/tile experiment is replaced by a compact
+  two-column layout with clear labels («Жирный», «Заголовок 1», …) — one click, no
+  guessing.
+- Text selection uses the accent-tinted colour from the theme in every state,
+  including when the editor is unfocused (it used to fall back to the system
+  lavender).
+- `docs/BETA.md` documents the `beta` branch workflow; CI builds it too.
+
+### Fixed (found by the 2026-11-21 audit pass)
+
+- **Images were broken in packaged builds.** The production CSP lacked `blob:`, so
+  every pasted or relative image was blocked by the webview while dev/e2e looked
+  fine. `img-src` now allows `blob:` and `https:`.
+- **A failed draft save could look successful.** A full localStorage used to mark
+  the draft clean anyway, so closing silently lost the text. The document now stays
+  dirty and reports the error; closing asks before dropping unsaved text.
+- **Switching folders could drop unsaved files.** `saveAll()` now reports failures
+  and the folder switch aborts instead of replacing open documents.
+- **A reopened note could show stale text.** The editor cache is content-aware and
+  forgets the buffer when a tab is closed, renamed or deleted.
+- **A note starting with `---` lost its body in the preview.** Only a block where
+  every line is `key: value` is treated as front matter; a horizontal rule is not.
+- **Deleting several notes could close tabs of notes that failed to delete**, losing
+  their unsaved buffers.
+- **Opening an external link no longer goes through `cmd.exe`** (a shell-quoting
+  injection surface); the `open` crate uses `ShellExecuteW`, and only http(s)/mailto
+  are allowed.
+- **The quick-capture hotkey can no longer block startup**: a conflict with another
+  app logs a warning instead of panicking.
+- **Atomic writes use a unique temp file per write** (two notes with the same stem
+  could collide), flush with `sync_all()`, and clean up after a failure.
+- **Status bar no longer runs full-document word counts on every keystroke**; stats
+  are debounced with the rest of the typing updates.
+- **A second error toast** no longer appears for the same failure.
+- Removed dead code left over from the old close flow and the previous drafts model
+  (`saveAllDraftsAsFiles`, `hasDrafts`, `cachedNotes`, `clearStoredDrafts`,
+  `wrapSelection`, `replaceExtension`, `EditorExtension`).
+
+### CI and release gates
+
+- Tag, `package.json`, `package-lock.json`, `Cargo.toml` and `tauri.conf.json` must
+  agree (`scripts/check-versions.cjs`); a `-beta` tag requires a `-beta` version.
+- Release notes now come from the `CHANGELOG.md` section for the tag
+  (`scripts/changelog-notes.cjs`); a release without a section fails.
+- Tags with a suffix are published as pre-releases, so `/releases/latest` (and the
+  updater) keeps pointing at the last plain release.
+- Signing secrets are scoped to the steps that need them; Authenticode signing now
+  re-signs the installer afterwards, so the updater signature stays valid.
+- `if-no-files-found: error` for installers, job timeouts, and a release check that
+  refuses to publish updater metadata without a `.sig` when the key exists.
+
+### Tests
+
+- Four more e2e scenarios (31 total): the drafts panel lists stored drafts and keeps
+  a draft after closing its tab; "Новый черновик" always creates a draft even with a
+  folder open; the two-step delete works; a leading horizontal rule is not eaten as
+  front matter; and the selection colour stays on the theme accent when the editor
+  loses focus.
+
 ## [1.4.0] — 2026-11-20
 
 Interface pass from a hands-on review: six defects fixed and the UI made less boxy.
