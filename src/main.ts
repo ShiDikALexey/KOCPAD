@@ -1,6 +1,7 @@
 import './style.css';
 
 import { Store } from './store';
+import { journal } from './journal';
 import { createStorage } from './storage';
 import { MarkdownEditor, BLOCK_LABELS, BLOCK_TYPES, type BlockType } from './editor';
 import {
@@ -701,6 +702,40 @@ async function showConflictDialog(path: string): Promise<void> {
     if (current && store.activePath === path) editor.applyText(current.content);
   }
   if (choice === 'mine') showToast('Записана ваша версия');
+}
+
+/** Offers text left behind by a kill or a power cut (written by the journal). */
+async function offerRecovery(): Promise<void> {
+  const pending = await store.recoverPending();
+  for (const entry of pending) {
+    const when = new Date(entry.savedAt);
+    const time = `${when.toLocaleDateString('ru-RU')} ${when.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
+    const choice = await choiceDialog({
+      title: 'Найден несохранённый текст',
+      message: `«${basename(entry.path)}» — снапшот от ${time}. KOCPAD не успел записать файл, но сохранил текст в журнале. Восстановить?`,
+      options: [
+        { id: 'restore', label: 'Восстановить', kind: 'primary' },
+        { id: 'open', label: 'Открыть файл с диска' },
+        { id: 'delete', label: 'Удалить снапшот', kind: 'danger' },
+      ],
+    });
+    if (choice === 'restore') {
+      const ok = await store.restoreJournalEntry(entry);
+      if (ok) {
+        const doc = store.docs.find((item) => item.path === entry.path);
+        if (doc) editor.applyText(doc.content);
+        showToast('Текст восстановлен — проверьте и сохраните');
+      }
+    } else if (choice === 'open') {
+      await store.openNote(entry.path).catch(() => null);
+      await journal.remove(entry.key);
+    } else {
+      await journal.remove(entry.key);
+    }
+  }
 }
 
 /** Focus/visibility checks: another program may have touched an open note. */
@@ -1710,6 +1745,8 @@ async function boot(): Promise<void> {
   }
   syncActive();
   applyLayout();
+  // Any journal snapshot left by a crash is offered before the user starts typing.
+  void offerRecovery();
 
   if (!store.storage.root && store.storage.kind !== 'demo') {
     dom.emptyState.hidden = false;
@@ -1747,6 +1784,7 @@ async function boot(): Promise<void> {
       editor,
       actions,
       closeFlow: handleCloseRequest,
+      journal,
     };
   }
 }

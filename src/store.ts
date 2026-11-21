@@ -1,6 +1,7 @@
 import type { Doc, NoteNode, SearchHit, Settings, ThemeMode, ViewMode } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
+import { journal, journalKeyFor, type JournalEntry } from './journal';
 import type { FileStat } from './storage/types';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
 import { titleFromPath } from './util';
@@ -456,6 +457,100 @@ export class Store {
     // (debounced), so typing never rebuilds the whole sidebar.
     this.emit('dirty');
     this.scheduleSave(path);
+    this.scheduleJournal(path);
+  }
+
+  private journalTimers = new Map<string, number>();
+
+  /** While a document is dirty, keep a recovery snapshot roughly once a second. */
+  private scheduleJournal(path: string): void {
+    const doc = this.docs.find((item) => item.path === path);
+    if (!doc || isDraftPath(path)) return;
+    const existing = this.journalTimers.get(path);
+    if (existing !== undefined) window.clearTimeout(existing);
+    this.journalTimers.set(
+      path,
+      window.setTimeout(() => {
+        this.journalTimers.delete(path);
+        void this.writeJournal(path);
+      }, 500),
+    );
+  }
+
+  private async writeJournal(path: string): Promise<void> {
+    const doc = this.docs.find((item) => item.path === path);
+    const key = journalKeyFor(path);
+    if (!doc || isDraftPath(path) || !this.isDirty(doc)) {
+      await journal.remove(key);
+      return;
+    }
+    await journal.write({ key, path, text: doc.content, savedAt: Date.now() });
+  }
+
+  private forgetJournal(path: string): void {
+    const timer = this.journalTimers.get(path);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      this.journalTimers.delete(path);
+    }
+    void journal.remove(journalKeyFor(path));
+  }
+
+  /** Journal entries whose text no longer matches the file on disk. */
+  async recoverPending(): Promise<JournalEntry[]> {
+    const entries = await journal.list();
+    const pending: JournalEntry[] = [];
+    for (const entry of entries) {
+      if (isDraftPath(entry.path) || !entry.text.trim()) {
+        await journal.remove(entry.key);
+        continue;
+      }
+      let current = '';
+      try {
+        current = await this.storage.readText(entry.path);
+      } catch {
+        current = '';
+      }
+      if (current === entry.text) {
+        await journal.remove(entry.key);
+        continue;
+      }
+      pending.push(entry);
+    }
+    return pending;
+  }
+
+  /** Opens a recovered document with the journal text as unsaved edits. */
+  async restoreJournalEntry(entry: JournalEntry): Promise<boolean> {
+    if (!isTextFile(entry.path)) return false;
+    let saved = '';
+    try {
+      saved = await this.storage.readText(entry.path);
+    } catch {
+      saved = '';
+    }
+    const disk = await this.storage.stat(entry.path).catch(() => null);
+    const existing = this.docs.find((doc) => doc.path === entry.path);
+    if (existing) {
+      existing.content = entry.text;
+      existing.savedContent = saved;
+      existing.disk = disk;
+      this.activePath = entry.path;
+      this.emit('docs', 'active');
+      return true;
+    }
+    const doc: Doc = {
+      path: entry.path,
+      name: basename(entry.path),
+      content: entry.text,
+      savedContent: saved,
+      disk,
+    };
+    this.docs = [...this.docs, doc];
+    this.activePath = entry.path;
+    this.rememberNote(entry.path);
+    this.emit('docs', 'active');
+    return true;
   }
 
   private scheduleSave(path: string): void {
@@ -519,6 +614,7 @@ export class Store {
       doc.savedContent = snapshot;
       doc.disk = await this.storage.stat(path).catch(() => null);
       this.conflicts.delete(path);
+      this.forgetJournal(path);
       this.textCache.set(path, snapshot);
       if (doc.content === snapshot) this.setStatus(`Сохранено · ${doc.name}`);
       this.emit('dirty');
@@ -642,6 +738,7 @@ export class Store {
       this.saveTimers.delete(path);
     }
     this.conflicts.delete(path);
+    this.forgetJournal(path);
     const index = this.docs.findIndex((item) => item.path === path);
     this.docs = this.docs.filter((item) => item.path !== path);
     if (this.activePath === path) {
@@ -666,6 +763,7 @@ export class Store {
       doc.savedContent = content;
       doc.disk = await this.storage.stat(path).catch(() => null);
       this.conflicts.delete(path);
+      this.forgetJournal(path);
       this.emit('docs', 'active');
     } catch (error) {
       this.report(error, `Не удалось перечитать ${doc.name}`);

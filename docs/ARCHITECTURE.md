@@ -188,6 +188,21 @@ is no persistent tag index: the panel rebuilds it when opened or when the tree
 changes. That is fine for hundreds of notes; thousands would need an on-disk index
 (on the roadmap).
 
+## Crash recovery
+
+Autosave is delayed, so a kill or a power cut could lose the last keystrokes. While a
+file document is dirty, the store writes a snapshot about twice a second:
+
+- native build: `recovery_write` into `%APPDATA%\app.kocpad.desktop\recovery\<key>.json`
+  (atomic temp + rename, key = FNV-1a of the document path);
+- browser/demo: the `kocpad.recovery` localStorage record.
+
+A successful save, a tab close or a reload removes the snapshot. On startup
+`Store.recoverPending()` compares every snapshot with the file on disk and only keeps
+the ones that differ; the UI then offers «Восстановить / Открыть файл с диска /
+Удалить снапшот». Restored text is marked dirty and is never written to disk until
+the user saves.
+
 ## Bulk actions
 
 `TreeView` keeps a `Set<path>` of selected notes (files only; folders are not

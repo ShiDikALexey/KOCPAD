@@ -162,7 +162,7 @@ owner's machine are marked in the PR/commit description.
 | Task | Status |
 |---|---|
 | 1. External-edit detection (stamps, dialog, focus check, F5) | **done** on `beta`, 3 e2e tests |
-| 2. Crash recovery journal | pending |
+| 2. Crash recovery journal (snapshots, startup dialog, cleanup) | **done** on `beta`, 2 e2e tests |
 | 3. Encodings and line endings | pending |
 | 4. Internal 30-day trash | pending |
 | 5. `1.5.0-beta.1` release | pending |

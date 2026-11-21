@@ -22,7 +22,14 @@ Plan and acceptance criteria: [docs/WAVE-1.md](docs/WAVE-1.md).
   **перечитать с диска / оставить моё / сохранить копию**. Window focus and
   `visibilitychange` trigger a cheap re-check; a clean note is reloaded silently,
   `F5` re-reads the active note, and autosave never repeats the same dialog.
-- Three e2e scenarios (34 total): conflict dialog and reload, silent reload of a
+- **Crash-recovery journal.** While a document has unsaved edits, a snapshot is
+  written to the app profile every ~0.5 s (Rust `recovery_*` commands on the native
+  build, localStorage in the browser fallback). After a kill or a power cut the next
+  start offers «Восстановить / Открыть файл с диска / Удалить снапшот». A normal
+  save or tab close removes the snapshot.
+- Two e2e scenarios (36 total): the recovery dialog restores the text; saving
+  clears the journal.
+- Three e2e scenarios (36 total): conflict dialog and reload, silent reload of a
   clean note, "keep mine" overwriting the external version.
 
 ## [1.4.1] — 2026-11-21 (beta branch)

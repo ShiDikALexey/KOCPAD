@@ -220,6 +220,42 @@ test.describe('editor surfaces', () => {
       .toContain('моё');
   });
 
+  test('offers text left by a crash', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.journal.write({
+        key: 'crash-test',
+        path: target,
+        text: 'текст, который не успел сохраниться',
+        savedAt: Date.now(),
+      });
+    }, path);
+
+    await page.reload();
+    await page.waitForSelector('.cm-content');
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Найден несохранённый текст');
+    await dialog.getByRole('button', { name: 'Восстановить' }).click();
+    await expect(page.locator('#preview')).toContainText('текст, который не успел сохраниться');
+    await expect(page.locator('#status-saved')).toContainText('не сохранены');
+  });
+
+  test('the recovery journal is removed after a normal save', async ({ page }) => {
+    // Keep autosave out of the way, otherwise it saves (and clears the journal)
+    // before the assertion can see the snapshot.
+    await page.evaluate(() => window.__kocpad.store.patchSettings({ autosaveDelay: 5000 }));
+    await page.locator('.cm-content').click();
+    await page.keyboard.type(' быстрая правка');
+    await page.waitForTimeout(900);
+    const before = await page.evaluate(() => window.__kocpad.journal.list());
+    expect(before.length).toBeGreaterThan(0);
+
+    await page.keyboard.press('Control+s');
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => window.__kocpad.journal.list());
+    expect(after.length).toBe(0);
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

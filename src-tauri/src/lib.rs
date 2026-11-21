@@ -1,4 +1,5 @@
 mod fs_ops;
+mod recovery;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
@@ -70,6 +71,10 @@ pub fn run() {
             fs_ops::open_external,
             fs_ops::reveal_in_explorer,
             fs_ops::fs_stat,
+            recovery::recovery_write,
+            recovery::recovery_list,
+            recovery::recovery_remove,
+            recovery::recovery_clear,
             kocpad_ready,
             kocpad_close_window,
         ])
