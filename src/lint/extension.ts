@@ -122,11 +122,17 @@ export function lintExtension(options: LintOptions): Extension {
       eventHandlers: {
         mousedown(event: MouseEvent, view: EditorView): boolean {
           if (event.button !== 0) return false;
+          // Only the tinted fragment itself is clickable. Without this check a
+          // click on the empty part of the line (or beside a short tint) maps to
+          // a document position inside a range and opens the popover anyway.
+          const target = event.target as HTMLElement | null;
+          if (!target?.closest('.cm-lint-suggestion')) return false;
           const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
           if (position === null) return false;
           const diagnostic = view.state
             .field(diagnosticsField)
-            .find((item) => position >= item.from && position <= item.to);
+            .filter((item) => position >= item.from && position <= item.to)
+            .sort((left, right) => left.to - left.from - (right.to - right.from))[0];
           if (!diagnostic) return false;
 
           event.preventDefault();

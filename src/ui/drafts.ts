@@ -8,7 +8,7 @@ import { icon } from './icons';
  * Drafts panel: every locally stored draft, open in a tab or not. From here a
  * draft can be opened, saved into the workspace folder, or deleted.
  */
-export function openDraftsPanel(store: Store): void {
+export function openDraftsPanel(store: Store, focusEditor?: () => void): void {
   // Inline two-step delete keeps the panel alive: opening a nested confirm modal
   // would clear the shared overlay and destroy this panel.
   let pendingDelete: string | null = null;
@@ -35,6 +35,7 @@ export function openDraftsPanel(store: Store): void {
       for (const draft of drafts) {
         const path = draftPathOf(draft.id);
         const isOpen = store.docs.some((doc) => doc.path === path);
+        const isActive = store.activePath === path;
         const updated = new Date(draft.updatedAt);
         const when = `${updated.toLocaleDateString('ru-RU')} ${updated.toLocaleTimeString('ru-RU', {
           hour: '2-digit',
@@ -43,29 +44,32 @@ export function openDraftsPanel(store: Store): void {
         body.appendChild(
           h(
             'div',
-            { class: 'drafts__row' },
+            { class: `drafts__row${isActive ? ' drafts__row--active' : ''}` },
             h('span', { class: 'drafts__mark', 'aria-hidden': 'true' }, icon('file', 14)),
             h(
               'span',
               { class: 'drafts__main' },
               h('span', { class: 'drafts__title' }, draft.title || 'Без названия'),
-              h('span', { class: 'drafts__meta' }, `${when} · ${isOpen ? 'открыт в вкладке' : 'закрыт'}`),
+              h('span', { class: 'drafts__meta' }, `${when} · ${isActive ? 'открыт в редакторе' : isOpen ? 'открыт в вкладке' : 'закрыт'}`),
             ),
             h(
               'span',
               { class: 'drafts__actions' },
-              h(
-                'button',
-                {
-                  class: 'btn btn--sm',
-                  type: 'button',
-                  onclick: () => {
-                    store.openDraft(draft.id);
-                    close();
-                  },
-                },
-                isOpen ? 'Перейти' : 'Открыть',
-              ),
+              isActive
+                ? h('span', { class: 'drafts__current' }, 'В редакторе')
+                : h(
+                    'button',
+                    {
+                      class: 'btn btn--sm',
+                      type: 'button',
+                      onclick: () => {
+                        store.openDraft(draft.id);
+                        close();
+                        focusEditor?.();
+                      },
+                    },
+                    isOpen ? 'Перейти' : 'Открыть',
+                  ),
               h(
                 'button',
                 {
