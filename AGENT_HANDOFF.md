@@ -131,8 +131,10 @@ npm run tauri:build        # установщики в src-tauri/target/release/
 |---|---|
 | frontend | `npm ci`, проверка версий/тега, typecheck, `vite build`, BOM-guard |
 | e2e | Playwright Chromium, 40 сценариев, отчёт в артефактах |
-| windows | `npm run tauri:build`; включает `createUpdaterArtifacts`, если есть секрет ключа; артефакты установщиков |
-| release | на тег `v*`: `latest.json` (если есть `.sig`), `SHA256SUMS.txt`, публикация |
+| windows | `npm run tauri:build`; `scripts/prepare-build.cjs` убирает MSI для
+  prerelease-версий (WiX не принимает `-beta.1`), включает `createUpdaterArtifacts`
+  при наличии ключа; артефакты установщиков |
+| release | на тег `v*`: проверка версии/тега, заметки из `CHANGELOG.md`, `latest.json` (если есть `.sig`), `SHA256SUMS.txt`, публикация; тег с суффиксом → pre-release |
 
 ### Документация
 
