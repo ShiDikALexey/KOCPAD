@@ -10,6 +10,8 @@ export interface LintOptions {
   disabledRules: () => string[];
   /** Learning log hook; the popover reports applied / ignored / disabled. */
   onEvent?: (rule: string, outcome: 'applied' | 'ignored' | 'disabled') => void;
+  /** Confidence from the learning log; higher rules are shown first. */
+  weight?: (rule: string) => number;
 }
 
 const MAX_VISIBLE = 5;
@@ -101,6 +103,11 @@ export function lintExtension(options: LintOptions): Extension {
       const disabled = new Set(options.disabledRules());
       const diagnostics = runRules(text)
         .filter((diagnostic) => !disabled.has(diagnostic.rule) && !ignored.has(keyOf(diagnostic)))
+        .sort(
+          (left, right) =>
+            (options.weight?.(right.rule) ?? 0.5) - (options.weight?.(left.rule) ?? 0.5)
+            || left.from - right.from,
+        )
         .slice(0, MAX_VISIBLE);
       if (!diagnostics.length && !this.view.state.field(diagnosticsField).length) return;
       this.view.dispatch({ effects: setDiagnostics.of(diagnostics) });

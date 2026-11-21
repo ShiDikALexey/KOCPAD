@@ -4,6 +4,7 @@ import { Store } from './store';
 import { journal } from './journal';
 import { decodeAs, decodeText, encodeText, type TextEncoding } from './encoding';
 import { runRules } from './lint/engine';
+import { recordLintEvent, ruleWeight } from './lint/learning';
 import { createStorage } from './storage';
 import { MarkdownEditor, BLOCK_LABELS, BLOCK_TYPES, type BlockType } from './editor';
 import {
@@ -441,7 +442,9 @@ const editor = new MarkdownEditor(
   { showLineNumbers: store.settings.showLineNumbers, lint: {
     enabled: () => store.settings.assistant,
     disabledRules: () => store.settings.disabledLintRules,
+    weight: ruleWeight,
     onEvent: (rule, outcome) => {
+      recordLintEvent(rule, outcome);
       if (outcome !== 'disabled') return;
       if (store.settings.disabledLintRules.includes(rule)) return;
       store.patchSettings({

@@ -1,13 +1,13 @@
-# Inline writing assistant (planned)
+# Inline writing assistant
 
 A small, local assistant that watches what you type and quietly highlights places
 where the markdown is likely wrong or could be sharper. It is **not** a chat and
 it never rewrites anything on its own: a highlight is only an invitation to look.
 
-Status: **M1 implemented on `Experimental`** (rules engine, lavender marks,
-click-to-fix popover, settings toggle, e2e tests). M2 (learning panel) is next.
-The branch is cut from `beta` and is not merged or released until the owner
-accepts it.
+Status: **M1 and M2 are implemented on `Experimental`.** The editor highlights
+likely markup mistakes, the popover fixes them on click, and the settings panel now
+shows what the assistant has learned. M3 (style hints) is next. The branch is cut
+from `beta` and is not merged or released until the owner accepts it.
 
 ![Inline assistant: a missing space after ## is highlighted, the popover explains it and offers «Исправить / Игнорировать / Больше не предлагать»](screenshots/assistant.png)
 
@@ -101,43 +101,33 @@ src/lint/
 
 ## Learning model (no LLM, fully local)
 
-Every suggestion interaction is recorded locally:
+Every interaction with a suggestion is recorded in `localStorage`
+(`kocpad.lint.learning`):
 
 ```
-{ rule, at, outcome: 'applied' | 'ignored' | 'disabled' | 'shown' }
+{ rule, at, outcome: 'applied' | 'ignored' | 'disabled' }
 ```
 
-- **Confidence** per rule: `(applied + 1) / (applied + ignored + 2)`. A rule needs
-  at least 3 decisions before its confidence changes what is shown.
-- **Ordering**: high-confidence rules are shown first and are slightly more
-  visible; rules with a low ratio (>60% ignored over 5+ decisions) are shown less
-  often and eventually hidden, but never deleted.
-- **Learned habits** from accepted fixes and the note corpus: link style
-  (`[text](url)` vs `<url>`), list marker, quote style, heading style, spacing
-  around punctuation. Each habit lists how many examples it was inferred from.
-- **Settings panel** (mock):
+- **Confidence** per rule: `(applied + 1) / (applied + ignored + 2)`. A rule keeps a
+  neutral weight until it has at least 3 decisions, so one click cannot reorder
+  everything.
+- **Ordering**: the extension sorts visible diagnostics by weight before capping at
+  five, so rules the user keeps accepting surface first. Ignored rules keep being
+  shown (they are not silently removed); "Больше не предлагать" is the explicit way
+  to disable one.
+- **Learned habits** come from the active note, never from a hidden corpus: link
+  style (`[text](url)` vs `<url>`), list marker, quote style and ATX headings. A
+  habit is shown only after at least 3 examples.
+- **Settings panel**: "Помощник" shows the toggle, the per-rule counters
+  (applied / ignored) with a confidence bar, the habits found in the note, and
+  "Сбросить обучение".
 
-```
-Помощник
-  [x] Подсказывать по разметке
-  [ ] Стилевые подсказки (позже)
+![Settings: the assistant panel with counters, confidence bars, habits from the note and the reset button](screenshots/assistant-settings.png)
 
-  Принято: 42   Отклонено: 7
-  Пробел после ##        ████████ 96%   (18 / 0)
-  Голый URL              ██████   78%   (11 / 3)
-  Двойные пустые строки  ██       22%   (2 / 7) — показываю реже
-
-  Выучено из ваших правок:
-    Ссылки:  [текст](url)    12 примеров
-    Списки:  «-»             9 примеров
-    Кавычки: «ёлочки»        6 примеров
-
-  [Сбросить обучение]
-```
-
-- «Сбросить обучение» deletes the event log and habits, returns to neutral.
-- A weekly local summary ("`##` без пробела: было 14, стало 2") is a later
-  addition; it is computed from the same log.
+- «Сбросить обучение» deletes the event log, resets confidence to neutral and
+  re-renders the panel.
+- A weekly local summary ("`##` без пробела: было 14, стало 2") is still on the
+  list; it can be derived from the same log without new storage.
 
 ## Privacy
 
@@ -154,19 +144,26 @@ Every suggestion interaction is recorded locally:
   the popover with the expected text; «Исправить» rewrites the line and removes the
   mark; «Игнорировать» hides it this session; disabling the assistant removes all
   marks.
+- Learning panel: an applied fix increments the rule counters in settings; the reset
+  button returns the panel to its empty state; habits are recognised from a note
+  with three links and three list items.
 - Rule correctness: a dev-only hook (`window.__kocpad.lint.diagnostics(text)`)
   returns the diagnostics array; table-driven e2e assertions for the 16 examples.
 - Performance guard: typing in a 5,000-line note must not add more than one
   debounced engine run per pause (measured with a counter).
 - No false positives inside fenced code blocks (one test per fence type).
 
+The branch currently runs **52 e2e scenarios** in total (six of them cover the
+assistant), plus typecheck, build, the Windows installers and the packaged `.exe`
+smoke in CI.
+
 ## Milestones
 
-| # | Deliverable | Estimate |
+| # | Deliverable | State |
 |---|---|---|
-| M1 | Rules engine + decorations + popover + «Исправить/Игнорировать» for the 16 rules | 1–2 sessions |
-| M2 | Settings section, event log, confidence, learned habits, reset | 1 session |
-| M3 | Style suggestions (long sentences, repeats, wordiness) — opt-in, off by default | later |
+| M1 | Rules engine + decorations + popover + «Исправить/Игнорировать» for the 16 rules | done |
+| M2 | Settings section, event log, confidence, learned habits, reset | done |
+| M3 | Style suggestions (long sentences, repeats, wordiness) — opt-in, off by default | next |
 | M4 | Optional tiny local model for richer explanations/rewrites | only if M1–M3 prove useful |
 
 ## Risks

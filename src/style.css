@@ -1,5 +1,5 @@
-/* ============================================================================
-   KOCPAD — design tokens
+﻿/* ============================================================================
+   KOCPAD вЂ” design tokens
    The chrome is quiet graphite paper; the document is the hero. One accent,
    a marker yellow borrowed from proofreading, marks where you are.
    ========================================================================== */
@@ -2302,7 +2302,7 @@ body[data-backend="demo"] .empty__hint--demo {
 /* ------------------------------------------------------------ drag & drop */
 
 body.is-dragging::after {
-  content: "Отпустите: заметки откроются, картинки вставятся в текст";
+  content: "РћС‚РїСѓСЃС‚РёС‚Рµ: Р·Р°РјРµС‚РєРё РѕС‚РєСЂРѕСЋС‚СЃСЏ, РєР°СЂС‚РёРЅРєРё РІСЃС‚Р°РІСЏС‚СЃСЏ РІ С‚РµРєСЃС‚";
   position: fixed;
   inset: 10px;
   z-index: 200;
@@ -2897,4 +2897,89 @@ body.focus-mode .statusbar__stats {
   height: 26px;
   padding: 0 10px;
   font-size: 11.5px;
+}
+
+/* --- assistant learning panel --- */
+
+.assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px 0 2px;
+}
+
+.assistant__empty,
+.assistant__hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.assistant__subtitle {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.assistant__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assistant__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+}
+
+.assistant__label {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-active);
+  overflow: hidden;
+}
+
+.assistant__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #a78bfa;
+}
+
+html[data-theme="dark"] .assistant__bar-fill {
+  background: #c4b5fd;
+}
+
+.assistant__counts {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-align: right;
+}
+
+.assistant__habits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assistant__habit {
+  color: var(--ink-muted);
+  font-size: 11.5px;
+}
+
+.settings__row--actions {
+  justify-content: flex-end;
 }

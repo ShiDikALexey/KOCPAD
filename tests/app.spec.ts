@@ -503,6 +503,32 @@ test.describe('editor surfaces', () => {
     expect(diagnostics.insideFence).not.toContain('heading-space');
   });
 
+  test('the learning panel counts accepted suggestions and can be reset', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.editor.applyText('##Hello world\n'));
+    await page.locator('.cm-lint-suggestion').first().click();
+    await page.locator('.lint-popover').getByRole('button', { name: 'Исправить' }).click();
+
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const panel = page.locator('.assistant');
+    await expect(panel).toContainText('Пробел после #');
+    await expect(panel).toContainText('1 / 0');
+
+    await page.locator('.settings').getByRole('button', { name: 'Сбросить обучение' }).click();
+    await expect(panel).toContainText('Пока нет данных');
+  });
+
+  test('the learning panel shows formatting habits from the note', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText(
+        '# План\n\n[раз](https://a.ru) [два](https://b.ru) [три](https://c.ru)\n\n- один\n- два\n- три\n',
+      );
+    });
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const panel = page.locator('.assistant');
+    await expect(panel).toContainText('Ссылки: [текст](url)');
+    await expect(panel).toContainText('Списки: -');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

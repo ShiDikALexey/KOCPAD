@@ -37,6 +37,17 @@ suggestions at a time. If Windows has "reduce motion" enabled, the fade is skipp
 The assistant does not use the network and does not download anything. It is
 switched on in settings under "Помощник".
 
+## Learning panel
+
+Settings → "Помощник" shows what the assistant has learned: how many suggestions
+per rule were fixed or ignored, how confident each rule is, and how you usually
+format links, lists and quotes. The same place has a "reset learning" button.
+
+![Settings: rule counters, confidence bars, habits from the note and the reset button](docs/screenshots/assistant-settings.png)
+
+Confidence affects the order of suggestions: rules you accept more often are shown
+first. A rule stays neutral until it has at least three decisions.
+
 ## What to try
 
 - `##Привет`, `-пункт`, `1)пункт`, `vk.com` get tinted and explained;
@@ -45,18 +56,16 @@ switched on in settings under "Помощник".
 - "ignore" hides a hint until the app restarts;
 - "never suggest" keeps a rule off after a restart;
 - switching the assistant off removes every tint at once;
+- after a fix the settings counter goes up, and "reset learning" clears it;
 - typing in a 5,000-line note does not slow down.
 
-The branch runs 50 e2e tests, four of them for the assistant, plus typecheck, the
+The branch runs 52 e2e tests, six of them for the assistant, plus typecheck, the
 build, the Windows installer and a launch of the packaged `.exe` in CI.
 
 ## What comes next
 
-Closest: a learning panel. How many suggestions you accepted or ignored, how
-confident each rule is, how you usually format links and lists, and a reset button.
-
-Then, if the assistant earns its place, style hints: long sentences and repeats.
-They will be off by default.
+The learning panel is done. Next are style hints: long sentences and repeats, off by
+default.
 
 The idea of a tiny local model for explanations and rewrites is on hold. First we
 need to see whether the two steps above are useful at all.
