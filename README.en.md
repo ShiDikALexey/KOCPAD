@@ -18,7 +18,7 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.5.1-a` — a pre-release build on top of stable `1.5.1`; this file is the full description.
+> **Status:** `1.5.2` — a stable release with fixes after `1.5.1`; this file is the full description.
 > 59 UI tests run in CI on every push. Auto-updates are active: the signing key is
 > already configured in CI ([details](docs/PUBLISHING.md#5-auto-updates)). Installer
 > signing is still blocked on a certificate — see [the roadmap](docs/ROADMAP.md).
@@ -196,7 +196,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.5.1-a_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.5.2_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
