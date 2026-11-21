@@ -22,6 +22,8 @@ import { OutlineView } from './ui/outline';
 import { TagsView } from './ui/tags';
 import { LinksView } from './ui/links';
 import { openDraftsPanel } from './ui/drafts';
+import { openTrashPanel } from './ui/trash';
+import { trash } from './trash';
 import { decorateWikiLinks } from './wikilinks';
 import { openPalette, type Command } from './ui/palette';
 import { openSettings } from './ui/settings';
@@ -1197,6 +1199,7 @@ function palette(): void {
     })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
     { label: 'Черновики без файла…', run: () => openDraftsPanel(store) },
+    { label: 'Корзина…', run: () => openTrashPanel(store) },
     { label: 'Кодировка: открыть как UTF-8', run: () => void reopenAs('utf-8') },
     { label: 'Кодировка: открыть как cp1251', run: () => void reopenAs('cp1251') },
     { label: 'Кодировка: открыть как UTF-16LE', run: () => void reopenAs('utf-16le') },
@@ -1335,6 +1338,7 @@ function mountToolbar(): void {
           onClick: actions.toggleSyncScroll,
         },
         { label: 'Обновить дерево', hint: 'F5', onClick: () => actions.refreshWorkspace() },
+        { label: 'Корзина…', onClick: () => openTrashPanel(store) },
         { label: `Папка: ${store.rootName}`, onClick: () => actions.openFolder() },
         { separator: true },
         { label: 'Проверить обновления…', onClick: () => void checkForUpdates() },
@@ -1741,6 +1745,8 @@ async function boot(): Promise<void> {
 
   // Untitled notes from the previous session come back before any folder is read.
   store.restoreDrafts();
+  // Expired trash entries are cleaned before the user can see them.
+  void trash.purge();
 
   dom.workspaceName.textContent = store.rootName;
   const restored = await store.storage.restoreRoot().catch(() => false);
@@ -1803,6 +1809,8 @@ async function boot(): Promise<void> {
       closeFlow: handleCloseRequest,
       journal,
       encoding: { decodeText, decodeAs, encodeText },
+      trash,
+      openTrash: () => openTrashPanel(store),
     };
   }
 }

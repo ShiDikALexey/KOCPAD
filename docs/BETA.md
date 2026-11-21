@@ -9,7 +9,7 @@ anything that still needs a second look go here first.
 ## Workflow
 
 1. Branch from `beta` for a change, or commit to `beta` directly for small fixes.
-2. CI runs the same four jobs on every push: typecheck + build, e2e (38 scenarios),
+2. CI runs the same four jobs on every push: typecheck + build, e2e (40 scenarios),
    Windows installers, and a release only for tags. On `beta` the Windows job uploads
    the `kocpad-windows` artifact — a ready portable exe and installers to try.
 3. When the change is verified, merge `beta` into `main` with a merge commit or a

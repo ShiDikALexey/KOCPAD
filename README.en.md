@@ -5,7 +5,7 @@
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
   [![release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=release)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
-  [![beta](https://img.shields.io/badge/beta-1.4.1-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.0--beta.1-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#requirements)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -19,10 +19,10 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `beta` branch — `1.4.1`; latest published release — `1.4.0`.
+> **Status:** `beta` branch — `1.5.0-beta.1`; latest published release — `1.4.0`.
 > This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
 > install test and no long real-world use. An honest maturity assessment and the
-> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 38 e2e tests run
+> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 40 e2e tests run
 > in CI on every push; auto-updates are wired and switch on with one key secret
 > ([details](docs/PUBLISHING.md#5-auto-updates)).
 >
@@ -92,6 +92,7 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 | Tabs | Several notes at once, `Ctrl+Tab` switches, `Ctrl+W` closes; each tab keeps its own undo history |
 | Autosave | Writes as you type (delay configurable), `Ctrl+S` saves at once; atomic write via a temp file |
 | Drafts | `Ctrl+N` opens a blank page immediately, even without a folder; text lives locally and returns after a restart. A button with a counter in the sidebar opens the list of stored drafts: open, save to folder, delete. Closing a draft tab keeps the draft |
+| Trash | Deleting does not erase immediately: the note goes to KOCPAD's internal trash for 30 days and can be restored from «⋯» → «Корзина…»; old entries are purged automatically |
 | Bulk actions | `Ctrl+Click` and `Shift+Click` in the tree: move a batch into another folder or delete it with one confirmation |
 
 ### Writing and markup
@@ -146,8 +147,9 @@ What **does not** exist yet (the limits of "never loses a note"):
 - **External edits are not watched.** If a file changed in another editor (or via
   OneDrive/Yandex.Disk sync), the open tab will not notice and the next autosave
   overwrites it. Press `F5` to re-read, or close the tab before editing elsewhere.
-- **Deleting is permanent** — no recycle bin, no version history; `Ctrl+Z` only
-  works inside an open tab.
+- **Deleting is recoverable**: a note goes to KOCPAD's internal trash for 30 days
+  and can be restored from «⋯» → «Корзина…». A draft is not a file, so deleting a
+  draft from the list is permanent.
 - **A power cut** can lose the last keystrokes: autosave is delayed (under a second
   by default) and there is no recovery journal.
 - **Encodings are detected**: UTF-8 (with or without BOM), UTF-16LE/BE and cp1251
@@ -180,7 +182,7 @@ on first launch: **More info → Run anyway**. This is expected: the CI signing 
 ready, only the certificate is missing. Verify a download with:
 
 ```powershell
-Get-FileHash .\KOCPAD_1.4.1_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\KOCPAD_1.5.0-beta.1_x64-setup.exe -Algorithm SHA256
 # compare with the matching line in SHA256SUMS.txt
 ```
 
@@ -270,9 +272,9 @@ Full list with context (including Vim): [docs/KEYBINDINGS.md](docs/KEYBINDINGS.m
 | --- | --- |
 | ![Format bar](docs/screenshots/formatbar.png) | ![Context menu](docs/screenshots/contextmenu.png) |
 
-| Drafts panel |
-| --- |
-| ![Drafts list](docs/screenshots/drafts.png) |
+| Drafts panel | Trash |
+| --- | --- |
+| ![Drafts list](docs/screenshots/drafts.png) | ![KOCPAD trash](docs/screenshots/trash.png) |
 
 ## Building from source
 
@@ -310,7 +312,7 @@ node scripts/bump-version.cjs <x.y.z>
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 38 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 40 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -354,7 +356,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                38 Playwright scenarios
+├─ tests/                40 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs, enable-updater.cjs, make-latest-json.cjs
 ```

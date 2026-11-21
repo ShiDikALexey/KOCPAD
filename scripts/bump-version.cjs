@@ -2,8 +2,9 @@
 const fs = require('node:fs');
 
 const VERSION = process.argv[2];
-if (!VERSION || !/^\d+\.\d+\.\d+$/.test(VERSION)) {
-  console.error('usage: node bump-version.cjs <x.y.z>');
+// Plain semver plus prerelease suffixes such as 1.5.0-beta.1 (beta tags).
+if (!VERSION || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(VERSION)) {
+  console.error('usage: node bump-version.cjs <x.y.z[-beta.N]>');
   process.exit(1);
 }
 

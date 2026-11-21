@@ -1,5 +1,6 @@
 mod fs_ops;
 mod recovery;
+mod trash;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
@@ -75,6 +76,12 @@ pub fn run() {
             recovery::recovery_list,
             recovery::recovery_remove,
             recovery::recovery_clear,
+            trash::trash_put,
+            trash::trash_list,
+            trash::trash_restore,
+            trash::trash_delete,
+            trash::trash_purge,
+            trash::trash_empty,
             kocpad_ready,
             kocpad_close_window,
         ])

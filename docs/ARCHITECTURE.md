@@ -216,6 +216,17 @@ the ones that differ; the UI then offers «Восстановить / Откры
 Удалить снапшот». Restored text is marked dirty and is never written to disk until
 the user saves.
 
+## Trash
+
+Deletion is recoverable: `src/trash.ts` moves a file into
+`%APPDATA%\app.kocpad.desktop\trash\<id>\` (`payload` + `meta.json` with the original
+path, name and timestamp) through Rust `trash_*` commands; the browser/demo fallback
+keeps the content in `kocpad.trash`. The panel lists entries with the days left,
+restores them (to a free name when the original path is occupied) or deletes them
+permanently. On startup `trash_purge(30)` removes entries older than 30 days and
+caps the trash at 200 items. Drafts are not files, so deleting a draft still removes
+it from the local drafts list.
+
 ## Bulk actions
 
 `TreeView` keeps a `Set<path>` of selected notes (files only; folders are not

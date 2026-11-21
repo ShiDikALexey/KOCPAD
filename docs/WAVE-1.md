@@ -164,5 +164,5 @@ owner's machine are marked in the PR/commit description.
 | 1. External-edit detection (stamps, dialog, focus check, F5) | **done** on `beta`, 3 e2e tests |
 | 2. Crash recovery journal (snapshots, startup dialog, cleanup) | **done** on `beta`, 2 e2e tests |
 | 3. Encodings and line endings (detect, "Open as…", preserve on save) | **done** on `beta`, 2 e2e tests |
-| 4. Internal 30-day trash | pending |
-| 5. `1.5.0-beta.1` release | pending |
+| 4. Internal 30-day trash (Rust commands, panel, purge) | **done** on `beta`, 2 e2e tests |
+| 5. `1.5.0-beta.1` release | **done**: version bumped, CHANGELOG written, docs updated |

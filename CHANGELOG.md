@@ -9,9 +9,10 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
-## [Unreleased] — 1.5.0-beta.1 (data-safety wave)
+## [1.5.0-beta.1] — 2026-11-21 (data-safety wave)
 
-Plan and acceptance criteria: [docs/WAVE-1.md](docs/WAVE-1.md).
+Wave 1 of the "never loses a note" plan. Plan and acceptance criteria:
+[docs/WAVE-1.md](docs/WAVE-1.md).
 
 ### Added
 
@@ -33,11 +34,18 @@ Plan and acceptance criteria: [docs/WAVE-1.md](docs/WAVE-1.md).
   shown in the status bar, «Кодировка: открыть как…» in the palette overrides a
   wrong guess, and saving writes the file back in its original encoding, BOM and
   line endings instead of silently converting it.
-- Two e2e scenarios (38 total): cp1251+CRLF round trip, UTF-16LE with BOM.
-- Two e2e scenarios (36 total): the recovery dialog restores the text; saving
-  clears the journal.
-- Three e2e scenarios (36 total): conflict dialog and reload, silent reload of a
-  clean note, "keep mine" overwriting the external version.
+- **Internal trash with 30-day retention.** Deleting a note (or a bulk selection)
+  moves it into `%APPDATA%\app.kocpad.desktop\trash\<id>\` with its original path;
+  «⋯» → «Корзина…» or the palette lists the entries with the days left, restores
+  them (to a free name if the original is occupied) or deletes them permanently.
+  Expired entries (older than 30 days) and anything beyond 200 items are purged on
+  startup. The browser/demo fallback keeps the content in localStorage.
+
+### Tests
+
+- 6 new e2e scenarios (40 total): conflict dialog, silent reload of a clean note,
+  "keep mine", restore-from-crash, journal cleanup on save, cp1251+CRLF round trip,
+  UTF-16LE with BOM, trash restore and 30-day purge.
 
 ## [1.4.1] — 2026-11-21 (beta branch)
 

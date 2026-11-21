@@ -11,7 +11,7 @@ This page exists because the project overshot its own version numbers. Honest ac
   stopped distinguishing a test build from something worth installing.
 
 So: **do not read the version number as a maturity promise.** Right now the code on
-`beta` is `1.4.1`; the project is closer to a well-tested beta than to a stable
+`beta` is `1.5.0-beta.1`; the project is closer to a well-tested beta than to a stable
 release.
 
 ## What we do with the existing versions
@@ -24,7 +24,7 @@ release.
 - Beta builds carry a suffix and are published as **pre-releases**
   (`v1.5.0-beta.1`): `/releases/latest` — and therefore the updater — keeps pointing
   at the last plain release, so a rejected beta can never reach users.
-- A plain version (`1.4.1`) is only tagged from `main`, after the beta has been used
+- A plain version (`1.5.0`) is only tagged from `main`, after the beta has been used
   for a while, and is published as a normal release so the updater delivers it.
 
 ## Rules for the next versions
@@ -70,7 +70,7 @@ a `-beta` tag needs a `-beta` version).
 
 ## Release checklist (short)
 
-1. `beta` is green in CI (typecheck, 38 e2e, Windows build).
+1. `beta` is green in CI (typecheck, 40 e2e, Windows build).
 2. Manual pass: create/edit/close/reopen, drafts panel, large note, images, export,
    search, tags/links, settings persistence.
 3. Cleanup: no `TODO`/debug code, versions consistent (`npm run check:versions`),

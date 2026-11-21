@@ -302,6 +302,41 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('#preview')).toContainText('Юникод текст');
   });
 
+  test('deleted notes go to the trash and can be restored', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.deleteMany([target]);
+    }, path);
+    await expect
+      .poll(async () => page.evaluate(async (target) => window.__kocpad.store.storage.exists(target), path))
+      .toBe(false);
+
+    await page.evaluate(() => window.__kocpad.openTrash());
+    const panel = page.locator('.drafts');
+    await expect(panel).toContainText('Корзина');
+    await panel.getByRole('button', { name: 'Восстановить' }).first().click();
+    await expect
+      .poll(async () => page.evaluate(async (target) => window.__kocpad.store.storage.exists(target), path))
+      .toBe(true);
+  });
+
+  test('the trash purges entries older than 30 days', async ({ page }) => {
+    const removed = await page.evaluate(async () => {
+      const day = 24 * 60 * 60 * 1000;
+      localStorage.setItem(
+        'kocpad.trash',
+        JSON.stringify([
+          { id: 'old', originalPath: 'old.md', name: 'old.md', deletedAt: Date.now() - 40 * day, isDir: false, size: 1, data: 'aGVsbG8=' },
+          { id: 'new', originalPath: 'new.md', name: 'new.md', deletedAt: Date.now(), isDir: false, size: 1, data: 'aGVsbG8=' },
+        ]),
+      );
+      return window.__kocpad.trash.purge(30);
+    });
+    expect(removed).toBe(1);
+    const left = await page.evaluate(async () => (await window.__kocpad.trash.list()).length);
+    expect(left).toBe(1);
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

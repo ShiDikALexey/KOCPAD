@@ -30,7 +30,8 @@
 
 Encodings, when the automatic detection is wrong: palette (`Ctrl+K`) →
 «Кодировка: открыть как UTF-8», «… cp1251», «… UTF-16LE». The status bar shows the
-detected encoding, BOM and CRLF.
+detected encoding, BOM and CRLF. Deleted files wait in «⋯» → «Корзина…» (or the
+palette) for 30 days.
 
 ## Editing
 

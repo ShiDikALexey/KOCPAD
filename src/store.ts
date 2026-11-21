@@ -2,6 +2,7 @@ import type { Doc, NoteNode, SearchHit, Settings, ThemeMode, ViewMode } from './
 import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
 import { journal, journalKeyFor, type JournalEntry } from './journal';
+import { trash } from './trash';
 import { decodeAs, decodeText, encodeText, type Eol, type TextEncoding } from './encoding';
 import type { FileStat } from './storage/types';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
@@ -1047,15 +1048,19 @@ export class Store {
   }
 
   async deleteEntry(node: NoteNode): Promise<boolean> {
-    try {
-      await this.storage.remove(node.path);
-    } catch (error) {
-      this.report(error, `Не удалось удалить ${node.name}`);
+    // Deletions go through the internal trash: a misclick must be recoverable.
+    const stored = await trash.put(this.storage, node.path);
+    if (!stored) {
+      this.report(new Error('Не удалось переместить в корзину'), `Не удалось удалить ${node.name}`);
       return false;
     }
     this.textCache.delete(node.path);
+    this.meta.delete(node.path);
     for (const cachedPath of [...this.textCache.keys()]) {
-      if (isInside(cachedPath, node.path)) this.textCache.delete(cachedPath);
+      if (isInside(cachedPath, node.path)) {
+        this.textCache.delete(cachedPath);
+        this.meta.delete(cachedPath);
+      }
     }
     for (const doc of [...this.docs]) {
       if (isInside(doc.path, node.path)) {
@@ -1063,7 +1068,7 @@ export class Store {
       }
     }
     await this.refreshTree();
-    this.setStatus(`Удалено · ${node.name}`);
+    this.setStatus(`В корзине KOCPAD · ${node.name}`);
     return true;
   }
 
@@ -1188,14 +1193,15 @@ export class Store {
     const deletedPaths: string[] = [];
     let deleted = 0;
     for (const path of paths) {
-      try {
-        await this.storage.remove(path);
-        this.textCache.delete(path);
-        deletedPaths.push(path);
-        deleted += 1;
-      } catch {
+      const stored = await trash.put(this.storage, path);
+      if (!stored) {
         failed.push(basename(path));
+        continue;
       }
+      this.textCache.delete(path);
+      this.meta.delete(path);
+      deletedPaths.push(path);
+      deleted += 1;
     }
     // Close only tabs whose file really disappeared; a failed delete must not
     // discard the user's unsaved buffer.
@@ -1203,7 +1209,9 @@ export class Store {
       if (deletedPaths.some((path) => isInside(doc.path, path))) await this.closeDoc(doc.path, true);
     }
     await this.refreshTree();
-    this.setStatus(`Удалено: ${deleted}${failed.length ? `, не удалось: ${failed.length}` : ''}`);
+    this.setStatus(
+      `В корзине KOCPAD: ${deleted}${failed.length ? `, не удалось: ${failed.length}` : ''}`,
+    );
     return { deleted, failed };
   }
 
