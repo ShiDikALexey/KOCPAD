@@ -14,6 +14,15 @@ export interface LintOptions {
   weight?: (rule: string) => number;
 }
 
+export interface LintApi {
+  /** All rule findings fully inside the range (not only the visible five). */
+  inRange: (from: number, to: number) => LintDiagnostic[];
+  /** Applies every fix fully inside the range in one transaction. */
+  applyAll: (from: number, to: number) => number;
+  /** Ignores every suggestion fully inside the range for this session. */
+  dismiss: (from: number, to: number) => number;
+}
+
 const MAX_VISIBLE = 5;
 
 function suggestionClass(): Decoration {
@@ -41,9 +50,10 @@ function keyOf(diagnostic: LintDiagnostic): string {
  * renders them as a subtle background. A click opens a popover; the edit is
  * applied through a normal transaction, so Ctrl+Z reverts it.
  */
-export function lintExtension(options: LintOptions): Extension {
+export function lintExtension(options: LintOptions, register?: (api: LintApi) => void): Extension {
   const setDiagnostics = StateEffect.define<LintDiagnostic[]>();
   const ignored = new Set<string>();
+  let activeView: EditorView | null = null;
 
   const diagnosticsField = StateField.define<LintDiagnostic[]>({
     create: () => [],
@@ -65,6 +75,7 @@ export function lintExtension(options: LintOptions): Extension {
     private lastText = '';
 
     constructor(private readonly view: EditorView) {
+      activeView = view;
       this.schedule(80);
     }
 
@@ -81,6 +92,7 @@ export function lintExtension(options: LintOptions): Extension {
 
     destroy(): void {
       if (this.timer !== null) window.clearTimeout(this.timer);
+      if (activeView === this.view) activeView = null;
     }
 
     private schedule(delay = 350): void {
@@ -177,6 +189,63 @@ export function lintExtension(options: LintOptions): Extension {
       },
     },
   );
+
+  // Batch operations for the editor context menu. They recompute the rules for
+  // the current document instead of reading the decoration field: the field holds
+  // only the five visible marks, while a selection can contain many more.
+  const collect = (from: number, to: number): LintDiagnostic[] => {
+    if (!activeView) return [];
+    const disabled = new Set(options.disabledRules());
+    return runRules(activeView.state.doc.toString()).filter(
+      (diagnostic) =>
+        diagnostic.from >= from
+        && diagnostic.to <= to
+        && !disabled.has(diagnostic.rule)
+        && !ignored.has(keyOf(diagnostic)),
+    );
+  };
+
+  const api: LintApi = {
+    inRange: (from, to) => collect(from, to),
+    applyAll: (from, to) => {
+      if (!activeView) return 0;
+      const view = activeView;
+      const diagnostics = collect(from, to).filter((diagnostic) => diagnostic.fix);
+      if (!diagnostics.length) return 0;
+      const seen = new Set<string>();
+      const changes: { from: number; to: number; insert: string }[] = [];
+      for (const diagnostic of diagnostics) {
+        const fix = diagnostic.fix!;
+        const unique = `${fix.from}:${fix.to}:${fix.insert}`;
+        if (seen.has(unique)) continue;
+        seen.add(unique);
+        changes.push(fix);
+        options.onEvent?.(diagnostic.rule, 'applied');
+      }
+      // Apply bottom-up so earlier offsets stay valid.
+      changes.sort((left, right) => right.from - left.from || right.to - left.to);
+      view.dispatch({ changes, userEvent: 'input.lint.batch' });
+      return diagnostics.length;
+    },
+    dismiss: (from, to) => {
+      if (!activeView) return 0;
+      const view = activeView;
+      const diagnostics = collect(from, to);
+      if (!diagnostics.length) return 0;
+      const dismissedKeys = new Set<string>();
+      for (const diagnostic of diagnostics) {
+        ignored.add(keyOf(diagnostic));
+        dismissedKeys.add(keyOf(diagnostic));
+        options.onEvent?.(diagnostic.rule, 'ignored');
+      }
+      const remaining = view.state
+        .field(diagnosticsField)
+        .filter((diagnostic) => !dismissedKeys.has(keyOf(diagnostic)));
+      view.dispatch({ effects: setDiagnostics.of(remaining) });
+      return diagnostics.length;
+    },
+  };
+  register?.(api);
 
   return [diagnosticsField, lintView, clickHandler, EditorView.theme({
     '.cm-lint-suggestion': {

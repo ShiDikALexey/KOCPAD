@@ -544,6 +544,49 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('.lint-popover')).toBeVisible();
   });
 
+  test('right click applies all assistant fixes in the selection at once', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad.editor;
+      api.applyText('##Первый\n\n##Второй\n\n-пункт\n');
+      api.view.dispatch({ selection: { anchor: 0, head: api.text.length } });
+      document
+        .querySelector('.cm-content')
+        ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 250, clientY: 200 }));
+    });
+
+    const menu = page.locator('.menu');
+    await expect(menu).toContainText('Применить все исправления');
+    await menu.getByRole('menuitem', { name: /Применить все исправления/ }).click();
+
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toBe('## Первый\n\n## Второй\n\n- пункт\n');
+
+    // The whole batch is one undo step.
+    await page.evaluate(() => window.__kocpad.editor.focus());
+    await page.keyboard.press('Control+z');
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toBe('##Первый\n\n##Второй\n\n-пункт\n');
+  });
+
+  test('right click can dismiss all assistant suggestions in the selection', async ({ page }) => {
+    await page.evaluate(() => {
+      const api = window.__kocpad.editor;
+      api.applyText('##Первый\n\n-пункт\n');
+      api.view.dispatch({ selection: { anchor: 0, head: api.text.length } });
+      document
+        .querySelector('.cm-content')
+        ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 250, clientY: 200 }));
+    });
+
+    const menu = page.locator('.menu');
+    await expect(menu).toContainText('Отклонить подсказки');
+    await menu.getByRole('menuitem', { name: /Отклонить подсказки/ }).click();
+    await expect(page.locator('.cm-lint-suggestion')).toHaveCount(0);
+    await expect.poll(async () => page.evaluate(() => window.__kocpad.editor.text)).toBe('##Первый\n\n-пункт\n');
+  });
+
   test('drafts panel navigates to an open draft and focuses the editor', async ({ page }) => {
     await page.evaluate(async () => {
       const store = window.__kocpad.store;

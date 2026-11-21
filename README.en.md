@@ -57,7 +57,7 @@ Before merging into `main`, this needs a manual pass:
 - use the menus with arrows, create a note from a missing link, rename a note and
   check the links.
 
-There are 46 automated tests. There is also a launch of the `.exe` in CI, but a full
+There are 61 automated tests. There is also a launch of the `.exe` in CI, but a full
 native e2e against the packaged app is blocked by the GitHub runner environment; see
 [ROADMAP](docs/ROADMAP.md).
 
