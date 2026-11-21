@@ -57,6 +57,16 @@ const NOISE_EXTENSIONS = new Set([
 
 const TEXT_FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
+/** A tag token as understood by the tags panel: letters, digits, `_`, `-`, `/`. */
+const TAG_TOKEN = /^[\p{L}\p{N}_][\p{L}\p{N}_/-]*$/u;
+
+function startsWithTag(line: string): boolean {
+  if (!line.startsWith('#')) return false;
+  const rest = line.slice(1);
+  const token = rest.split(/\s/, 1)[0] ?? '';
+  return token.length > 0 && TAG_TOKEN.test(token);
+}
+
 function headingLevel(line: string): number | null {
   const match = /^(#{1,6})(?!#)(.*)$/.exec(line);
   if (!match) return null;
@@ -86,6 +96,10 @@ const rules: Rule[] = [
     if (context.inFence) return [];
     const match = /^(#{1,6})(?!#)([^\s#])/.exec(context.line);
     if (!match) return [];
+    // `#Ячейка 262:` is an inline tag, not a broken H1. A single `#` glued to a
+    // tag token is left alone; `##`/`###` and `#Заголовок с пробелами` still get
+    // the missing-space hint because those read as headings.
+    if (match[1].length === 1 && startsWithTag(context.line)) return [];
     return [{
       rule: 'heading-space',
       from: context.from,

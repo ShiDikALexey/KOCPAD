@@ -570,6 +570,74 @@ test.describe('editor surfaces', () => {
     expect(state.editorFocused).toBe(true);
   });
 
+  test('Ctrl+B works with a Russian keyboard layout', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('привет\n');
+      window.__kocpad.editor.focus();
+      // Ctrl+B on a Russian layout produces `и` as event.key; the physical code
+      // must still trigger bold.
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'и',
+        code: 'KeyB',
+        ctrlKey: true,
+        bubbles: true,
+      }));
+    });
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('**');
+  });
+
+  test('Ctrl+Alt+1 makes a heading regardless of layout', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.editor.applyText('заголовок\n');
+      window.__kocpad.editor.focus();
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: '1',
+        code: 'Digit1',
+        ctrlKey: true,
+        altKey: true,
+        bubbles: true,
+      }));
+    });
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('# заголовок');
+  });
+
+  test('an inline tag is not reported as a broken heading', async ({ page }) => {
+    const rules = await page.evaluate(() => ({
+      tag: window.__kocpad.lint.diagnostics('#Ячейка 262:').map((item: { rule: string }) => item.rule),
+      heading: window.__kocpad.lint.diagnostics('##Встречи').map((item: { rule: string }) => item.rule),
+    }));
+    expect(rules.tag).not.toContain('heading-space');
+    expect(rules.heading).toContain('heading-space');
+  });
+
+  test('editor and preview scroll in sync', async ({ page }) => {
+    await page.evaluate(() => {
+      const lines = Array.from({ length: 120 }, (_, index) => `## Раздел ${index}\n\nАбзац ${index} с текстом.`);
+      window.__kocpad.editor.applyText(`${lines.join('\n\n')}\n`);
+    });
+    await page.waitForTimeout(500);
+
+    await page.evaluate(() => window.__kocpad.editor.scrollToRatio(0.5));
+    await page.waitForTimeout(400);
+    const previewTop = await page.evaluate(() => document.querySelector('#preview')?.scrollTop ?? 0);
+    expect(previewTop).toBeGreaterThan(0);
+
+    await page.evaluate(() => {
+      const preview = document.querySelector('#preview');
+      if (preview) preview.scrollTop = 10;
+    });
+    await page.waitForTimeout(300);
+    const editorTop = await page.evaluate(() => {
+      const scroller = document.querySelector('.cm-scroller');
+      return scroller ? scroller.scrollTop : 0;
+    });
+    expect(editorTop).toBeGreaterThan(0);
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

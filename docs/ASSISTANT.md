@@ -153,7 +153,7 @@ Every interaction with a suggestion is recorded in `localStorage`
   debounced engine run per pause (measured with a counter).
 - No false positives inside fenced code blocks (one test per fence type).
 
-The branch currently runs **54 e2e scenarios** in total (seven of them cover the
+The branch currently runs **58 e2e scenarios** in total (eight of them cover the
 assistant), plus typecheck, build, the Windows installers and the packaged `.exe`
 smoke in CI.
 
