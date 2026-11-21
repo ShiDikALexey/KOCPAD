@@ -11,6 +11,14 @@ All notable changes to KOCPAD are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Batch assistant fixes.** With several suggestions inside a selection, the editor
+  context menu offers «Применить все исправления (N)» and
+  «Отклонить подсказки (N)». Applying is one undoable transaction; dismissing
+  ignores the suggestions for the session. The count covers every rule finding in
+  the selection, not only the five visible tints.
+
 ### Fixed
 
 - **A restored draft was hidden behind the "no folder" welcome screen.** With no

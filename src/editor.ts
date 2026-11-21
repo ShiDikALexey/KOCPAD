@@ -8,7 +8,8 @@ import {
   lineNumbers,
   placeholder,
 } from '@codemirror/view';
-import { lintExtension, type LintOptions } from './lint/extension';
+import { lintExtension, type LintApi, type LintOptions } from './lint/extension';
+import type { LintDiagnostic } from './lint/engine';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { HighlightStyle, bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language';
@@ -207,6 +208,7 @@ export class MarkdownEditor {
   private vimExtension: Extension | null = null;
   private linkSuggestionsProvider: () => { title: string; path: string }[] = () => [];
   private lintOptions?: LintOptions;
+  private lintApi: LintApi | null = null;
 
   /** The shell plugs the workspace note list into `[[…]]` autocomplete. */
   setLinkSuggestions(provider: () => { title: string; path: string }[]): void {
@@ -271,7 +273,11 @@ export class MarkdownEditor {
         ]),
         this.keymapCompartment.of(this.currentKeymap === 'vim' && this.vimExtension ? this.vimExtension : []),
         EditorView.updateListener.of((update) => this.handleUpdate(update)),
-        this.lintOptions ? lintExtension(this.lintOptions) : [],
+        this.lintOptions
+          ? lintExtension(this.lintOptions, (api) => {
+              this.lintApi = api;
+            })
+          : [],
       ],
     });
   }
@@ -303,6 +309,27 @@ export class MarkdownEditor {
   get selectionText(): string {
     const range = this.view.state.selection.main;
     return range.empty ? '' : this.view.state.sliceDoc(range.from, range.to);
+  }
+
+  /** Assistant suggestions fully inside the current selection. */
+  lintInSelection(): LintDiagnostic[] {
+    const range = this.view.state.selection.main;
+    if (range.empty) return [];
+    return this.lintApi?.inRange(range.from, range.to) ?? [];
+  }
+
+  /** Applies every suggestion in the selection in one undoable transaction. */
+  applyAllLintFixes(): number {
+    const range = this.view.state.selection.main;
+    if (range.empty) return 0;
+    return this.lintApi?.applyAll(range.from, range.to) ?? 0;
+  }
+
+  /** Ignores every suggestion in the selection for this session. */
+  dismissLintInSelection(): number {
+    const range = this.view.state.selection.main;
+    if (range.empty) return 0;
+    return this.lintApi?.dismiss(range.from, range.to) ?? 0;
   }
 
   /** Re-runs the inline assistant after a settings change. */

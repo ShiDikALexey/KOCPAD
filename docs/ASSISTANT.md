@@ -47,6 +47,19 @@ assistant has learned. It is still developed further on the `Experimental` branc
 6. High-confidence rules appear slightly stronger; rules the user keeps ignoring
    fade out of the list (see Learning).
 
+### Batch fixes from the context menu
+
+Select a fragment that contains several suggestions and open the editor context
+menu (ПКМ): it gains two entries.
+
+- **«Применить все исправления (N)»** applies every fix fully inside the selection as
+  one transaction, so a single `Ctrl+Z` reverts the whole batch.
+- **«Отклонить подсказки (N)»** ignores those suggestions for the rest of the
+  session, the same as the popover's «Игнорировать».
+
+The count comes from the rules run over the whole document, not from the five
+visible tints, so a selection can fix more suggestions than are currently shown.
+
 Keyboard: `Esc` closes the popover; the highlight is reachable with the caret and
 `Enter` opens it (the fix itself stays click/Enter on the button — no hidden
 shortcut).
@@ -153,7 +166,7 @@ Every interaction with a suggestion is recorded in `localStorage`
   debounced engine run per pause (measured with a counter).
 - No false positives inside fenced code blocks (one test per fence type).
 
-The branch currently runs **59 e2e scenarios** in total (eight of them cover the
+The branch currently runs **61 e2e scenarios** in total (ten of them cover the
 assistant), plus typecheck, build, the Windows installers and the packaged `.exe`
 smoke in CI.
 

@@ -312,6 +312,36 @@ function openEditorMenu(
     },
   });
 
+  // Batch actions for the assistant: a selection can contain many small fixes,
+  // and applying them one by one is slow.
+  const lintSelection = hasSelection ? editor.lintInSelection() : [];
+  if (lintSelection.length) {
+    items.push(
+      { separator: true },
+      {
+        label: `Применить все исправления (${lintSelection.length})`,
+        onClick: () => {
+          const applied = editor.applyAllLintFixes();
+          updateFormatBar();
+          showToast(
+            applied ? `Исправлено подсказок: ${applied}` : 'В выделении нечего исправлять',
+            applied ? 'success' : 'info',
+          );
+        },
+      },
+      {
+        label: `Отклонить подсказки (${lintSelection.length})`,
+        onClick: () => {
+          const dismissed = editor.dismissLintInSelection();
+          showToast(
+            dismissed ? `Отклонено подсказок: ${dismissed}` : 'В выделении нет подсказок',
+            'info',
+          );
+        },
+      },
+    );
+  }
+
   items.push({ separator: true });
   items.push(
     {
