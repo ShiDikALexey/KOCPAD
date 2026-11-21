@@ -19,7 +19,7 @@ plain `.md` files: no accounts, no database, no proprietary format — they open
 other editor.
 
 > **Status:** `1.5.1` — the stable release; this file is the full description.
-> 52 UI tests run in CI on every push. Auto-updates are active: the signing key is
+> 54 UI tests run in CI on every push. Auto-updates are active: the signing key is
 > already configured in CI ([details](docs/PUBLISHING.md#5-auto-updates)). Installer
 > signing is still blocked on a certificate — see [the roadmap](docs/ROADMAP.md).
 >
@@ -325,7 +325,7 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 52 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 54 Playwright scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
@@ -366,7 +366,7 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                52 Playwright scenarios
+├─ tests/                54 Playwright scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
 └─ scripts/              bump-version.cjs — keeps three version fields in sync
 ```

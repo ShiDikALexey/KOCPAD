@@ -2797,6 +2797,17 @@ body.focus-mode .statusbar__stats {
   gap: 6px;
 }
 
+.drafts__row--active {
+  background: var(--bg-hover);
+}
+
+.drafts__current {
+  padding: 0 8px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .drafts__actions .btn {
   height: 26px;
   padding: 0 9px;

@@ -529,6 +529,47 @@ test.describe('editor surfaces', () => {
     await expect(panel).toContainText('Списки: -');
   });
 
+  test('a click outside the tinted fragment does not open the popover', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.editor.applyText('vk.com\n'));
+    const mark = page.locator('.cm-lint-suggestion').first();
+    await expect(mark).toBeVisible();
+    const line = page.locator('.cm-line').first();
+    const box = await line.boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) return;
+    // The tint covers only `vk.com`; the right side of the line is empty.
+    await page.mouse.click(box.x + box.width - 12, box.y + box.height / 2);
+    await expect(page.locator('.lint-popover')).toHaveCount(0);
+    await mark.click();
+    await expect(page.locator('.lint-popover')).toBeVisible();
+  });
+
+  test('drafts panel navigates to an open draft and focuses the editor', async ({ page }) => {
+    await page.evaluate(async () => {
+      const store = window.__kocpad.store;
+      await store.createDraftDoc();
+      await store.createDraftDoc();
+    });
+    await page.waitForTimeout(300);
+    const background = await page.evaluate(() => {
+      const store = window.__kocpad.store;
+      const drafts = store.docs.filter((doc) => doc.path.startsWith('draft:'));
+      return drafts[0].path;
+    });
+
+    await page.click('#btn-drafts');
+    await expect(page.locator('.drafts__row--active')).toContainText('В редакторе');
+    await page.locator('.drafts__row').getByRole('button', { name: 'Перейти' }).click();
+
+    await expect(page.locator('.drafts')).toHaveCount(0);
+    const state = await page.evaluate(() => ({
+      active: window.__kocpad.store.activePath,
+      editorFocused: Boolean(document.activeElement?.closest('.cm-editor')),
+    }));
+    expect(state.active).toBe(background);
+    expect(state.editorFocused).toBe(true);
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
