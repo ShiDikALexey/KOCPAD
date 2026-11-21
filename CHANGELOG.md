@@ -9,6 +9,22 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [Unreleased] — 1.5.0-beta.1 (data-safety wave)
+
+Plan and acceptance criteria: [docs/WAVE-1.md](docs/WAVE-1.md).
+
+### Added
+
+- **External-edit detection.** Every open file remembers the `{mtime, size}` stamp
+  it was read from; `Storage.stat()` is implemented by all three backends (Tauri
+  `fs_stat`, File System Access, demo). Before a write the stamp is compared: a file
+  changed by another program aborts the write and asks what to do —
+  **перечитать с диска / оставить моё / сохранить копию**. Window focus and
+  `visibilitychange` trigger a cheap re-check; a clean note is reloaded silently,
+  `F5` re-reads the active note, and autosave never repeats the same dialog.
+- Three e2e scenarios (34 total): conflict dialog and reload, silent reload of a
+  clean note, "keep mine" overwriting the external version.
+
 ## [1.4.1] — 2026-11-21 (beta branch)
 
 Notepad-style exit, a real drafts list, and two interface fixes from the review.

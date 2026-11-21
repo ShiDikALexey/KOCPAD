@@ -1,5 +1,11 @@
 import type { NoteNode, StorageKind } from '../types';
 
+/** Cheap identity of a file version: used to notice edits made elsewhere. */
+export interface FileStat {
+  mtimeMs: number;
+  size: number;
+}
+
 /**
  * Everything KOCPAD needs from the host.
  *
@@ -43,6 +49,8 @@ export interface Storage {
   rename(from: string, to: string): Promise<void>;
   remove(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
+  /** Version stamp of a file, or null when it is gone. */
+  stat(path: string): Promise<FileStat | null>;
 
   /** Asks where to store an exported file. Returns the path written, or null. */
   saveAs(defaultName: string, content: string, mime?: string): Promise<string | null>;

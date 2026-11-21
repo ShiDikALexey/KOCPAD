@@ -69,6 +69,7 @@ pub fn run() {
             fs_ops::fs_exists,
             fs_ops::open_external,
             fs_ops::reveal_in_explorer,
+            fs_ops::fs_stat,
             kocpad_ready,
             kocpad_close_window,
         ])

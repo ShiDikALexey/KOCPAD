@@ -201,6 +201,35 @@ pub fn fs_exists(path: String) -> bool {
     Path::new(&path).exists()
 }
 
+/// Version stamp of a file: mtime plus size, used to notice edits made by other
+/// programs before KOCPAD overwrites them with a full snapshot.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileStat {
+    mtime_ms: u64,
+    size: u64,
+}
+
+#[tauri::command]
+pub fn fs_stat(path: String) -> Result<Option<FileStat>, String> {
+    let target = Path::new(&path);
+    let metadata = match fs::metadata(target) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("Не удалось прочитать «{path}»: {error}")),
+    };
+    let mtime_ms = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+    Ok(Some(FileStat {
+        mtime_ms,
+        size: metadata.len(),
+    }))
+}
+
 /// Opens http(s)/mailto links in the user's browser. Other schemes are refused.
 ///
 /// The shell is never involved: `open` uses `ShellExecuteW`, so characters like

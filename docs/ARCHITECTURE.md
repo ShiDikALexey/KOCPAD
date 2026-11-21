@@ -98,6 +98,12 @@ Guarantees:
   push pending saves. Closing the window flushes writes, then closes silently:
   drafts stay in local storage and the tabs come back on the next launch. Only a
   write that failed asks for confirmation before quitting.
+- **External edits.** A document remembers the `{mtimeMs, size}` stamp it was read
+  from (`Storage.stat` → Tauri `fs_stat`). Before every write the stamp is compared;
+  if another program changed the file, the write is skipped and `Store.onConflict`
+  asks the user (reload / keep mine / save copy). Focus and `visibilitychange` run a
+  cheap re-check: a clean note is reloaded and a toast is shown, a dirty one raises
+  the conflict dialog. F5 re-reads the active note but never discards unsaved text.
 
 ## Editor
 

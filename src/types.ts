@@ -34,6 +34,8 @@ export interface Doc {
   content: string;
   /** Content as last written to disk, used for dirty tracking. */
   savedContent: string;
+  /** Version stamp of the file as last read or written; drafts have none. */
+  disk?: { mtimeMs: number; size: number } | null;
 }
 
 export interface Settings {

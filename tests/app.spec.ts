@@ -172,6 +172,54 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('#preview')).toContainText('конец');
   });
 
+  test('an external edit is detected instead of overwritten', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    // Another program rewrites the file while KOCPAD holds the old text.
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.storage.writeText(target, '# версия из другой программы\n');
+    }, path);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' моя правка');
+    await page.keyboard.press('Control+s');
+
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Файл изменён на диске');
+    await dialog.getByRole('button', { name: 'Перечитать с диска' }).click();
+    await expect(page.locator('#preview')).toContainText('версия из другой программы');
+    await expect(page.locator('#preview')).not.toContainText('моя правка');
+  });
+
+  test('a clean note is reloaded when the file changes on disk', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.storage.writeText(target, '# снаружи\n');
+    }, path);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.locator('#preview')).toContainText('снаружи');
+    await expect(page.locator('#toasts')).toContainText('изменена на диске');
+  });
+
+  test('keeping my version overwrites the external edit', async ({ page }) => {
+    const path = await page.evaluate(() => window.__kocpad.store.activeDoc?.path ?? '');
+    await page.evaluate(async (target) => {
+      await window.__kocpad.store.storage.writeText(target, '# снаружи\n');
+    }, path);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' моё');
+    await page.keyboard.press('Control+s');
+
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Файл изменён на диске');
+    await dialog.getByRole('button', { name: 'Оставить моё' }).click();
+    await expect
+      .poll(async () => page.evaluate(async (target) => window.__kocpad.store.storage.readText(target), path))
+      .toContain('моё');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

@@ -1,6 +1,7 @@
 import type { Doc, NoteNode, SearchHit, Settings, ThemeMode, ViewMode } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
+import type { FileStat } from './storage/types';
 import { basename, dirname, isInside, isTextFile, joinPath, normalizePath } from './path';
 import { titleFromPath } from './util';
 import { extractTags, tagKey, type TagSummary } from './tags';
@@ -61,6 +62,12 @@ export class Store {
   onDocClosed: (path: string) => void = () => undefined;
   /** Editor-state hook: the document moved, the old key must be dropped. */
   onDocRenamed: (from: string, to: string) => void = () => undefined;
+  /** The file changed on disk while the document had unsaved edits. */
+  onConflict: (path: string) => void = () => undefined;
+  /** A clean document was reloaded because the file changed on disk. */
+  onExternalReload: (path: string) => void = () => undefined;
+  /** Per-path stamps of externally changed files, waiting for a decision. */
+  private conflicts = new Map<string, FileStat>();
 
   constructor(storage: Storage) {
     this.storage = storage;
@@ -407,7 +414,8 @@ export class Store {
     }
     try {
       const content = await this.readCached(path);
-      const doc: Doc = { path, name: basename(path), content, savedContent: content };
+      const disk = await this.storage.stat(path).catch(() => null);
+      const doc: Doc = { path, name: basename(path), content, savedContent: content, disk };
       this.docs = [...this.docs, doc];
       this.activePath = path;
       // A newly opened note is also a "recent note"; activate() would return
@@ -494,6 +502,13 @@ export class Store {
     const previous = this.writes.get(path) ?? Promise.resolve();
     const write = previous.then(async () => {
       const snapshot = doc.content;
+      // Somebody else may have written the file since we read it. Overwriting
+      // that version would lose it, so stop and let the UI ask what to do.
+      const current = await this.storage.stat(path).catch(() => null);
+      if (current && doc.disk && (current.mtimeMs !== doc.disk.mtimeMs || current.size !== doc.disk.size)) {
+        this.flagConflict(path, current);
+        throw new SaveConflict();
+      }
       try {
         await this.storage.writeText(path, snapshot);
       } catch (error) {
@@ -502,6 +517,8 @@ export class Store {
       }
       // Edits that arrived while writing keep the document dirty.
       doc.savedContent = snapshot;
+      doc.disk = await this.storage.stat(path).catch(() => null);
+      this.conflicts.delete(path);
       this.textCache.set(path, snapshot);
       if (doc.content === snapshot) this.setStatus(`Сохранено · ${doc.name}`);
       this.emit('dirty');
@@ -513,9 +530,96 @@ export class Store {
     try {
       await write;
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      return !(error instanceof SaveConflict);
     }
+  }
+
+  /** Marks a path as externally modified; the UI asks once per conflict. */
+  private flagConflict(path: string, stamp: FileStat): void {
+    const first = !this.conflicts.has(path);
+    this.conflicts.set(path, stamp);
+    if (first) this.onConflict(path);
+  }
+
+  isConflicted(path: string): boolean {
+    return this.conflicts.has(path);
+  }
+
+  get conflictCount(): number {
+    return this.conflicts.size;
+  }
+
+  /**
+   * Compares open files with their stamps. Clean notes are reloaded silently;
+   * dirty ones are only flagged, so the user's text is never dropped without an
+   * explicit choice.
+   */
+  async checkExternalChanges(): Promise<void> {
+    let reloaded: string | null = null;
+    for (const doc of [...this.docs]) {
+      if (isDraftPath(doc.path)) continue;
+      const stamp = await this.storage.stat(doc.path).catch(() => null);
+      if (!stamp) continue;
+      if (!doc.disk) {
+        doc.disk = stamp;
+        continue;
+      }
+      if (stamp.mtimeMs === doc.disk.mtimeMs && stamp.size === doc.disk.size) continue;
+      if (this.isDirty(doc)) {
+        this.flagConflict(doc.path, stamp);
+        continue;
+      }
+      await this.reloadDoc(doc.path);
+      reloaded = doc.path;
+      this.onExternalReload(doc.path);
+    }
+    if (reloaded) this.emit('active');
+  }
+
+  /** Applies the user's choice for a conflicted file. */
+  async resolveConflict(path: string, choice: 'reload' | 'mine' | 'copy'): Promise<boolean> {
+    const doc = this.docs.find((item) => item.path === path);
+    this.conflicts.delete(path);
+    if (!doc) return false;
+    if (choice === 'reload') {
+      await this.reloadDoc(path);
+      return true;
+    }
+    if (choice === 'copy') {
+      const copyPath = await this.uniqueConflictPath(path);
+      try {
+        await this.storage.writeText(copyPath, doc.content);
+      } catch (error) {
+        this.report(error, 'Не удалось сохранить копию');
+        return false;
+      }
+      this.textCache.set(copyPath, doc.content);
+      this.setStatus(`Моя версия сохранена как «${basename(copyPath)}»`);
+      await this.reloadDoc(path);
+      await this.refreshTree();
+      return true;
+    }
+    // Keep mine: accept the current disk stamp, then write the local text.
+    doc.disk = await this.storage.stat(path).catch(() => null);
+    return this.saveDoc(path);
+  }
+
+  private async uniqueConflictPath(path: string): Promise<string> {
+    const dir = dirname(path);
+    const name = basename(path);
+    const dot = name.lastIndexOf('.');
+    const stem = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    const now = new Date();
+    const two = (value: number): string => String(value).padStart(2, '0');
+    const stamp = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}-${two(now.getMinutes())}-${two(now.getSeconds())}`;
+    for (let index = 1; index < 1000; index += 1) {
+      const suffix = index === 1 ? '' : ` ${index}`;
+      const candidate = joinPath(dir, `${stem} (конфликт ${stamp}${suffix})${ext}`);
+      if (!(await this.storage.exists(candidate))) return candidate;
+    }
+    return joinPath(dir, `${stem} (конфликт)${ext}`);
   }
 
   /** Saves every dirty document; returns the number that failed. */
@@ -537,6 +641,7 @@ export class Store {
       window.clearTimeout(timer);
       this.saveTimers.delete(path);
     }
+    this.conflicts.delete(path);
     const index = this.docs.findIndex((item) => item.path === path);
     this.docs = this.docs.filter((item) => item.path !== path);
     if (this.activePath === path) {
@@ -559,6 +664,8 @@ export class Store {
       const content = await this.readCached(path);
       doc.content = content;
       doc.savedContent = content;
+      doc.disk = await this.storage.stat(path).catch(() => null);
+      this.conflicts.delete(path);
       this.emit('docs', 'active');
     } catch (error) {
       this.report(error, `Не удалось перечитать ${doc.name}`);
@@ -1081,6 +1188,9 @@ function pruneAssetFolders(nodes: NoteNode[]): NoteNode[] {
 function containsFile(nodes: NoteNode[]): boolean {
   return nodes.some((node) => node.kind === 'file' || containsFile(node.children ?? []));
 }
+
+/** Internal signal: the write was skipped because the file changed on disk. */
+class SaveConflict extends Error {}
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

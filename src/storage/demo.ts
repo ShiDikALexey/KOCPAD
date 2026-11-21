@@ -1,7 +1,7 @@
 import type { NoteNode } from '../types';
 import { isTextFile } from '../path';
 import { downloadText } from '../util';
-import type { Storage } from './types';
+import type { FileStat, Storage } from './types';
 
 const WELCOME = `# Добро пожаловать в KOCPAD
 
@@ -232,6 +232,17 @@ export class DemoStorage implements Storage {
   private files = new Map<string, string>(Object.entries(SEED));
   private blobs = new Map<string, Uint8Array<ArrayBuffer>>();
   private dirs = new Set<string>(collectSeedDirs());
+  /** Monotonic clock plus per-path stamps, so tests can simulate external edits. */
+  private stamps = new Map<string, { mtimeMs: number; size: number }>();
+  private clock = Date.now();
+
+  private touch(path: string): void {
+    const text = this.files.get(path);
+    const blob = this.blobs.get(path);
+    const size = text !== undefined ? new TextEncoder().encode(text).byteLength : blob?.byteLength ?? 0;
+    this.clock += 1;
+    this.stamps.set(path, { mtimeMs: this.clock, size });
+  }
 
   get root(): string | null {
     return '/';
@@ -258,6 +269,8 @@ export class DemoStorage implements Storage {
     this.files = new Map(Object.entries(SEED));
     this.blobs.clear();
     this.dirs = new Set(collectSeedDirs());
+    this.stamps.clear();
+    this.clock = Date.now();
   }
 
   async listTree(): Promise<NoteNode[]> {
@@ -272,6 +285,7 @@ export class DemoStorage implements Storage {
 
   async writeText(path: string, text: string): Promise<void> {
     this.files.set(path, text);
+    this.touch(path);
   }
 
   async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
@@ -294,6 +308,7 @@ export class DemoStorage implements Storage {
 
   async createFile(path: string, text = ''): Promise<void> {
     this.files.set(path, text);
+    this.touch(path);
   }
 
   async createDir(path: string): Promise<void> {
@@ -309,6 +324,15 @@ export class DemoStorage implements Storage {
     const text = this.files.get(from) ?? '';
     this.files.delete(from);
     this.files.set(to, text);
+    const fromStamp = this.stamps.get(from);
+    this.stamps.delete(from);
+    if (fromStamp) this.stamps.set(to, { ...fromStamp, mtimeMs: (this.clock += 1) });
+    for (const key of [...this.stamps.keys()]) {
+      if (key.startsWith(`${from}/`)) {
+        this.stamps.set(to + key.slice(from.length), this.stamps.get(key)!);
+        this.stamps.delete(key);
+      }
+    }
     for (const key of [...this.files.keys()]) {
       if (key.startsWith(`${from}/`)) {
         const moved = to + key.slice(from.length);
@@ -326,8 +350,12 @@ export class DemoStorage implements Storage {
 
   async remove(path: string): Promise<void> {
     this.files.delete(path);
+    this.stamps.delete(path);
     for (const key of [...this.files.keys()]) {
-      if (key.startsWith(`${path}/`)) this.files.delete(key);
+      if (key.startsWith(`${path}/`)) {
+        this.files.delete(key);
+        this.stamps.delete(key);
+      }
     }
     for (const dir of [...this.dirs]) {
       if (dir === path || dir.startsWith(`${path}/`)) this.dirs.delete(dir);
@@ -340,6 +368,12 @@ export class DemoStorage implements Storage {
       [...this.files.keys()].some((key) => key.startsWith(`${path}/`))
       || [...this.dirs].some((dir) => dir === path || dir.startsWith(`${path}/`))
     );
+  }
+
+  async stat(path: string): Promise<FileStat | null> {
+    if (!this.files.has(path) && !this.blobs.has(path)) return null;
+    if (!this.stamps.has(path)) this.touch(path);
+    return { ...this.stamps.get(path)! };
   }
 
   async saveAs(defaultName: string, content: string): Promise<string | null> {

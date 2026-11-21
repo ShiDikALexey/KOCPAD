@@ -659,9 +659,62 @@ async function checkForUpdates(): Promise<void> {
 
 /** Re-reads the workspace and drops cached text so external edits are visible. */
 function reloadWorkspace(): void {
+  const active = store.activeDoc;
+  const activePath = active && !isDraftPath(active.path) ? active.path : null;
+  const dirty = active ? store.isDirty(active) : false;
   store.clearTextCache();
-  void store.refreshTree().then(() => {
-    showToast(`Дерево обновлено · ${store.flatFiles().length} заметок`);
+  void store.refreshTree().then(async () => {
+    // F5 is also the manual escape hatch for external edits: re-read the open
+    // note, but never throw away unsaved text.
+    if (activePath && !dirty) {
+      await store.reloadDoc(activePath);
+      const fresh = store.docs.find((doc) => doc.path === activePath);
+      if (fresh && store.activePath === activePath) editor.applyText(fresh.content);
+    }
+    showToast(
+      `Дерево обновлено · ${store.flatFiles().length} заметок${dirty ? ' · несохранённые правки не тронуты' : ''}`,
+    );
+  });
+}
+
+/** Asks what to do when a file changed on disk while it had unsaved edits. */
+async function showConflictDialog(path: string): Promise<void> {
+  const doc = store.docs.find((item) => item.path === path);
+  if (!doc) return;
+  const choice = await choiceDialog({
+    title: 'Файл изменён на диске',
+    message: `«${doc.name}» изменён другой программой, пока вы его редактировали. KOCPAD не стал перезаписывать файл, чтобы не потерять чужую версию.`,
+    options: [
+      { id: 'reload', label: 'Перечитать с диска', kind: 'primary' },
+      { id: 'mine', label: 'Оставить моё' },
+      { id: 'copy', label: 'Сохранить копию' },
+    ],
+  });
+  if (!choice) return;
+  const resolved = await store.resolveConflict(path, choice as 'reload' | 'mine' | 'copy');
+  if (!resolved) {
+    showToast('Не удалось разрешить конфликт — попробуйте ещё раз', 'error');
+    return;
+  }
+  if (choice !== 'mine') {
+    const current = store.docs.find((item) => item.path === path);
+    if (current && store.activePath === path) editor.applyText(current.content);
+  }
+  if (choice === 'mine') showToast('Записана ваша версия');
+}
+
+/** Focus/visibility checks: another program may have touched an open note. */
+function mountExternalChangeWatch(): void {
+  let lastCheck = 0;
+  const check = (): void => {
+    const now = Date.now();
+    if (now - lastCheck < 2000) return;
+    lastCheck = now;
+    void store.checkExternalChanges();
+  };
+  window.addEventListener('focus', check);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') check();
   });
 }
 
@@ -1594,6 +1647,13 @@ async function boot(): Promise<void> {
   editor.setLinkSuggestions(() => store.linkSuggestions());
   store.onDocClosed = (path) => editor.forget(path);
   store.onDocRenamed = (from) => editor.forget(from);
+  store.onConflict = (path) => void showConflictDialog(path);
+  store.onExternalReload = (path) => {
+    const doc = store.docs.find((item) => item.path === path);
+    if (doc && store.activePath === path) editor.applyText(doc.content);
+    showToast(`«${doc?.name ?? 'Заметка'}» изменена на диске — перечитана`);
+  };
+  mountExternalChangeWatch();
 
   store.on('active', () => {
     syncActive();

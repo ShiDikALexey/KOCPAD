@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { NoteNode } from '../types';
 import { base64ToBytes, bytesToBase64 } from '../util';
-import type { Storage } from './types';
+import type { FileStat, Storage } from './types';
 
 /** Shape returned by the Rust `fs_list_tree` command. */
 interface RawNode {
@@ -92,8 +92,7 @@ export class TauriStorage implements Storage {
     return raw.map(toNoteNode);
   }
 
-  async readText(path: string): Promise<string> {
-    return invoke<string>('fs_read_text', { path });
+  async readText(path: string): Promise<string> {    return invoke<string>('fs_read_text', { path });
   }
 
   async writeText(path: string, text: string): Promise<void> {
@@ -128,6 +127,10 @@ export class TauriStorage implements Storage {
 
   async exists(path: string): Promise<boolean> {
     return invoke<boolean>('fs_exists', { path }).catch(() => false);
+  }
+
+  async stat(path: string): Promise<FileStat | null> {
+    return invoke<FileStat | null>('fs_stat', { path }).catch(() => null);
   }
 
   async saveAs(defaultName: string, content: string, _mime = 'text/plain;charset=utf-8'): Promise<string | null> {

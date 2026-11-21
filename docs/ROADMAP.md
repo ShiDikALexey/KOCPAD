@@ -158,6 +158,8 @@ Version numbering and the maturity bar are described separately in
 
 ## After 1.4.1 — correctness wave (next)
 
+Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
+
 - [ ] External-edit detection: mtime/hash check before overwrite, conflict dialog
 - [ ] Crash recovery journal for dirty buffers
 - [ ] Encodings: cp1251/UTF-16 detection, BOM handling, keep CRLF on save
