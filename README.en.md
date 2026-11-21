@@ -4,7 +4,7 @@
   <p><b>A markdown notepad for Windows — like Notepad, but it never loses a thing.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
+  [![release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=release)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#requirements)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -18,15 +18,25 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.4.0` — a working version for everyday writing. 27 UI tests run in CI
-> on every push. Auto-updates are built in and switch on with two CI secrets
-> ([details](docs/PUBLISHING.md#5-auto-updates)); installer signing is still blocked
+> **Status:** `1.4.0` — the stable release; this file is the full description of
+> every feature. 27 UI tests run in CI on every push. Auto-updates are active: the
+> signing key is already configured in CI
+> ([details](docs/PUBLISHING.md#5-auto-updates)). Installer signing is still blocked
 > on a certificate — see [the roadmap](docs/ROADMAP.md).
-> on every push. What is left is external: installer code signing and a clean-machine
-> check — see [the roadmap](docs/ROADMAP.md).
 >
 > **Download:** [latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest) —
 > `.exe` installer, `.msi` package, portable `kocpad.exe` and `SHA256SUMS.txt`.
+
+### Branches
+
+| Branch | What lives there |
+|---|---|
+| `main` | the stable release; full feature description — this file |
+| `beta` | the next version (`1.5.0-beta.4`): only what changed and what is being tested — [branch README](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.en.md) |
+| `Experimental` | the inline markup assistant: new features and plans — [branch README](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md) |
+
+New features and fixes land on `beta` first, get tested, and only then merge into
+`main`.
 
 ![KOCPAD light theme: note tree, editor and live preview](docs/screenshots/light.png)
 

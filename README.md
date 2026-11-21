@@ -4,7 +4,7 @@
   <p><b>Блокнот для markdown-заметок на Windows — как «Блокнот», но ничего не теряет.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![version](https://img.shields.io/badge/версия-1.1.0-blue)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
+  [![релиз](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=релиз)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#требования)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -18,13 +18,24 @@
 Заметки — обычные `.md` файлы: без аккаунтов, баз данных и своего формата, они
 открываются в любом другом редакторе.
 
-> **Статус:** `1.4.0` — рабочая версия для повседневного письма. 27 автотестов
-> интерфейса гоняются в CI на каждый пуш. Автообновление встроено и включается
-> двумя секретами в CI ([подробнее](docs/PUBLISHING.md#5-auto-updates)); подпись
-> установщика упирается в сертификат — см. [планы](docs/ROADMAP.md).
+> **Статус:** `1.4.0` — стабильный релиз; это полное описание всех возможностей.
+> 27 автотестов интерфейса гоняются в CI на каждый пуш. Автообновление работает:
+> ключ подписи уже добавлен в CI ([подробнее](docs/PUBLISHING.md#5-auto-updates)).
+> Подпись установщика упирается в сертификат — см. [планы](docs/ROADMAP.md).
 >
 > **Скачать:** [последний релиз](https://github.com/ShiDikALexey/KOCPAD/releases/latest) —
 > установщик `.exe`, пакет `.msi`, портативный `kocpad.exe` и `SHA256SUMS.txt`.
+
+### Ветки
+
+| Ветка | Что здесь |
+|---|---|
+| `main` | стабильный релиз; полное описание всех возможностей — этот файл |
+| `beta` | следующая версия (`1.5.0-beta.4`): только изменения, которые тестируются — [README ветки](https://github.com/ShiDikALexey/KOCPAD/blob/beta/README.md) |
+| `Experimental` | inline-помощник по разметке: новые фичи и планы — [README ветки](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.md) |
+
+Новые возможности и исправления сначала попадают в `beta`, проверяются и только
+потом вливаются в `main`.
 
 ![KOCPAD в светлой теме: дерево заметок, редактор и живой предпросмотр](docs/screenshots/light.png)
 
