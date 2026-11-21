@@ -4,7 +4,7 @@
   <p><b>A branch for things that are not ready for beta yet.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=Experimental)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/base-1.5.2-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/base-1.5.2-a-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
 </div>
