@@ -236,16 +236,16 @@ jobs:
           retention-days: 14
 
   native-e2e:
-    name: Native e2e (WebDriver, advisory)
+    name: Native e2e (WebDriver, manual)
     needs: windows
     runs-on: windows-latest
     timeout-minutes: 30
     # GitHub-hosted Windows runners start elevated, and WebView2 ignores the
-    # remote-debugging arguments in an elevated process (tauri-apps/wry#1782).
-    # This job tries the RUNASINVOKER compatibility layer and stays advisory
-    # until it is proven on a non-elevated runner; the enforced native check is
+    # remote-debugging arguments in an elevated process (tauri-apps/wry#1782), so
+    # msedgedriver cannot attach there. The job is kept for a self-hosted or
+    # non-elevated runner and is started manually; the enforced native check is
     # the "Native smoke" step in the windows job.
-    continue-on-error: true
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 

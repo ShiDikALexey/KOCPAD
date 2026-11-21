@@ -173,7 +173,11 @@ Detailed plan with acceptance criteria: [WAVE-1.md](WAVE-1.md) (`1.5.0-beta.1`).
 - [x] Wiki links: create a note from a missing link, rename rewrites `[[links]]`
 - [x] Workspace search: request-id guard against stale results
 - [x] Native smoke: CI launches the built `.exe` and checks the window (wave 3)
-- [ ] Full native e2e against the packaged app (tauri-driver/WebDriver)
+- [ ] Full native e2e against the packaged app (tauri-driver/WebDriver).
+      Prepared in `tests/native/smoke.mjs` and the manual `native-e2e` job, but
+      GitHub-hosted Windows runners are elevated and WebView2 ignores remote
+      debugging there (tauri-apps/wry#1782); needs a non-elevated/self-hosted
+      runner. The enforced native check today is the smoke launch in CI.
 - [ ] Simplify duplicated formatting entry points (decision pending)
 - [ ] `spawn_blocking` for slow disks; stricter `script-src` after a packaged-build check
 

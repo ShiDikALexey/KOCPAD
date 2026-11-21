@@ -36,8 +36,10 @@ real Windows binary.
       process is alive and has a window title, then stops it. This is the first
       automated check of the packaged app rather than the Vite dev page.
 - [ ] Full native e2e (tauri-driver + WebDriver, open folder → edit → kill →
-      recover → update) — deferred to its own wave; it needs a Windows runner
-      setup and is tracked in ROADMAP.
+      recover → update) — prepared in `tests/native/smoke.mjs` and a manual CI job,
+      but blocked on GitHub-hosted Windows runners (elevated process, WebView2
+      ignores remote debugging; tauri-apps/wry#1782). Needs a non-elevated or
+      self-hosted runner; tracked in ROADMAP.
 
 ### 4. Formatting entry points (decision pending)
 
