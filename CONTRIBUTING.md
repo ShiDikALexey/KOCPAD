@@ -5,7 +5,7 @@ Thanks for taking a look. KOCPAD is a small app with a short list of rules.
 ## Setup
 
 ```bash
-npm install
+npm ci                 # exact versions from package-lock.json
 npm run dev            # browser build on http://localhost:1420
 npm run tauri:dev      # desktop window (needs Rust + MSVC Build Tools)
 ```

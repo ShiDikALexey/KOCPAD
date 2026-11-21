@@ -2802,6 +2802,16 @@ body.focus-mode .statusbar__stats {
   border-top: 1px solid var(--line);
 }
 
+/* --- selection: keep the accent tint in every window state ---
+   CodeMirror's base theme paints its own lavender selection
+   (`.cm-selectionBackground`), so this rule outranks it. */
+
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-scroller .cm-selectionLayer .cm-selectionBackground,
+.cm-editor ::selection {
+  background-color: var(--selection) !important;
+}
+
 /* --- settings details --- */
 
 .settings__checkbox {

@@ -4,6 +4,11 @@ All notable changes to KOCPAD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/).
 
+> **On version numbers.** 0.x–1.x releases were daily checkpoints: 14 releases in
+> three days, and `1.0.0` was called "stable" too early. See
+> [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
+> the rules used from now on. The history below is left as written.
+
 ## [1.4.1] — 2026-11-21 (beta branch)
 
 Notepad-style exit, a real drafts list, and two interface fixes from the review.
@@ -32,10 +37,56 @@ Notepad-style exit, a real drafts list, and two interface fixes from the review.
   lavender).
 - `docs/BETA.md` documents the `beta` branch workflow; CI builds it too.
 
+### Fixed (found by the 2026-11-21 audit pass)
+
+- **Images were broken in packaged builds.** The production CSP lacked `blob:`, so
+  every pasted or relative image was blocked by the webview while dev/e2e looked
+  fine. `img-src` now allows `blob:` and `https:`.
+- **A failed draft save could look successful.** A full localStorage used to mark
+  the draft clean anyway, so closing silently lost the text. The document now stays
+  dirty and reports the error; closing asks before dropping unsaved text.
+- **Switching folders could drop unsaved files.** `saveAll()` now reports failures
+  and the folder switch aborts instead of replacing open documents.
+- **A reopened note could show stale text.** The editor cache is content-aware and
+  forgets the buffer when a tab is closed, renamed or deleted.
+- **A note starting with `---` lost its body in the preview.** Only a block where
+  every line is `key: value` is treated as front matter; a horizontal rule is not.
+- **Deleting several notes could close tabs of notes that failed to delete**, losing
+  their unsaved buffers.
+- **Opening an external link no longer goes through `cmd.exe`** (a shell-quoting
+  injection surface); the `open` crate uses `ShellExecuteW`, and only http(s)/mailto
+  are allowed.
+- **The quick-capture hotkey can no longer block startup**: a conflict with another
+  app logs a warning instead of panicking.
+- **Atomic writes use a unique temp file per write** (two notes with the same stem
+  could collide), flush with `sync_all()`, and clean up after a failure.
+- **Status bar no longer runs full-document word counts on every keystroke**; stats
+  are debounced with the rest of the typing updates.
+- **A second error toast** no longer appears for the same failure.
+- Removed dead code left over from the old close flow and the previous drafts model
+  (`saveAllDraftsAsFiles`, `hasDrafts`, `cachedNotes`, `clearStoredDrafts`,
+  `wrapSelection`, `replaceExtension`, `EditorExtension`).
+
+### CI and release gates
+
+- Tag, `package.json`, `package-lock.json`, `Cargo.toml` and `tauri.conf.json` must
+  agree (`scripts/check-versions.cjs`); a `-beta` tag requires a `-beta` version.
+- Release notes now come from the `CHANGELOG.md` section for the tag
+  (`scripts/changelog-notes.cjs`); a release without a section fails.
+- Tags with a suffix are published as pre-releases, so `/releases/latest` (and the
+  updater) keeps pointing at the last plain release.
+- Signing secrets are scoped to the steps that need them; Authenticode signing now
+  re-signs the installer afterwards, so the updater signature stays valid.
+- `if-no-files-found: error` for installers, job timeouts, and a release check that
+  refuses to publish updater metadata without a `.sig` when the key exists.
+
 ### Tests
 
-- One more e2e scenario (28 total): the drafts panel lists stored drafts, keeps a
-  draft after closing its tab, and reopens it.
+- Four more e2e scenarios (31 total): the drafts panel lists stored drafts and keeps
+  a draft after closing its tab; "Новый черновик" always creates a draft even with a
+  folder open; the two-step delete works; a leading horizontal rule is not eaten as
+  front matter; and the selection colour stays on the theme accent when the editor
+  loses focus.
 
 ## [1.4.0] — 2026-11-20
 

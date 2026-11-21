@@ -673,7 +673,11 @@ function targetDirectory(): string {
 /** Opens the folder picker and mounts the result. Shared by "Открыть папку" and friends. */
 async function chooseWorkspace(): Promise<boolean> {
   try {
-    await store.saveAll();
+    const failed = await store.saveAll();
+    if (failed > 0) {
+      showToast(`Не удалось сохранить ${failed} заметок. Папка не переключена — проверьте диск`, 'error');
+      return false;
+    }
     const ok = await store.chooseRoot();
     if (!ok) return false;
     if (store.storage.root) localStorage.setItem('kocpad.root', store.storage.root);
@@ -1090,7 +1094,7 @@ function palette(): void {
       run: () => actions.openRecentFolder(path),
     })),
     { label: 'Новая заметка', hint: 'Ctrl+N', run: () => actions.createNote() },
-    { label: 'Черновики без файла…', run: () => openDraftsPanel(store, actions) },
+    { label: 'Черновики без файла…', run: () => openDraftsPanel(store) },
     { label: 'Новая папка', hint: 'Ctrl+Shift+N', run: () => actions.createFolder() },
     // Recently opened notes, newest first: the quick switcher most editors have.
     ...store
@@ -1190,7 +1194,7 @@ function mountToolbar(): void {
   document.getElementById('btn-new-note')?.addEventListener('click', () => actions.createNote());
   document.getElementById('btn-new-folder')?.addEventListener('click', () => actions.createFolder());
   document.getElementById('btn-refresh')?.addEventListener('click', () => actions.refreshWorkspace());
-  document.getElementById('btn-drafts')?.addEventListener('click', () => openDraftsPanel(store, actions));
+  document.getElementById('btn-drafts')?.addEventListener('click', () => openDraftsPanel(store));
   document.getElementById('btn-search')?.addEventListener('click', () => actions.openGlobalSearch());
   document.getElementById('btn-palette')?.addEventListener('click', () => actions.openPalette());
   document.getElementById('btn-theme')?.addEventListener('click', () => actions.toggleTheme());
@@ -1526,12 +1530,12 @@ async function handleCloseRequest(): Promise<void> {
   if (closeInProgress) return;
   closeInProgress = true;
   try {
-    await store.saveAll();
+    const failed = await store.saveAll();
 
-    if (store.dirtyCount > 0) {
+    if (failed > 0) {
       const proceed = await confirmAction({
         title: 'Закрыть KOCPAD?',
-        message: `Не удалось сохранить изменения в ${store.dirtyCount} заметке(ах). Закрыть без сохранения?`,
+        message: `Не удалось сохранить изменения в ${failed} заметке(ах). Закрыть без сохранения?`,
         confirmLabel: 'Закрыть',
         danger: true,
       });
@@ -1588,6 +1592,8 @@ async function boot(): Promise<void> {
   tagsView.mount();
   linksView.mount();
   editor.setLinkSuggestions(() => store.linkSuggestions());
+  store.onDocClosed = (path) => editor.forget(path);
+  store.onDocRenamed = (from) => editor.forget(from);
 
   store.on('active', () => {
     syncActive();
@@ -1610,7 +1616,8 @@ async function boot(): Promise<void> {
   });
   store.on('settings', () => applyLayout());
   store.on('status', () => {
-    if (store.status.kind === 'error' && store.status.text) showToast(store.status.text, 'error');
+    // Any status text is already shown in the status bar; real errors arrive
+    // through `onError`, so this handler must not show a second toast.
   });
   store.on('tree', () => {
     dom.sidebarCount.textContent = String(store.flatFiles().length);

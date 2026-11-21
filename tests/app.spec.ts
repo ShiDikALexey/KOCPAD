@@ -159,6 +159,19 @@ test.describe('editor surfaces', () => {
       .toBe('dark');
   });
 
+  test('a horizontal rule at the start is not eaten as front matter', async ({ page }) => {
+    // `---` at the top followed by another `---` used to be parsed as front
+    // matter, hiding everything between them from the preview and the tags.
+    await page.evaluate(async () => {
+      const doc = window.__kocpad.store.activeDoc;
+      if (!doc) return;
+      window.__kocpad.editor.applyText('---\n\nважная строка\n\n---\n\nконец\n');
+      await window.__kocpad.store.updateContent(doc.path, window.__kocpad.editor.text);
+    });
+    await expect(page.locator('#preview')).toContainText('важная строка');
+    await expect(page.locator('#preview')).toContainText('конец');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
@@ -357,6 +370,24 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('.settings')).toHaveCount(0);
   });
 
+  test('selection keeps the theme accent colour', async ({ page }) => {
+    await page.evaluate(() => {
+      const view = window.__kocpad.editor.view;
+      view.dispatch({ selection: { anchor: 0, head: 5 } });
+      // Opening a menu blurs the editor, which is when CodeMirror falls back to
+      // its own base theme unless our rule outranks it.
+      document.querySelector('.cm-content')?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }),
+      );
+    });
+    await expect(page.locator('.menu')).toBeVisible();
+    const colour = await page.evaluate(() => {
+      const layer = document.querySelector('.cm-selectionBackground');
+      return layer ? getComputedStyle(layer).backgroundColor : 'missing';
+    });
+    expect(colour).toBe('rgba(217, 166, 46, 0.3)');
+  });
+
   test('a single newline becomes a line break in the preview', async ({ page }) => {
     await page.evaluate(() => {
       window.__kocpad.editor.applyText('первая строка\nвторая строка');
@@ -423,5 +454,24 @@ test.describe('drafts without a folder', () => {
     await panel.getByRole('button', { name: 'Открыть' }).click();
     await expect(page.locator('.tab')).toHaveCount(1);
     await expect(page.locator('#preview')).toContainText('заметка в черновике');
+  });
+
+  test('drafts panel creates a draft and deletes it in two steps', async ({ page }) => {
+    await page.goto('/?demo=1');
+    await page.waitForSelector('.cm-content');
+
+    await page.locator('#btn-drafts').click();
+    const panel = page.locator('.drafts');
+    await panel.getByRole('button', { name: 'Новый черновик' }).click();
+
+    // Even with a folder connected, "Новый черновик" must create a draft, not a file.
+    await expect(page.locator('#status-saved')).toContainText('Черновик');
+
+    await page.locator('#btn-drafts').click();
+    await page.locator('.drafts').getByRole('button', { name: 'Удалить черновик' }).click();
+    const confirmButton = page.locator('.drafts').getByRole('button', { name: 'Подтвердить удаление' });
+    await expect(confirmButton).toBeVisible();
+    await confirmButton.click();
+    await expect(page.locator('.drafts')).toContainText('Черновиков пока нет');
   });
 });

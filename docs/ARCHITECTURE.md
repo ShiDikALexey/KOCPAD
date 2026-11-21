@@ -33,7 +33,9 @@ Every filesystem operation goes through `Storage` (`src/storage/types.ts`):
 ```ts
 interface Storage {
   chooseRoot(): Promise<boolean>;
+  mountRoot(path: string): Promise<boolean>;
   restoreRoot(): Promise<boolean>;
+  closeRoot(): Promise<void>;
   listTree(): Promise<NoteNode[]>;
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
@@ -93,7 +95,9 @@ Guarantees:
 - **Clean means written.** A document is only marked clean after the write for
   that exact snapshot resolved; edits made during the write keep it dirty.
 - **Flush points.** Tab close, window blur, `visibilitychange` and `pagehide` all
-  push pending saves. Closing the window with unsaved changes asks first.
+  push pending saves. Closing the window flushes writes, then closes silently:
+  drafts stay in local storage and the tabs come back on the next launch. Only a
+  write that failed asks for confirmation before quitting.
 
 ## Editor
 
@@ -172,10 +176,11 @@ above.
 - comparison is case-insensitive (`toLocaleLowerCase('ru')`), display uses the
   first spelling that was seen.
 
-`Store.indexTags()` walks drafts and every workspace file, reads the text and
-aggregates `{ tag, key, count, paths }`, sorted by count. There is no cache yet:
-the panel re-indexes when it is opened or when the tree changes, which is fine for
-hundreds of notes (an index is on the roadmap for thousands).
+`Store.indexTags()` walks every stored draft and every workspace file through
+`readCached()` and aggregates `{ tag, key, count, paths }`, sorted by count. There
+is no persistent tag index: the panel rebuilds it when opened or when the tree
+changes. That is fine for hundreds of notes; thousands would need an on-disk index
+(on the roadmap).
 
 ## Bulk actions
 
@@ -267,34 +272,41 @@ Two UI surfaces sit on top of the same editor primitives:
 
 ## Drafts
 
-A note does not need a folder to exist. Documents without a file are represented
-by a `draft:<id>` path inside the same `Doc` list, so tabs, the editor, the
-outline, search and export treat them exactly like files.
+A note does not need a folder to exist. Drafts are stored as a separate list in
+`kocpad.drafts` (localStorage) independently of the open tabs, so closing a tab or
+the whole app never deletes one.
 
-- `src/drafts.ts` owns the `kocpad.drafts` localStorage record:
-  `{ id, title, content, updatedAt }[]`.
-- The autosave path for a draft writes to localStorage instead of the storage
-  backend; a draft is never a reason to touch the disk.
+- `src/drafts.ts` owns the record: `{ id, title, content, updatedAt }[]`.
+- `Store.openDraft(id)` materialises a draft as a tab with the synthetic
+  `draft:<id>` path, so tabs, the editor, outline, search and export treat it like
+  any other document.
+- Autosave for a draft writes to localStorage instead of the storage backend; a
+  draft never touches the disk. A failed localStorage write keeps the document
+  dirty and surfaces an error — silent close refuses to pretend the text was saved.
+- The sidebar button with a counter opens `src/ui/drafts.ts`: open, «В папку…»,
+  delete (two-step inline confirmation). "Новый черновик" always creates a draft,
+  even when a folder is connected.
 - «Сохранить в папку…» writes the content into the chosen folder and rewrites the
-  document in place: `path` becomes the real file, the editor state is dropped by
-  its old key, and the draft record disappears.
-- Closing a folder keeps drafts open, because they are not attached to it.
+  document in place: `path` becomes the real file and the draft record disappears.
+- Session restore brings draft tabs back with their order; if there is no saved tab
+  list, the most recent draft opens. Closing a folder keeps drafts open.
 
 ## Closing the window
 
-A notepad should not quit silently with unsaved drafts, but the webview cannot
-block the OS close by itself in a way that survives a broken frontend. The split:
+A notepad should not quit silently with unsaved text, but the webview cannot block
+the OS close by itself in a way that survives a broken frontend. The split:
 
 1. The frontend calls `kocpad_ready` once it is interactive.
 2. Rust's `on_window_event` sees `CloseRequested`, and only if that flag is set it
    calls `prevent_close()` and evaluates `window.__kocpadRequestClose()`.
-3. The handler saves pending file changes, then asks about drafts:
-   «Сохранить в папку…» / «Оставить черновиками» / «Удалить и закрыть»
-   (three-button `choiceDialog`; `Esc` cancels and keeps the window open).
+3. The handler calls `store.saveAll()` (files through the atomic write, drafts into
+   localStorage). If a write failed, a single confirmation offers to close anyway;
+   otherwise the window closes with no questions. Drafts and the tab list are
+   already persisted, so nothing is lost.
 4. The final close goes through the `kocpad_close_window` command, which destroys
-   the webview window. Custom commands need no extra ACL permissions, and if the
-   `eval` itself fails Rust destroys the window, so the app can never become
-   unclosable.
+   the webview window. Custom commands need no extra ACL permissions. If the
+   `eval` fails, Rust destroys the window anyway — the app is never left unclosable
+   (the known edge case is a crashed webview that keeps `FRONTEND_READY` set).
 
 File changes that failed to reach the disk take a separate, simpler confirmation.
 

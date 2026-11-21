@@ -14,6 +14,9 @@ const artifactsDir = process.argv[2] ?? 'artifacts';
 const version = require('../package.json').version;
 const repository = process.env.GITHUB_REPOSITORY;
 const tag = process.env.GITHUB_REF_NAME ?? `v${version}`;
+// The release job sets this when the updater signing key exists in CI: in that
+// case a release without .sig means the updater would silently stop working.
+const expectSignatures = process.env.EXPECT_SIGNATURES === 'true';
 
 if (!repository) {
   console.error('GITHUB_REPOSITORY is not set');
@@ -23,6 +26,10 @@ if (!repository) {
 const files = fs.readdirSync(artifactsDir, { recursive: true }).map((file) => String(file));
 const signatureFile = files.find((file) => file.endsWith('-setup.exe.sig'));
 if (!signatureFile) {
+  if (expectSignatures) {
+    console.error('Updater signing is configured but no .sig file was uploaded — refusing to publish a release without updates');
+    process.exit(1);
+  }
   console.log('No .sig file found: release will not include updater metadata');
   process.exit(0);
 }
@@ -32,8 +39,16 @@ if (!files.includes(installer)) {
   console.error(`Signature without installer: ${signatureFile}`);
   process.exit(1);
 }
+if (!path.basename(installer).includes(version)) {
+  console.error(`Installer ${installer} does not match version ${version}`);
+  process.exit(1);
+}
 
 const signature = fs.readFileSync(path.join(artifactsDir, signatureFile), 'utf8').trim();
+if (!signature) {
+  console.error(`Empty signature file: ${signatureFile}`);
+  process.exit(1);
+}
 const assetUrl = `https://github.com/${repository}/releases/download/${tag}/${path.basename(installer)}`;
 
 const latest = {

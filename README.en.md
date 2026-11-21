@@ -4,7 +4,8 @@
   <p><b>A markdown notepad for Windows — like Notepad, but it never loses a thing.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
+  [![release](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=release)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
+  [![beta](https://img.shields.io/badge/beta-1.4.1-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![platform](https://img.shields.io/badge/Windows-10%20%7C%2011-informational)](#requirements)
   [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -18,12 +19,12 @@ folder. Text is saved as you type, and the rendered result sits next to it. Note
 plain `.md` files: no accounts, no database, no proprietary format — they open in any
 other editor.
 
-> **Status:** `1.4.1` (beta branch) — a working version for everyday writing. 28 UI tests run in CI
-> on every push. Auto-updates are built in and switch on with two CI secrets
-> ([details](docs/PUBLISHING.md#5-auto-updates)); installer signing is still blocked
-> on a certificate — see [the roadmap](docs/ROADMAP.md).
-> on every push. What is left is external: installer code signing and a clean-machine
-> check — see [the roadmap](docs/ROADMAP.md).
+> **Status:** `beta` branch — `1.4.1`; latest published release — `1.4.0`.
+> This is not a "stable 1.x" yet: there is no installer signing, no clean-machine
+> install test and no long real-world use. An honest maturity assessment and the
+> numbering rules live in [docs/VERSIONING.md](docs/VERSIONING.md). 31  tests run
+> in CI on every push; auto-updates are wired and switch on with one key secret
+> ([details](docs/PUBLISHING.md#5-auto-updates)).
 >
 > **Download:** [latest release](https://github.com/ShiDikALexey/KOCPAD/releases/latest) —
 > `.exe` installer, `.msi` package, portable `kocpad.exe` and `SHA256SUMS.txt`.
@@ -126,19 +127,31 @@ sync tool. It is a fast notepad that is pleasant to write in and never loses tex
 
 | Feature | How it works |
 |---|---|
-| HTML | A standalone file with inline styles; light or dark export theme |
-| PDF | Printing through the system dialog (Windows PDF printer) |
-| Updates | «⋯» → «Проверить обновления…»: compares the version with the release `latest.json`, verifies the update signature and installs it; enabled by a CI key |
-| Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, line numbers, line breaks, tab width, Vim, line numbers, synced scrolling, autosave delay, export theme |
+| HTML | A standalone file with inline styles and a light/dark export theme. Images from `assets/` are not embedded (they stay relative paths) and `[[links]]` stay plain text |
+| PDF | Printing through the system dialog (Windows "save as PDF" works); images from `assets/` are not embedded into the printout |
+| Updates | «⋯» → «Проверить обновления…»: compares the version with the release `latest.json`, verifies the update signature and installs it. The signing key is already in CI, so this path works |
+| Settings | `Ctrl+,`: theme (light/dark/follow Windows), five accents, editor and preview fonts and sizes, line numbers, line breaks, tab width, Vim, synced scrolling, autosave delay, export theme |
 | Window memory | Window size and position, last folder, open tabs, recent folders and notes |
 | Scale | Large folders render in 150-row chunks («Показать ещё»), the name filter caps at 300 results |
 
 ### Reliability
 
 - Atomic writes: a note is never left half-written after a crash.
-- Window close is intercepted: the app asks what to do with unsaved drafts (save into
-  a folder, keep them, delete them).
+- Window close asks nothing: file notes are already saved, drafts stay in local
+  storage, and the same tabs come back on the next launch.
 - No background migrations rewriting your files.
+
+What **does not** exist yet (the limits of "never loses a note"):
+
+- **External edits are not watched.** If a file changed in another editor (or via
+  OneDrive/Yandex.Disk sync), the open tab will not notice and the next autosave
+  overwrites it. Press `F5` to re-read, or close the tab before editing elsewhere.
+- **Deleting is permanent** — no recycle bin, no version history; `Ctrl+Z` only
+  works inside an open tab.
+- **A power cut** can lose the last keystrokes: autosave is delayed (under a second
+  by default) and there is no recovery journal.
+- **Encodings are not detected**: files are read as UTF-8, old cp1251/UTF-16 `.txt`
+  files do not open, and a CRLF file is saved back with LF after the first edit.
 
 ## Installation
 
@@ -214,7 +227,8 @@ Uninstalling the app does not remove your notes: they stay in your folder.
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Font size up / down / reset |
 | `Ctrl+\` | Collapse the notes sidebar |
 | `Ctrl+P` | Print to PDF |
-| `Ctrl+Shift+E` | Toggle theme |
+| `Ctrl+Shift+E` | Export to HTML |
+| `Ctrl+Shift+L` | Toggle theme |
 | `F2` / `F5` | Rename the current note or draft / refresh the tree |
 | `Ctrl+Click`, `Shift+Click`, `Esc` | Multi-select notes in the tree / clear selection |
 
@@ -286,7 +300,7 @@ Version bumping (updates `package.json`, `Cargo.toml` and `tauri.conf.json` with
 UTF-8 BOM):
 
 ```bash
-node scripts/bump-version.cjs 1.2.0
+node scripts/bump-version.cjs <x.y.z>
 ```
 
 ## Tests and CI
@@ -294,13 +308,16 @@ node scripts/bump-version.cjs 1.2.0
 ```bash
 npm run typecheck     # strict TypeScript, no emit
 npm run build         # typecheck + production frontend build
-npm run test:e2e      # 28 Playwright scenarios (starts the dev server itself)
+npm run test:e2e      # 31  scenarios (starts the dev server itself)
 ```
 
 The e2e suite covers the workspace, live preview, autosave, tabs, the find panel,
 front matter, `[[…]]` links and backlinks, tags, settings, drafts and their restore,
-focus mode, formatting, recent notes in the palette, reading time and a **typing
-performance guard** (typing must not rebuild the tree per keystroke).
+the drafts panel (a draft survives closing its tab), focus mode, formatting, the
+block-type bar, the context menu, stripping markup, modals closing on a backdrop
+click, line breaks, line numbers, the selection colour, recent notes in the palette,
+reading time, the update command and a **typing performance guard** (typing must not
+rebuild the tree per keystroke).
 
 CI (`.github/workflows/build.yml`) on every push and tag:
 
@@ -335,9 +352,9 @@ KOCPAD/
 │  └─ style.css          themes, accents, layout
 ├─ src-tauri/            shell: window, geometry memory, global hotkey, close
 │                        interception, filesystem commands
-├─ tests/                28 Playwright scenarios
+├─ tests/                31  scenarios
 ├─ docs/                 architecture, keys, roadmap, publishing, screenshots
-└─ scripts/              bump-version.cjs — keeps three version fields in sync
+└─ scripts/              bump-version.cjs, enable-updater.cjs, make-latest-json.cjs
 ```
 
 Stack: Tauri 2, Rust, Vite 8, TypeScript 7, CodeMirror 6, marked 18, DOMPurify 3.4,
@@ -347,6 +364,8 @@ highlight.js 11, Playwright 1.65.
 
 | Document | About |
 |---|---|
+| [docs/BETA.md](docs/BETA.md) | How the `beta` branch works, how to get a beta build and merge it |
+| [docs/VERSIONING.md](docs/VERSIONING.md) | Honest maturity assessment, numbering rules, release checklist |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Storage seam, document lifecycle, event topics, panels |
 | [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | Every key, the mouse, Vim mode |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Done, planned and deliberately out of scope |
@@ -360,8 +379,9 @@ Honest about what is missing:
 
 - **No code signing** — SmartScreen warns on first launch until an OV/EV certificate
   is bought; the CI step is ready.
-- **One folder per window.** A deliberate simplification; you can open a second app
-  window.
+- **One folder per window.** A deliberate simplification. The app runs in a single
+  window and a second launch is not coordinated with the first, so do not open the
+  same folder twice.
 - **No sync and no accounts.** Sync the folder with any tool you like — the files are
   plain markdown.
 - **No plugins.** It is a notepad, not a platform.
@@ -373,14 +393,16 @@ Next up: two notes side by side, optional workspace encryption, a mobile build. 
 ## FAQ
 
 **Is it safe?** Data stays local; no telemetry, no accounts. The app does not touch
-the network until you open an external link. Markdown is sanitized with DOMPurify, so
-HTML in a note cannot execute script.
+the network until you open an external link or press «Проверить обновления…» (then it
+reads the release `latest.json`). Markdown is sanitized with DOMPurify, so HTML in a
+note cannot execute script.
 
 **Can I open the folder in Obsidian or VS Code?** Yes, they are plain `.md` files.
 Front matter and `[[links]]` are understood by Obsidian too.
 
-**Where are drafts stored?** In the app profile's local storage. On exit KOCPAD asks
-what to do with them.
+**Where are drafts stored?** In the app profile's local storage as a separate list.
+On exit KOCPAD asks nothing: files are saved, drafts stay, and the tabs return on the
+next launch. The drafts list opens from the counter button in the sidebar header.
 
 **What happens to my notes if I uninstall?** They stay in your folder. Drafts live in
 the app profile and go away with it.
@@ -390,12 +412,12 @@ folder later.
 
 **Why is the app so small?** The frontend is hand-built TypeScript and the shell is
 Tauri, which uses the system WebView2 instead of bundling Chromium. The installer is
-about 1.5 MB and the app uses tens of megabytes of RAM.
+about 2.3 MB and the app uses tens of megabytes of RAM.
 
 **How does the app update itself?** «⋯» → «Проверить обновления…». The update is
 checked against the release `latest.json` and signed with a separate key (not the
-Windows certificate), so it works even without installer signing. Until the key is
-added to CI the app honestly reports that no update information is available.
+Windows certificate), so it works even without installer signing. The signing key is
+already in CI; the 1.3.0 → 1.3.1 update was verified in practice.
 
 **Where do pasted images go?** Into an `assets/` subfolder next to the note, with a
 relative `![](assets/…)` link in the text.

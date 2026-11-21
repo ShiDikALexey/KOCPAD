@@ -19,15 +19,14 @@
 | `Ctrl+Shift+N` | New folder in the current folder |
 | `Ctrl+O` | Choose the notes folder |
 | `Ctrl+S` | Save now; for a draft this opens «Сохранить в папку…» |
-| `F2` | Rename the current note or draft title |
-| — | Close the folder: the folder button in the sidebar header or «Ещё» → «Закрыть папку» |
-| `Ctrl+S` | Save the current note now |
+| `Ctrl+Shift+S` | Save every dirty note and draft |
 | `Ctrl+W` | Close the current tab (autosaves first). Closing a draft tab keeps the draft in the drafts list |
-| `Ctrl+Tab` | Next tab |
-| `Ctrl+Shift+Tab` | Previous tab |
-| `F2` | Rename the current note |
-| `F5` | Refresh the notes tree from disk |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `F2` | Rename the current note or draft title |
+| `F5` | Refresh the notes tree (and forget cached text, picking up external edits) |
+| — | Close the folder: the folder button in the sidebar header or «Ещё» → «Закрыть папку» |
 | `Ctrl+Shift+E` | Export the current note to HTML |
+| `Ctrl+P` | Print the note (Windows print dialog, so "save as PDF" works) |
 
 ## Editing
 

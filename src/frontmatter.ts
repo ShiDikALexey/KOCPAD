@@ -47,20 +47,29 @@ function parseList(value: string): string[] | null {
 }
 
 export function splitFrontMatter(markdown: string): FrontMatter {
-  const match = markdown.match(BLOCK);
-  if (!match) return { data: {}, body: markdown, raw: '' };
+  // A BOM before `---` would otherwise hide the block from the regex.
+  const source = markdown.startsWith('\uFEFF') ? markdown.slice(1) : markdown;
+  const match = source.match(BLOCK);
+  if (!match) return { data: {}, body: source, raw: '' };
 
-  const data: Record<string, string | string[]> = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const pair = line.match(/^([A-Za-zА-Яа-яЁё0-9_-]+)\s*:\s*(.*)$/);
-    if (!pair) continue;
-    const key = pair[1].toLocaleLowerCase('ru');
-    const rawValue = pair[2].trim();
-    if (!rawValue) continue;
-    data[key] = parseList(rawValue) ?? cleanValue(rawValue);
+  const lines = match[1].split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const pairs = lines.map((line) => line.match(/^([A-Za-zА-Яа-яЁё0-9_-]+)\s*:\s*(.*)$/));
+  // A note can start with a horizontal rule and have another `---` later; that
+  // is not front matter. Only consume the block when every line is `key: value`.
+  if (!lines.length || pairs.some((pair) => !pair)) {
+    return { data: {}, body: source, raw: '' };
   }
 
-  return { data, body: markdown.slice(match[0].length), raw: match[0] };
+  const data: Record<string, string | string[]> = {};
+  pairs.forEach((pair) => {
+    if (!pair) return;
+    const key = pair[1].toLocaleLowerCase('ru');
+    const rawValue = pair[2].trim();
+    if (!rawValue) return;
+    data[key] = parseList(rawValue) ?? cleanValue(rawValue);
+  });
+
+  return { data, body: source.slice(match[0].length), raw: match[0] };
 }
 
 function escapeHtml(text: string): string {

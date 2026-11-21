@@ -57,6 +57,10 @@ export class Store {
   /** Drafts kept between sessions independently of the open tabs. */
   private storedDrafts: StoredDraft[] = [];
   onError: (message: string) => void = () => undefined;
+  /** Editor-state hook: forget the cached buffer for a closed document. */
+  onDocClosed: (path: string) => void = () => undefined;
+  /** Editor-state hook: the document moved, the old key must be dropped. */
+  onDocRenamed: (from: string, to: string) => void = () => undefined;
 
   constructor(storage: Storage) {
     this.storage = storage;
@@ -186,11 +190,6 @@ export class Store {
     this.textCache.clear();
   }
 
-  /** Notes that already have cached text, for diagnostics. */
-  get cachedNotes(): number {
-    return this.textCache.size;
-  }
-
   /** All openable files in the workspace, flattened. */
   flatFiles(): NoteNode[] {
     const out: NoteNode[] = [];
@@ -230,10 +229,6 @@ export class Store {
 
   get draftsCount(): number {
     return this.storedDrafts.length;
-  }
-
-  get hasDrafts(): boolean {
-    return this.storedDrafts.length > 0;
   }
 
   /** Loads the draft list saved in the previous session. Tabs reopen separately. */
@@ -333,12 +328,13 @@ export class Store {
       return null;
     }
     const target = joinPath(dir, name);
+    const snapshot = doc.content;
     try {
       if (await this.storage.exists(target)) {
         this.onError(`Файл «${name}» уже существует`);
         return null;
       }
-      await this.storage.writeText(target, doc.content);
+      await this.storage.writeText(target, snapshot);
     } catch (error) {
       this.report(error, `Не удалось сохранить ${name}`);
       return null;
@@ -346,13 +342,15 @@ export class Store {
 
     doc.path = target;
     doc.name = name;
-    doc.savedContent = doc.content;
-    this.textCache.set(target, doc.content);
+    doc.savedContent = snapshot;
+    this.textCache.set(target, snapshot);
     if (this.activePath === draftPath) this.activePath = target;
     this.storedDrafts = this.storedDrafts.filter((draft) => draft.id !== draftIdOf(draftPath));
     this.persistDraftDocs();
     await this.refreshTree();
     this.emit('docs', 'active');
+    // Text typed while the write was in flight is still unsaved under the new name.
+    if (doc.content !== snapshot) this.scheduleSave(target);
     this.setStatus(`Сохранено · ${name}`);
     return target;
   }
@@ -373,19 +371,6 @@ export class Store {
       (a, b) => (rank.get(a.path) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.path) ?? Number.MAX_SAFE_INTEGER),
     );
     this.emit('docs');
-  }
-
-  /** Saves every non-empty draft into a folder with names derived from titles. */
-  async saveAllDraftsAsFiles(dir: string): Promise<number> {
-    let saved = 0;
-    for (const draft of this.draftList) {
-      if (!draft.content.trim()) continue;
-      const doc = this.openDraft(draft.id);
-      if (!doc) continue;
-      const name = await this.uniqueDraftFileName(dir, doc.name);
-      if (await this.saveDraftAsFile(doc.path, dir, name)) saved += 1;
-    }
-    return saved;
   }
 
   private async uniqueDraftFileName(dir: string, title: string): Promise<string> {
@@ -491,15 +476,16 @@ export class Store {
     // A draft never reaches the disk: it is persisted locally instead.
     if (isDraftPath(path)) {
       const stored = this.persistDraftDocs();
-      doc.savedContent = doc.content;
-      this.emit('dirty');
       if (!stored) {
+        // Keep the document dirty: a close must not silently lose the text.
         this.report(
           new Error('Локальное хранилище переполнено'),
           'Не удалось сохранить черновик',
         );
         return false;
       }
+      doc.savedContent = doc.content;
+      this.emit('dirty');
       return true;
     }
 
@@ -532,8 +518,11 @@ export class Store {
     }
   }
 
-  async saveAll(): Promise<void> {
-    await Promise.all(this.docs.filter((doc) => this.isDirty(doc)).map((doc) => this.saveDoc(doc.path)));
+  /** Saves every dirty document; returns the number that failed. */
+  async saveAll(): Promise<number> {
+    const dirty = this.docs.filter((doc) => this.isDirty(doc));
+    const results = await Promise.all(dirty.map((doc) => this.saveDoc(doc.path)));
+    return results.filter((saved) => !saved).length;
   }
 
   async closeDoc(path: string, force = false): Promise<boolean> {
@@ -554,6 +543,9 @@ export class Store {
       const next = this.docs[Math.min(index, this.docs.length - 1)];
       this.activePath = next ? next.path : null;
     }
+    // Cached editor state for the old path must not survive the close: reopening
+    // the note would otherwise show the text from the previous session.
+    this.onDocClosed(path);
     this.emit('docs', 'active');
     return true;
   }
@@ -776,6 +768,7 @@ export class Store {
         ? target
         : target + this.activePath.slice(node.path.length);
     }
+    this.onDocRenamed(node.path, target);
     await this.refreshTree();
     this.emit('docs', 'active');
     this.setStatus(`Переименовано · ${nextName}`);
@@ -921,18 +914,22 @@ export class Store {
   /** Deletes several files at once and refreshes the tree once. */
   async deleteMany(paths: string[]): Promise<{ deleted: number; failed: string[] }> {
     const failed: string[] = [];
+    const deletedPaths: string[] = [];
     let deleted = 0;
     for (const path of paths) {
       try {
         await this.storage.remove(path);
         this.textCache.delete(path);
+        deletedPaths.push(path);
         deleted += 1;
       } catch {
         failed.push(basename(path));
       }
     }
+    // Close only tabs whose file really disappeared; a failed delete must not
+    // discard the user's unsaved buffer.
     for (const doc of [...this.docs]) {
-      if (paths.some((path) => isInside(doc.path, path))) await this.closeDoc(doc.path, true);
+      if (deletedPaths.some((path) => isInside(doc.path, path))) await this.closeDoc(doc.path, true);
     }
     await this.refreshTree();
     this.setStatus(`Удалено: ${deleted}${failed.length ? `, не удалось: ${failed.length}` : ''}`);
@@ -966,6 +963,7 @@ export class Store {
         }
         this.docs = this.docs.map((doc) => (doc.path === path ? { ...doc, path: target, name } : doc));
         if (this.activePath === path) this.activePath = target;
+        this.onDocRenamed(path, target);
       } catch {
         skipped.push(name);
       }
@@ -1094,6 +1092,17 @@ function loadSettings(): Settings {
     if (!raw) return { ...DEFAULT_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<Settings>;
     const merged = { ...DEFAULT_SETTINGS, ...parsed };
+    // Corrupt or hand-edited localStorage must not crash note opening later.
+    merged.recentFolders = Array.isArray(merged.recentFolders)
+      ? merged.recentFolders.filter((item): item is string => typeof item === 'string').slice(0, 8)
+      : [];
+    merged.recentNotes = Array.isArray(merged.recentNotes)
+      ? merged.recentNotes.filter((item): item is string => typeof item === 'string').slice(0, 8)
+      : [];
+    merged.editorTabSize = [2, 4, 8].includes(merged.editorTabSize) ? merged.editorTabSize : 4;
+    merged.autosaveDelay = Number.isFinite(merged.autosaveDelay)
+      ? Math.min(Math.max(merged.autosaveDelay, 200), 5000)
+      : DEFAULT_SETTINGS.autosaveDelay;
     // Schema 2: Notepad-like line breaks and subtle line numbers on by default.
     if ((parsed.schema ?? 1) < 2) {
       merged.softBreaks = true;
@@ -1115,6 +1124,3 @@ function saveSettings(settings: Settings): void {
 }
 
 /** Narrow helper used by the tree UI to test whether a path is open. */
-export function isOpen(store: Store, path: string): boolean {
-  return store.docs.some((doc) => normalizePath(doc.path) === normalizePath(path));
-}

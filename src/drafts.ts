@@ -79,11 +79,3 @@ export function persistDrafts(drafts: StoredDraft[]): boolean {
     return false;
   }
 }
-
-export function clearStoredDrafts(): void {
-  try {
-    localStorage.removeItem(DRAFTS_KEY);
-  } catch {
-    // Nothing to do: the drafts simply stay until the profile is cleaned.
-  }
-}

@@ -1,15 +1,18 @@
 import type { Store } from '../store';
 import { draftPathOf } from '../drafts';
 import { h } from '../util';
-import { confirmAction, openModal, showToast } from './dialog';
+import { openModal, showToast } from './dialog';
 import { icon } from './icons';
-import type { AppActions } from './actions';
 
 /**
  * Drafts panel: every locally stored draft, open in a tab or not. From here a
  * draft can be opened, saved into the workspace folder, or deleted.
  */
-export function openDraftsPanel(store: Store, actions: AppActions): void {
+export function openDraftsPanel(store: Store): void {
+  // Inline two-step delete keeps the panel alive: opening a nested confirm modal
+  // would clear the shared overlay and destroy this panel.
+  let pendingDelete: string | null = null;
+
   openModal((close) => {
     const body = h('div', { class: 'drafts__body' });
     const footer = h('div', { class: 'drafts__foot' });
@@ -78,15 +81,20 @@ export function openDraftsPanel(store: Store, actions: AppActions): void {
               h(
                 'button',
                 {
-                  class: 'btn btn--sm btn--icon-sm',
+                  class: `btn btn--sm${pendingDelete === path ? ' btn--danger' : ' btn--icon-sm'}`,
                   type: 'button',
-                  title: 'Удалить черновик',
-                  'aria-label': 'Удалить черновик',
+                  title: pendingDelete === path ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить черновик',
+                  'aria-label': pendingDelete === path ? 'Подтвердить удаление' : 'Удалить черновик',
                   onclick: () => {
+                    if (pendingDelete !== path) {
+                      pendingDelete = path;
+                      render();
+                      return;
+                    }
                     void deleteDraft(path);
                   },
                 },
-                icon('trash', 13),
+                pendingDelete === path ? 'Удалить?' : icon('trash', 13),
               ),
             ),
           ),
@@ -100,7 +108,7 @@ export function openDraftsPanel(store: Store, actions: AppActions): void {
             class: 'btn',
             type: 'button',
             onclick: () => {
-              void actions.createNote();
+              void store.createDraftDoc();
               close();
             },
           },
@@ -125,14 +133,7 @@ export function openDraftsPanel(store: Store, actions: AppActions): void {
     };
 
     const deleteDraft = async (path: string): Promise<void> => {
-      const draft = store.draftList.find((item) => draftPathOf(item.id) === path);
-      const confirmed = await confirmAction({
-        title: 'Удалить черновик?',
-        message: `«${draft?.title ?? 'Черновик'}» хранится только локально. При удалении текст пропадёт.`,
-        confirmLabel: 'Удалить',
-        danger: true,
-      });
-      if (!confirmed) return;
+      pendingDelete = null;
       await store.deleteDraftDoc(path);
       showToast('Черновик удалён');
       render();

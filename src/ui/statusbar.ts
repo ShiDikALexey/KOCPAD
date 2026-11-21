@@ -46,7 +46,9 @@ export class StatusBar {
 
   setCursor(info: CursorInfo): void {
     this.cursor = info;
-    this.renderStats();
+    // Word counts over the whole document are not worth running for every
+    // keystroke; the debounced render picks the latest cursor position.
+    this.renderDirty();
   }
 
   private renderMessage(): void {

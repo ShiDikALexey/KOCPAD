@@ -8,10 +8,42 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
 use std::fs;
-use std::path::Path;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 /// Extensions KOCPAD opens. Anything else is left out of the tree.
 const TEXT_EXTENSIONS: [&str; 4] = ["md", "markdown", "mdown", "txt"];
+
+/// Unique sibling temp file: two notes with the same stem (`a.md`, `a.txt`)
+/// must not fight over one temp path during a parallel `saveAll`.
+fn temp_path(target: &Path) -> PathBuf {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let name = target
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "note".into());
+    target.with_file_name(format!(".{name}.{nanos}.kocpad-tmp"))
+}
+
+/// Writes bytes to a temp sibling, flushes them to disk, then swaps the file in.
+fn write_atomic(temp: &Path, target: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut file = fs::File::create(temp)
+        .map_err(|error| format!("Не удалось записать «{}»: {error}", target.display()))?;
+    file.write_all(bytes)
+        .and_then(|_| file.sync_all())
+        .map_err(|error| {
+            let _ = fs::remove_file(temp);
+            format!("Не удалось записать «{}»: {error}", target.display())
+        })?;
+    drop(file);
+    fs::rename(temp, target).map_err(|error| {
+        let _ = fs::remove_file(temp);
+        format!("Не удалось сохранить «{}»: {error}", target.display())
+    })
+}
 
 /// Folders that belong to other tools and would only add noise.
 const SKIP_DIRS: [&str; 8] = [
@@ -112,14 +144,9 @@ pub fn fs_write_text(path: String, contents: String) -> Result<(), String> {
             .map_err(|error| format!("Не удалось создать папку: {error}"))?;
     }
 
-    // Write beside the target and swap it in, so a crash cannot leave half a file.
-    let temp = target.with_extension("kocpad-tmp");
-    fs::write(&temp, contents.as_bytes())
-        .map_err(|error| format!("Не удалось записать «{path}»: {error}"))?;
-    fs::rename(&temp, target).map_err(|error| {
-        let _ = fs::remove_file(&temp);
-        format!("Не удалось сохранить «{path}»: {error}")
-    })
+    let temp = temp_path(target);
+    write_atomic(&temp, target, contents.as_bytes())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -146,12 +173,8 @@ pub fn fs_write_binary(path: String, data: String) -> Result<(), String> {
             .map_err(|error| format!("Не удалось создать папку: {error}"))?;
     }
 
-    let temp = target.with_extension("kocpad-tmp");
-    fs::write(&temp, &bytes).map_err(|error| format!("Не удалось записать «{path}»: {error}"))?;
-    fs::rename(&temp, target).map_err(|error| {
-        let _ = fs::remove_file(&temp);
-        format!("Не удалось сохранить «{path}»: {error}")
-    })
+    let temp = temp_path(target);
+    write_atomic(&temp, target, &bytes)
 }
 
 #[tauri::command]
@@ -179,6 +202,9 @@ pub fn fs_exists(path: String) -> bool {
 }
 
 /// Opens http(s)/mailto links in the user's browser. Other schemes are refused.
+///
+/// The shell is never involved: `open` uses `ShellExecuteW`, so characters like
+/// `&` or `|` inside a URL cannot turn into a Windows command.
 #[tauri::command]
 pub fn open_external(url: String) -> Result<(), String> {
     let allowed = url.starts_with("http://")
@@ -187,31 +213,7 @@ pub fn open_external(url: String) -> Result<(), String> {
     if !allowed {
         return Err("Разрешены только ссылки http, https и mailto".into());
     }
-
-    #[cfg(target_os = "windows")]
-    {
-        // The empty argument is the window title `start` expects before the URL.
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
-            .spawn()
-            .map_err(|error| format!("Не удалось открыть ссылку: {error}"))?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&url)
-            .spawn()
-            .map_err(|error| format!("Не удалось открыть ссылку: {error}"))?;
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&url)
-            .spawn()
-            .map_err(|error| format!("Не удалось открыть ссылку: {error}"))?;
-    }
-
-    Ok(())
+    open::that(&url).map_err(|error| format!("Не удалось открыть ссылку: {error}"))
 }
 
 /// Highlights the note in Explorer. Failures are not worth interrupting the user.

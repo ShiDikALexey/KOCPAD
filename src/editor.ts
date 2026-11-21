@@ -313,9 +313,12 @@ export class MarkdownEditor {
     }
     this.path = path;
     const cached = this.states.get(path);
-    if (cached) {
+    // Reuse the cached state only while it still matches the stored text: after
+    // an external reload or a rename the old buffer would show stale content.
+    if (cached && cached.doc.toString() === content) {
       this.replaceState(cached);
     } else {
+      if (cached) this.states.delete(path);
       this.replaceState(this.createState(content));
     }
   }
@@ -632,21 +635,6 @@ export class MarkdownEditor {
     this.view.focus();
   }
 
-  /** Wraps the selection, or inserts a placeholder between the markers. */
-  wrapSelection(before: string, after = before, placeholderText = 'текст'): void {    const state = this.view.state;
-    const range = state.selection.main;
-    const selected = state.sliceDoc(range.from, range.to) || placeholderText;
-    const insert = before + selected + after;
-    this.view.dispatch({
-      changes: { from: range.from, to: range.to, insert },
-      selection: {
-        anchor: range.from + before.length,
-        head: range.from + before.length + selected.length,
-      },
-    });
-    this.view.focus();
-  }
-
   /** Inserts a block on its own line(s), keeping surrounding lines intact. */
   insertBlock(block: string): void {
     const state = this.view.state;
@@ -669,9 +657,6 @@ export class MarkdownEditor {
     this.view.destroy();
   }
 }
-
-/** Kept as an explicit alias so module imports stay readable. */
-export type EditorExtension = Extension;
 
 // ------------------------------------------------------------------ blocks
 
