@@ -9,6 +9,15 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [Unreleased]
+
+### Fixed
+
+- **A restored draft was hidden behind the "no folder" welcome screen.** With no
+  workspace connected the app forced the onboarding empty state on after restoring
+  tabs, so an open draft looked empty and the only way out was creating another
+  note. The empty state is now shown only when there is no active document.
+
 ## [1.5.2] — 2026-11-21
 
 ### Changed
