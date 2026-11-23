@@ -1444,6 +1444,8 @@ function loadSettings(): Settings {
       ? merged.disabledLintRules.filter((item): item is string => typeof item === 'string')
       : [];
     merged.assistant = merged.assistant !== false;
+    merged.updateChannel = merged.updateChannel === 'beta' ? 'beta' : 'stable';
+    merged.updateAutoCheck = merged.updateAutoCheck !== false;
     // Schema 2: Notepad-like line breaks and subtle line numbers on by default.
     if ((parsed.schema ?? 1) < 2) {
       merged.softBreaks = true;

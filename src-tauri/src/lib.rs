@@ -1,6 +1,7 @@
 mod fs_ops;
 mod recovery;
 mod trash;
+mod updates;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
@@ -132,6 +133,8 @@ pub fn run() {
             trash::trash_delete,
             trash::trash_purge,
             trash::trash_empty,
+            updates::update_check,
+            updates::update_install,
             kocpad_ready,
             kocpad_close_window,
         ])

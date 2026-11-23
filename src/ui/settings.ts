@@ -5,6 +5,7 @@ import { h } from '../util';
 import { openModal } from './dialog';
 import { icon } from './icons';
 import { detectHabits, resetLearning, ruleStats } from '../lint/learning';
+import { checkForUpdate, isTauriRuntime } from '../updates';
 
 const ACCENTS: { id: AccentName; label: string; color: string }[] = [
   { id: 'marker', label: 'Маркер', color: '#d9a62e' },
@@ -362,6 +363,41 @@ export function openSettings(store: Store): void {
             ),
           ),
           assistantSection,
+          section(
+            'Обновления',
+            row(
+              'Канал',
+              segmented(
+                [
+                  { id: 'stable', label: 'Стабильный' },
+                  { id: 'beta', label: 'Бета' },
+                ],
+                settings.updateChannel,
+                (value) => patch({ updateChannel: value === 'beta' ? 'beta' : 'stable' }),
+              ),
+              'Бета — тестовые сборки: возможны ошибки, автообновление на стабильную потом не откатит',
+            ),
+            row(
+              'Автопроверка',
+              toggle('Проверять', settings.updateAutoCheck, (updateAutoCheck) => patch({ updateAutoCheck })),
+              'При запуске и раз в несколько часов; значок появится в меню «⋯»',
+            ),
+            row(
+              'Проверить сейчас',
+              h(
+                'button',
+                {
+                  class: 'btn btn--sm',
+                  type: 'button',
+                  onclick: () => {
+                    void checkForUpdate(store, { manual: true });
+                  },
+                },
+                'Проверить',
+              ),
+              isTauriRuntime() ? 'Только подписанные сборки' : 'Доступно в приложении KOCPAD',
+            ),
+          ),
           section(
             'Экспорт',
             row(
