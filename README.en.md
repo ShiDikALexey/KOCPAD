@@ -4,7 +4,7 @@
   <p><b>A branch for things that are not ready for beta yet.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=Experimental)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/base-1.5.3-beta.4-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/base-1.5.3-beta.5-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
 </div>
@@ -60,7 +60,7 @@ first. A rule stays neutral until it has at least three decisions.
 - after a fix the settings counter goes up, and "reset learning" clears it;
 - typing in a 5,000-line note does not slow down.
 
-The branch runs 66 e2e tests, six of them for the assistant, plus typecheck, the
+The branch runs 67 e2e tests, six of them for the assistant, plus typecheck, the
 build, the Windows installer and a launch of the packaged `.exe` in CI.
 
 ## What comes next
