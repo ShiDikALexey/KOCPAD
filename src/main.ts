@@ -1973,6 +1973,12 @@ async function boot(): Promise<void> {
     await listen<string>('open-file', (event) => {
       void openExternalFile(event.payload);
     });
+    await listen('tray-new-note', () => {
+      void createNoteNow();
+    });
+    await listen('tray-quit', () => {
+      void handleCloseRequest();
+    });
   }
 
   // Nothing to restore from tabs: bring back the most recent draft, if any.
