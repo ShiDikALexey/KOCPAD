@@ -9,6 +9,25 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.2] — 2026-11-23
+
+### Added
+
+- **Skipped update versions.** The update dialog has a third answer,
+  «Пропустить версию»: that version stops showing the dot and the toast until a
+  manual check. Settings → «Обновления» shows the skipped version and a
+  «Вспомнить» button to clear it.
+- **Release notes in the update dialog.** `latest.json` now carries the text from
+  `CHANGELOG.md` instead of a bare version line, so the dialog explains what is
+  coming.
+- **Skipped version can be restored** from settings without editing files.
+
+### Changed
+
+- After installing an update the toast says that KOCPAD restarts; on Windows the
+  installer restarts it automatically, so the old "запустите снова" wording was
+  misleading.
+
 ## [1.5.3-beta.1] — 2026-11-23
 
 ### Added
