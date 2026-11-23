@@ -9,6 +9,17 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.11] — 2026-11-23
+
+### Changed
+
+- **Settings are a calm list instead of nested cards.** One 640px sheet,
+  sections separated by hairlines, 8px rows, 16/24px chrome. The card borders,
+  the double row rules and the 560px squeeze are gone.
+- Slider track is a quiet 4px line with an amber thumb instead of the system
+  black track; the settings body has a thin neutral scrollbar.
+- «Сбросить обучение» no longer stretches across the whole row.
+
 ## [1.5.3-beta.10] — 2026-11-23
 
 ### Fixed
