@@ -4,7 +4,7 @@
   <p><b>Следующая версия. Здесь коротко: что поменялось и что проверяем.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/бета-1.5.3--beta.4-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/бета-1.5.3--beta.5-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub>Русский · <a href="README.en.md">English</a> · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md">полное описание (main)</a></sub>
@@ -12,7 +12,7 @@
 
 ---
 
-Это ветка `beta`. Сейчас здесь предрелизная сборка `1.5.3-beta.4`: канал
+Это ветка `beta`. Сейчас здесь предрелизная сборка `1.5.3-beta.5`: канал
 обновлений стабильный/бета, индикатор доступного обновления, пакетные исправления
 помощника и печать только текста. Стабильная версия `1.5.2` лежит в
 [main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md); ниже — что
@@ -41,6 +41,12 @@
 
 Ещё в CI появился запуск собранного `.exe`: раньше проверялась только
 веб-страница.
+
+## Что нового в 1.5.3-beta.5
+
+- Поиск по папке: режим регулярного выражения (кнопка `.*`).
+- Замена по всей папке с подтверждением; перед записью каждая затронутая заметка
+  попадает в историю, кодировка и переносы сохраняются.
 
 ## Что нового в 1.5.3-beta.4
 

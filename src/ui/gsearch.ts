@@ -2,7 +2,7 @@ import type { Store } from '../store';
 import type { SearchHit } from '../types';
 import { clear, h, plural } from '../util';
 import { icon } from './icons';
-import { closeOnBackdrop } from './dialog';
+import { closeOnBackdrop, showToast } from './dialog';
 import type { AppActions } from './actions';
 
 /**
@@ -36,6 +36,50 @@ export class GlobalSearchPanel {
     }) as HTMLInputElement;
     const results = h('div', { class: 'gsearch__results' });
     const counter = h('span', { class: 'gsearch__count' });
+    const regexButton = h(
+      'button',
+      {
+        class: 'gsearch__regex',
+        type: 'button',
+        title: 'Регулярное выражение',
+        'aria-label': 'Регулярное выражение',
+        'aria-pressed': 'false',
+      },
+      '.*',
+    ) as HTMLButtonElement;
+    const replaceToggle = h(
+      'button',
+      {
+        class: 'gsearch__replace-toggle',
+        type: 'button',
+        title: 'Заменить по всей папке',
+        'aria-label': 'Заменить по всей папке',
+        'aria-pressed': 'false',
+      },
+      'Заменить',
+    ) as HTMLButtonElement;
+    const replacementInput = h('input', {
+      class: 'gsearch__replace-input',
+      type: 'text',
+      placeholder: 'Заменить на…',
+      spellcheck: false,
+      'aria-label': 'Чем заменить',
+    }) as HTMLInputElement;
+    const replaceButton = h(
+      'button',
+      { class: 'btn btn--sm', type: 'button' },
+      'Заменить все',
+    ) as HTMLButtonElement;
+    const replaceRow = h(
+      'div',
+      { class: 'gsearch__replace' },
+      replacementInput,
+      replaceButton,
+    );
+    replaceRow.hidden = true;
+    let regexMode = false;
+    let replaceMode = false;
+    let pendingReplace = false;
     const panel = h(
       'div',
       { class: 'gsearch', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Поиск по заметкам' },
@@ -44,6 +88,8 @@ export class GlobalSearchPanel {
         { class: 'gsearch__head' },
         icon('search', 15),
         input,
+        regexButton,
+        replaceToggle,
         h(
           'button',
           {
@@ -55,12 +101,13 @@ export class GlobalSearchPanel {
           icon('close', 14),
         ),
       ),
+      replaceRow,
       results,
       h(
         'div',
         { class: 'gsearch__foot' },
         counter,
-        h('span', { class: 'gsearch__hint' }, 'Enter — перейти · Esc — закрыть'),
+        h('span', { class: 'gsearch__hint' }, 'Enter — перейти · .* — regex · Esc — закрыть'),
       ),
     );
 
@@ -164,13 +211,71 @@ export class GlobalSearchPanel {
         renderResults();
         return;
       }
+      if (regexMode) {
+        try {
+          new RegExp(query, 'iu');
+        } catch {
+          hits = [];
+          clear(results);
+          results.appendChild(h('p', { class: 'gsearch__empty' }, 'Некорректное регулярное выражение.'));
+          counter.textContent = '';
+          return;
+        }
+      }
       results.appendChild(h('p', { class: 'gsearch__empty' }, 'Ищу…'));
-      const found = await this.store.searchAll(query);
+      const found = await this.store.searchAll(query, 300, { regex: regexMode });
       if (id !== requestId) return;
       hits = found;
       selected = 0;
       renderResults();
     };
+
+    regexButton.addEventListener('click', () => {
+      regexMode = !regexMode;
+      regexButton.classList.toggle('is-active', regexMode);
+      regexButton.setAttribute('aria-pressed', regexMode ? 'true' : 'false');
+      void search();
+    });
+
+    replaceToggle.addEventListener('click', () => {
+      replaceMode = !replaceMode;
+      replaceRow.hidden = !replaceMode;
+      replaceToggle.classList.toggle('is-active', replaceMode);
+      replaceToggle.setAttribute('aria-pressed', replaceMode ? 'true' : 'false');
+      if (replaceMode) {
+        replacementInput.focus();
+      } else {
+        pendingReplace = false;
+        replaceButton.textContent = 'Заменить все';
+      }
+    });
+
+    replaceButton.addEventListener('click', () => {
+      void (async () => {
+        const query = input.value.trim();
+        if (query.length < 2) {
+          showToast('Введите запрос для замены', 'info');
+          return;
+        }
+        if (!pendingReplace) {
+          pendingReplace = true;
+          replaceButton.textContent = 'Точно заменить?';
+          return;
+        }
+        pendingReplace = false;
+        replaceButton.textContent = 'Заменить все';
+        const result = await this.store.replaceAll(query, replacementInput.value, {
+          regex: regexMode,
+        });
+        showToast(
+          result.matches
+            ? `Заменено ${result.matches} ${plural(result.matches, 'совпадение', 'совпадения', 'совпадений')} в ${result.files} ${plural(result.files, 'заметке', 'заметках', 'заметках')} · версии в истории`
+            : 'Совпадений для замены нет',
+          result.matches ? 'success' : 'info',
+        );
+        await search();
+      })();
+    });
 
     let timer: number | undefined;
     input.addEventListener('input', () => {

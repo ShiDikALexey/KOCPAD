@@ -9,6 +9,17 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.5] — 2026-11-23
+
+### Added
+
+- **Regex mode in workspace search.** The search panel has a `.*` toggle; an
+  invalid expression is reported instead of showing an empty result.
+- **Replace across the folder.** «Заменить» reveals a replacement field and a
+  two-step «Заменить все». Every affected note is snapshotted into history
+  before writing, so a bad replacement can be rolled back per file; encoding and
+  line endings are preserved.
+
 ## [1.5.3-beta.4] — 2026-11-23
 
 ### Added
