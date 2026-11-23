@@ -4,7 +4,7 @@
   <p><b>Следующая версия. Здесь коротко: что поменялось и что проверяем.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/бета-1.5.3--beta.8-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/бета-1.5.3--beta.9-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub>Русский · <a href="README.en.md">English</a> · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md">полное описание (main)</a></sub>
@@ -12,7 +12,7 @@
 
 ---
 
-Это ветка `beta`. Сейчас здесь предрелизная сборка `1.5.3-beta.8`: канал
+Это ветка `beta`. Сейчас здесь предрелизная сборка `1.5.3-beta.9`: канал
 обновлений стабильный/бета, индикатор доступного обновления, пакетные исправления
 помощника и печать только текста. Стабильная версия `1.5.2` лежит в
 [main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md); ниже — что
@@ -41,6 +41,13 @@
 
 Ещё в CI появился запуск собранного `.exe`: раньше проверялась только
 веб-страница.
+
+## Что нового в 1.5.3-beta.9
+
+- Полировка интерфейса: настройки на сетке 4 px, акцентная рамка больше не
+  обводит модалку целиком, пустой экран выровнен по центру, в сайдбаре убрана
+  дублирующая кнопка «Открыть папку».
+- `docs/DESIGN.md` — направление и правила для новых экранов (по методике unslop).
 
 ## Что нового в 1.5.3-beta.8
 

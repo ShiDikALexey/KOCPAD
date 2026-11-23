@@ -180,8 +180,6 @@ export class TreeView {
           'div',
           { class: 'tree__empty' },
           h('p', { class: 'tree__empty-text' }, 'Папка с заметками не подключена.'),
-          h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => this.actions.openFolder() },
-            'Открыть папку'),
         ),
       );
       return;
