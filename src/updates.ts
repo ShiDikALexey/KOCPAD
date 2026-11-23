@@ -119,17 +119,40 @@ export async function checkForUpdate(
   }
 }
 
+/** Turns release notes (plain text or markdown) into short dialog lines. */
+export function cleanReleaseNotes(body?: string | null): string[] {
+  if (!body?.trim()) return [];
+  return body
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/`([^`]*)`/g, '$1')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+        .replace(/^[-*]\s+/, '')
+        .trim(),
+    )
+    .filter(
+      (line) =>
+        Boolean(line)
+        && !/^\[?\d+(?:\.\d+)*(?:[-+][\w.]+)?\]?/.test(line)
+        && !/^(changed|added|fixed|removed|deprecated|security)$/i.test(line),
+    )
+    .slice(0, 6)
+    .map((line) => (line.length > 180 ? `${line.slice(0, 177)}…` : line));
+}
+
 async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
-  const body =
-    info.body?.trim() ||
-    'Скачать и установить новую версию? KOCPAD закроется, установит обновление и перезапустится.';
+  const details = cleanReleaseNotes(info.body);
+  if (info.channel === 'beta') {
+    details.push('Это тестовая сборка: возможны ошибки.');
+  }
+  details.push('KOCPAD перезапустится после установки.');
   const choice = await choiceDialog({
     title: `Доступно обновление ${info.version}`,
-    message: body,
-    details:
-      info.channel === 'beta'
-        ? ['Это тестовая сборка: возможны ошибки. Откатиться на стабильную можно только переустановкой.']
-        : [],
+    message: 'Скачать и установить сейчас?',
+    details,
     options: [
       { id: 'install', label: 'Обновить', kind: 'primary' },
       { id: 'later', label: 'Позже' },
@@ -150,8 +173,7 @@ async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
   }
 }
 
-export async function installUpdate(store: Store): Promise<void> {
-  showToast('Скачиваю обновление…');
+export async function installUpdate(store: Store): Promise<void> {  showToast('Скачиваю обновление…');
   try {
     await invoke('update_install', { channel: store.settings.updateChannel });
     available = null;
@@ -161,6 +183,11 @@ export async function installUpdate(store: Store): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     showToast(`Не удалось установить обновление: ${message}`, 'error');
   }
+}
+
+/** E2E/dev helper: show the real update dialog with a fake note payload. */
+export async function showUpdateDialogForTests(store: Store, info: UpdateInfo): Promise<void> {
+  await promptInstall(store, info);
 }
 
 /** Startup and periodic checks; respects the settings toggle on every tick. */

@@ -51,13 +51,38 @@ if (!signature) {
 }
 const assetUrl = `https://github.com/${repository}/releases/download/${tag}/${path.basename(installer)}`;
 
-// The updater dialog shows this text. Prefer the release notes that the release
-// job already wrote from CHANGELOG.md, so the in-app "what's new" is meaningful.
+// The updater dialog shows this text. Prefer the short Russian notes maintained
+// for each release, then fall back to the release notes written from CHANGELOG.md.
 const notesFile = path.join(artifactsDir, 'RELEASE_NOTES.md');
+const russianNotesFile = path.join(__dirname, '..', 'docs', 'release-notes.ru.json');
 let notes = `KOCPAD ${version}`;
-if (fs.existsSync(notesFile)) {
-  const written = fs.readFileSync(notesFile, 'utf8').trim();
-  if (written) notes = written.slice(0, 4000);
+try {
+  const mapped = JSON.parse(fs.readFileSync(russianNotesFile, 'utf8'))[version];
+  if (Array.isArray(mapped) && mapped.length) {
+    notes = mapped.join('\n');
+  } else if (fs.existsSync(notesFile)) {
+    notes = stripMarkdown(fs.readFileSync(notesFile, 'utf8')).slice(0, 4000);
+  }
+} catch {
+  if (fs.existsSync(notesFile)) {
+    notes = stripMarkdown(fs.readFileSync(notesFile, 'utf8')).slice(0, 4000);
+  }
+}
+
+function stripMarkdown(text) {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/`([^`]*)`/g, '$1')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+        .replace(/^[-*]\s+/, '— ')
+        .trim(),
+    )
+    .filter(Boolean)
+    .join('\n');
 }
 
 const latest = {

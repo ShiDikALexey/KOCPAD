@@ -45,6 +45,7 @@ import {
   installUpdate,
   scheduleUpdateChecks,
   setAvailableUpdateForTests,
+  showUpdateDialogForTests,
   subscribeUpdates,
 } from './updates';
 import { invoke } from '@tauri-apps/api/core';
@@ -2049,6 +2050,8 @@ async function boot(): Promise<void> {
       updates: {
         available: getAvailableUpdate,
         setAvailable: setAvailableUpdateForTests,
+        showDialog: (info: { version: string; currentVersion: string; body?: string | null; channel: 'stable' | 'beta' }) =>
+          showUpdateDialogForTests(store, info),
         check: () => checkForUpdate(store, { manual: true }),
       },
       trash,

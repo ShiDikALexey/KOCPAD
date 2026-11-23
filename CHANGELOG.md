@@ -9,6 +9,21 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.10] — 2026-11-23
+
+### Fixed
+
+- **The update dialog no longer prints raw markdown.** Notes are shown as short
+  list items: headings, `**`, backticks and links are stripped, version and
+  section headings are dropped.
+- **Release notes in the dialog are in Russian.** `latest.json` now prefers the
+  short notes from `docs/release-notes.ru.json`; older releases fall back to a
+  markdown-stripped version of `RELEASE_NOTES.md`.
+
+### Added
+
+- Russian release notes for `1.5.3-beta.9` and `1.5.3-beta.10`.
+
 ## [1.5.3-beta.9] — 2026-11-23
 
 ### Changed
