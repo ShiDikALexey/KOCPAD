@@ -9,6 +9,24 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.9] — 2026-11-23
+
+### Changed
+
+- **Interface polish pass.** Settings moved onto the 4px spacing grid (16px
+  sections, 8px rows, 20px padding), section labels are 12px sentence case, the
+  accent focus ring no longer wraps the whole modal (only controls get it), the
+  empty state is vertically centred, and the sidebar no longer repeats the hero
+  "Открыть папку" button.
+- The tracked "KOCPAD" eyebrow on the empty state lost its 0.2em label look.
+
+### Added
+
+- `docs/DESIGN.md` records the visual direction (paper, ink, amber marker), the
+  audit and the rules for new screens. The pass follows the
+  [unslop](https://github.com/heydamir/unslop) method by Damir Sokolovsky
+  (CC BY 4.0).
+
 ## [1.5.3-beta.8] — 2026-11-23
 
 ### Added

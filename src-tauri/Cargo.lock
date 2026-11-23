@@ -2159,7 +2159,7 @@ dependencies = [
 
 [[package]]
 name = "kocpad"
-version = "1.5.3-beta.8"
+version = "1.5.3-beta.9"
 dependencies = [
  "base64 0.22.1",
  "open",
