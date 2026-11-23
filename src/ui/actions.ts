@@ -46,6 +46,7 @@ export interface AppActions {
   jumpToLine(line: number): void;
   openSettings(): void;
   openHistory(): void;
+  openBrokenLinks(): void;
   openGlobalSearch(): void;
   openPalette(): void;
   openFind(): void;

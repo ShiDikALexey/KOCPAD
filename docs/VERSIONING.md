@@ -39,7 +39,7 @@ a `-beta` tag needs a `-beta` version).
 
 | Bump | What may go in | Gate |
 |---|---|---|
-| **patch** `1.5.x` | bug fixes, documentation, small UI corrections | typecheck + build + 65 e2e green; the bug's reproduction checked by hand |
+| **patch** `1.5.x` | bug fixes, documentation, small UI corrections | typecheck + build + 66 e2e green; the bug's reproduction checked by hand |
 | **minor** `1.5.0` | a coherent set of features or a data-model change | the above, plus: the owner uses the beta for at least a week, no data-loss bug open, the changes have e2e coverage, rollback plan for user data |
 | **major** `2.0.0` | a claim of stability | everything below in "2.0 gate" |
 

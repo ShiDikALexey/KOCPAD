@@ -45,6 +45,14 @@ const SETTINGS_KEY = 'kocpad.settings';
  * the autosave queue. The UI subscribes to topics and re-renders; nothing in
  * here touches the DOM.
  */
+export interface BrokenLink {
+  sourcePath: string;
+  sourceName: string;
+  target: string;
+  line: number;
+  column: number;
+}
+
 export class Store {
   readonly storage: Storage;
   settings: Settings;
@@ -1278,7 +1286,7 @@ export class Store {
   async moveMany(paths: string[], targetDir: string): Promise<{ moved: number; skipped: string[] }> {
     const dir = targetDir || this.workspaceRootDir;
     const skipped: string[] = [];
-    let moved = 0;
+    const moved: { from: string; to: string }[] = [];
 
     for (const path of paths) {
       const name = basename(path);
@@ -1293,7 +1301,7 @@ export class Store {
           continue;
         }
         await this.storage.rename(path, target);
-        moved += 1;
+        moved.push({ from: path, to: target });
         const cachedText = this.textCache.get(path);
         if (cachedText !== undefined) {
           this.textCache.delete(path);
@@ -1308,16 +1316,129 @@ export class Store {
     }
 
     await this.refreshTree();
+    // Folder-qualified `[[folder/Note]]` links break when the folder changes;
+    // rewrite them with the notes already moved, before the UI re-renders.
+    if (moved.length) await this.rewriteLinksForMoves(moved);
     this.emit('docs', 'active');
-    this.setStatus(`Перемещено: ${moved}${skipped.length ? `, пропущено: ${skipped.length}` : ''}`);
-    return { moved, skipped };
+    this.setStatus(`Перемещено: ${moved.length}${skipped.length ? `, пропущено: ${skipped.length}` : ''}`);
+    return { moved: moved.length, skipped };
+  }
+
+  /**
+   * Rewrites folder-qualified wiki links after a move. Plain `[[Title]]` links
+   * still resolve because the title is unchanged; only targets that contain the
+   * old folder prefix need editing.
+   */
+  private async rewriteLinksForMoves(moves: { from: string; to: string }[]): Promise<void> {
+    const root = this.workspaceRootDir;
+    if (!root) return;
+    const relative = (path: string): string =>
+      normalizePath(path)
+        .replace(/\\/g, '/')
+        .slice(normalizePath(root).length)
+        .replace(/^\/+/, '')
+        .replace(/\.(md|markdown|mdown|txt)$/i, '');
+
+    const pairs = moves
+      .map((move) => ({ oldRel: relative(move.from), newRel: relative(move.to) }))
+      .filter((pair) => pair.oldRel && pair.newRel && pair.oldRel !== pair.newRel);
+    if (!pairs.length) return;
+
+    const paths = new Set([
+      ...this.flatFiles().map((file) => file.path),
+      ...this.docs.filter((doc) => isDraftPath(doc.path)).map((doc) => doc.path),
+    ]);
+
+    for (const path of paths) {
+      const doc = this.docs.find((item) => item.path === path);
+      let content = '';
+      try {
+        content = doc ? doc.content : await this.readCached(path);
+      } catch {
+        continue;
+      }
+      let updated = content;
+      for (const pair of pairs) {
+        const escaped = pair.oldRel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(
+          `(\\[\\[)${escaped}(?:\\.(?:md|markdown|mdown|txt))?(\\s*(?:\\|[^\\]]*)?\\]\\])`,
+          'gi',
+        );
+        updated = updated.replace(pattern, `$1${pair.newRel}$2`);
+      }
+      if (updated === content) continue;
+      if (doc) {
+        doc.content = updated;
+        this.scheduleSave(path);
+        this.onDocContentSynced(path);
+        this.emit('dirty');
+      } else {
+        const meta = this.meta.get(path) ?? {
+          encoding: 'utf-8' as const,
+          bom: false,
+          eol: '\n' as const,
+        };
+        try {
+          await this.storage.writeBinary(
+            path,
+            encodeText(updated, meta.encoding, meta.bom, meta.eol),
+          );
+          this.textCache.set(path, updated);
+        } catch {
+          // A note that cannot be rewritten keeps the old link; nothing is lost.
+        }
+      }
+    }
+  }
+
+  /**
+   * Walks the workspace and returns every `[[…]]` that does not resolve.
+   * Used by the "broken links" panel; capped so a huge workspace stays usable.
+   */
+  async findBrokenLinks(limit = 300): Promise<BrokenLink[]> {
+    const results: BrokenLink[] = [];
+    const pattern = /\[\[([^[\]\n|]+?)(?:\|([^[\]\n]+?))?\]\]/g;
+    for (const file of this.flatFiles()) {
+      let text = '';
+      try {
+        text = await this.readCached(file.path);
+      } catch {
+        continue;
+      }
+      const lines = text.split(/\r?\n/);
+      let fence: string | null = null;
+      for (let index = 0; index < lines.length; index += 1) {
+        const raw = lines[index];
+        const fenceMatch = raw.match(/^\s*(`{3,}|~{3,})/);
+        if (fenceMatch) {
+          const marker = fenceMatch[1][0];
+          if (fence === null) fence = marker;
+          else if (fence === marker) fence = null;
+          continue;
+        }
+        if (fence !== null) continue;
+        const line = raw.replace(/`[^`]*`/g, '');
+        for (const match of line.matchAll(pattern)) {
+          const target = normalizeLinkTarget(match[1]);
+          if (!target || this.resolveLink(target)) continue;
+          results.push({
+            sourcePath: file.path,
+            sourceName: file.name,
+            target,
+            line: index + 1,
+            column: (match.index ?? 0) + 1,
+          });
+          if (results.length >= limit) return results;
+        }
+      }
+    }
+    return results;
   }
 
   /**
    * Case-insensitive search across every note in the workspace plus open drafts.
    * Reads files lazily and stops at `limit` hits to stay responsive.
-   */
-  async searchAll(query: string, limit = 300): Promise<SearchHit[]> {
+   */  async searchAll(query: string, limit = 300): Promise<SearchHit[]> {
     const needle = query.trim();
     if (needle.length < 2) return [];
     const pattern = new RegExp(escapeRegExp(needle), 'iu');
