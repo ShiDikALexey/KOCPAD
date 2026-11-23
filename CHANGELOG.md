@@ -9,6 +9,16 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.3] — 2026-11-23
+
+### Added
+
+- **Note version history.** Every saved revision is snapshotted locally (at most
+  one per five minutes per note, newest 50 and 30 days kept) in the app profile.
+  «⋯» → «История версий…» shows the versions, a preview and a two-step restore;
+  restoring snapshots the current text first, so a rollback is reversible.
+- History works for saved notes; drafts are excluded because they are not files.
+
 ## [1.5.3-beta.2] — 2026-11-23
 
 ### Added

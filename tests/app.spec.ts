@@ -752,6 +752,23 @@ test.describe('editor surfaces', () => {
     await expect(settings.getByRole('button', { name: 'Вспомнить' })).toBeDisabled();
   });
 
+  test('note history lists saved versions and restores one', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.editor.applyText('версия один\n'));
+    await page.waitForTimeout(1300);
+    await page.evaluate(() => window.__kocpad.editor.applyText('версия два\n'));
+    await page.waitForTimeout(1300);
+
+    await page.evaluate(() => window.__kocpad.actions.openHistory());
+    const row = page.locator('.history__row').first();
+    await expect(row).toBeVisible();
+
+    await row.getByRole('button', { name: 'Восстановить' }).click();
+    await row.getByRole('button', { name: 'Точно?' }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
+      .toContain('версия один');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

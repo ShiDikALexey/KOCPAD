@@ -2,6 +2,7 @@ import type { Doc, NoteNode, SearchHit, Settings, ThemeMode, ViewMode } from './
 import { DEFAULT_SETTINGS } from './types';
 import type { Storage } from './storage';
 import { journal, journalKeyFor, type JournalEntry } from './journal';
+import { recordHistorySnapshot } from './history';
 import { trash } from './trash';
 import { decodeAs, decodeText, encodeText, type Eol, type TextEncoding } from './encoding';
 import type { FileStat } from './storage/types';
@@ -680,6 +681,9 @@ export class Store {
       this.conflicts.delete(path);
       this.forgetJournal(path);
       this.textCache.set(path, snapshot);
+      // Keep an older revision available for rollback; the history module
+      // throttles this so autosave cannot create a snapshot per keystroke.
+      if (!isDraftPath(path)) void recordHistorySnapshot(path, snapshot);
       if (doc.content === snapshot) this.setStatus(`Сохранено · ${doc.name}`);
       this.emit('dirty');
     });
