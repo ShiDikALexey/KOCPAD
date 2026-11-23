@@ -9,6 +9,27 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.1] — 2026-11-23
+
+### Added
+
+- **Update channel.** Settings → «Обновления» lets you pick stable or beta, turn
+  automatic checks on or off and check manually. The channel is resolved at runtime
+  by Rust commands, so both endpoints use the same signed updater.
+- **Update indicator.** When a signed update is available, the «⋯» button gets a
+  small accent dot, its menu entry becomes «Обновление X — установить», and the
+  first finding shows one toast. Checks run five seconds after launch and every six
+  hours when auto-check is on.
+- **Beta channel plumbing.** Prerelease builds refresh a rolling `beta-channel`
+  GitHub release with their `latest.json`, so the beta endpoint always points at
+  the newest prerelease. Stable `latest` and its updater are untouched.
+
+### Changed
+
+- Update checking moved from the JavaScript plugin to two Rust commands
+  (`update_check`, `update_install`) that build the updater with the selected
+  endpoint. Signature verification and the downloaded installer are unchanged.
+
 ## [1.5.2-a] — 2026-11-21
 
 ### Added
