@@ -737,6 +737,21 @@ test.describe('editor surfaces', () => {
       .toBe('beta');
   });
 
+  test('a skipped update version can be restored from settings', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.store.patchSettings({ skippedUpdateVersion: '9.9.9' });
+    });
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const settings = page.locator('.settings');
+    await expect(settings).toContainText('9.9.9');
+
+    await settings.getByRole('button', { name: 'Вспомнить' }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.store.settings.skippedUpdateVersion))
+      .toBeNull();
+    await expect(settings.getByRole('button', { name: 'Вспомнить' })).toBeDisabled();
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

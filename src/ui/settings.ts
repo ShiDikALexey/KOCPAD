@@ -383,6 +383,35 @@ export function openSettings(store: Store): void {
               'При запуске и раз в несколько часов; значок появится в меню «⋯»',
             ),
             row(
+              'Пропущенная версия',
+              (() => {
+                const group = h('div', { class: 'settings__inline' });
+                const versionLabel = h(
+                  'span',
+                  { class: 'settings__hint' },
+                  settings.skippedUpdateVersion ?? 'нет',
+                );
+                group.appendChild(versionLabel);
+                const restore = h(
+                  'button',
+                  {
+                    class: 'btn btn--sm',
+                    type: 'button',
+                    onclick: () => {
+                      patch({ skippedUpdateVersion: null });
+                      versionLabel.textContent = 'нет';
+                      restore.disabled = true;
+                    },
+                  },
+                  'Вспомнить',
+                ) as HTMLButtonElement;
+                restore.disabled = !settings.skippedUpdateVersion;
+                group.appendChild(restore);
+                return group;
+              })(),
+              'Пропущенная версия не показывается в индикаторе; ручная проверка её увидит',
+            ),
+            row(
               'Проверить сейчас',
               h(
                 'button',

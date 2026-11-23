@@ -1446,6 +1446,8 @@ function loadSettings(): Settings {
     merged.assistant = merged.assistant !== false;
     merged.updateChannel = merged.updateChannel === 'beta' ? 'beta' : 'stable';
     merged.updateAutoCheck = merged.updateAutoCheck !== false;
+    merged.skippedUpdateVersion =
+      typeof merged.skippedUpdateVersion === 'string' ? merged.skippedUpdateVersion : null;
     // Schema 2: Notepad-like line breaks and subtle line numbers on by default.
     if ((parsed.schema ?? 1) < 2) {
       merged.softBreaks = true;

@@ -78,10 +78,12 @@ export interface Settings {
   assistant: boolean;
   /** Rules the user asked not to suggest again. */
   disabledLintRules: string[];
-  /** Update channel: stable releases or the beta line. */
+  /** Channel the updater follows. */
   updateChannel: 'stable' | 'beta';
   /** Check for updates in the background and show an indicator. */
   updateAutoCheck: boolean;
+  /** Version the user asked not to be offered again; null when cleared. */
+  skippedUpdateVersion: string | null;
 }
 
 export interface SearchHit {
@@ -125,4 +127,5 @@ export const DEFAULT_SETTINGS: Settings = {
   disabledLintRules: [],
   updateChannel: 'stable',
   updateAutoCheck: true,
+  skippedUpdateVersion: null,
 };

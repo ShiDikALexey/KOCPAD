@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { Store } from './store';
-import { confirmAction, showToast } from './ui/dialog';
+import { choiceDialog, showToast } from './ui/dialog';
 
 export interface UpdateInfo {
   version: string;
@@ -79,16 +79,27 @@ export async function checkForUpdate(
     const info = await invoke<UpdateInfo | null>('update_check', {
       channel: store.settings.updateChannel,
     });
-    available = info;
     checkedAt = Date.now();
 
     if (!info) {
+      available = null;
       notifiedVersion = null;
       if (manual) {
         const version = await currentAppVersion();
         showToast(version ? `Обновлений нет · установлена ${version}` : 'Обновлений нет');
       }
-    } else if (manual) {
+      return null;
+    }
+
+    // A version the user explicitly skipped stays silent until a manual check.
+    if (!manual && info.version === store.settings.skippedUpdateVersion) {
+      available = null;
+      return info;
+    }
+
+    available = info;
+
+    if (manual) {
       await promptInstall(store, info);
     } else if (notifiedVersion !== info.version) {
       notifiedVersion = info.version;
@@ -109,16 +120,34 @@ export async function checkForUpdate(
 }
 
 async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
-  const channel = info.channel === 'beta' ? '\n\nЭто тестовая сборка: возможны ошибки.' : '';
-  const confirmed = await confirmAction({
+  const body =
+    info.body?.trim() ||
+    'Скачать и установить новую версию? KOCPAD закроется, установит обновление и перезапустится.';
+  const choice = await choiceDialog({
     title: `Доступно обновление ${info.version}`,
-    message:
-      (info.body?.trim() ||
-        'Скачать и установить новую версию? KOCPAD закроется, установит обновление, после чего его нужно будет запустить снова.') +
-      channel,
-    confirmLabel: 'Обновить',
+    message: body,
+    details:
+      info.channel === 'beta'
+        ? ['Это тестовая сборка: возможны ошибки. Откатиться на стабильную можно только переустановкой.']
+        : [],
+    options: [
+      { id: 'install', label: 'Обновить', kind: 'primary' },
+      { id: 'later', label: 'Позже' },
+      { id: 'skip', label: 'Пропустить версию' },
+    ],
   });
-  if (confirmed) await installUpdate(store);
+
+  if (choice === 'install') {
+    if (store.settings.skippedUpdateVersion === info.version) {
+      store.patchSettings({ skippedUpdateVersion: null });
+    }
+    await installUpdate(store);
+  } else if (choice === 'skip') {
+    store.patchSettings({ skippedUpdateVersion: info.version });
+    available = null;
+    emit();
+    showToast(`Версия ${info.version} больше не предлагается`, 'info');
+  }
 }
 
 export async function installUpdate(store: Store): Promise<void> {
@@ -127,7 +156,7 @@ export async function installUpdate(store: Store): Promise<void> {
     await invoke('update_install', { channel: store.settings.updateChannel });
     available = null;
     emit();
-    showToast('Обновление установлено. Запустите KOCPAD снова.', 'success');
+    showToast('Обновление установлено · KOCPAD перезапустится', 'success');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     showToast(`Не удалось установить обновление: ${message}`, 'error');

@@ -51,9 +51,18 @@ if (!signature) {
 }
 const assetUrl = `https://github.com/${repository}/releases/download/${tag}/${path.basename(installer)}`;
 
+// The updater dialog shows this text. Prefer the release notes that the release
+// job already wrote from CHANGELOG.md, so the in-app "what's new" is meaningful.
+const notesFile = path.join(artifactsDir, 'RELEASE_NOTES.md');
+let notes = `KOCPAD ${version}`;
+if (fs.existsSync(notesFile)) {
+  const written = fs.readFileSync(notesFile, 'utf8').trim();
+  if (written) notes = written.slice(0, 4000);
+}
+
 const latest = {
   version,
-  notes: `KOCPAD ${version}`,
+  notes,
   pub_date: new Date().toISOString(),
   platforms: {
     'windows-x86_64': {
