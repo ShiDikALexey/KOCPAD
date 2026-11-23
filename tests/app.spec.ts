@@ -816,6 +816,31 @@ test.describe('editor surfaces', () => {
     expect(rules.filler).toContain('style-wordiness');
   });
 
+  test('the update dialog shows clean notes instead of raw markdown', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.updates.showDialog({
+        version: '9.9.9',
+        currentVersion: '1.5.2',
+        channel: 'beta',
+        body: [
+          '## [9.9.9] — 2026-11-23',
+          '',
+          '### Changed',
+          '',
+          '- **Полировка** интерфейса',
+          '- `docs/DESIGN.md` добавлен',
+          '[unslop](https://github.com/heydamir/unslop) метод',
+        ].join('\n'),
+      });
+    });
+    const dialog = page.locator('.dialog');
+    await expect(dialog).toContainText('Полировка интерфейса');
+    await expect(dialog).toContainText('docs/DESIGN.md');
+    await expect(dialog).not.toContainText('##');
+    await expect(dialog).not.toContainText('**');
+    await dialog.getByRole('button', { name: 'Позже' }).click();
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
