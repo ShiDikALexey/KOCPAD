@@ -482,6 +482,7 @@ const editor = new MarkdownEditor(
   { showLineNumbers: store.settings.showLineNumbers, lint: {
     enabled: () => store.settings.assistant,
     disabledRules: () => store.settings.disabledLintRules,
+    styleHints: () => store.settings.assistantStyle,
     weight: ruleWeight,
     onEvent: (rule, outcome) => {
       recordLintEvent(rule, outcome);
@@ -2010,7 +2011,7 @@ async function boot(): Promise<void> {
       closeFlow: handleCloseRequest,
       journal,
       encoding: { decodeText, decodeAs, encodeText },
-      lint: { diagnostics: (text: string) => runRules(text) },
+      lint: { diagnostics: (text: string, options?: { style?: boolean }) => runRules(text, options) },
       updates: {
         available: getAvailableUpdate,
         setAvailable: setAvailableUpdateForTests,

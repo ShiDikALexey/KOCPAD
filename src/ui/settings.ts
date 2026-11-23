@@ -270,6 +270,11 @@ export function openSettings(store: Store): void {
       toggle('Показывать', settings.assistant, (assistant) => patch({ assistant })),
       'Заметные ошибки Markdown подсвечиваются фоном; клик — объяснение и исправление',
     ),
+    row(
+      'Стилевые подсказки',
+      toggle('Показывать', settings.assistantStyle, (assistantStyle) => patch({ assistantStyle })),
+      'Длинные предложения, повторы и вводные фразы — выключено по умолчанию',
+    ),
     assistantBody,
     h('div', { class: 'settings__row settings__row--actions' }, assistantReset),
   );

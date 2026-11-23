@@ -52,10 +52,12 @@ export function showLintPopover(
     return node;
   };
 
-  actions.appendChild(button('Исправить', 'btn btn--sm btn--primary', () => {
-    close();
-    handlers.onFix();
-  }));
+  if (diagnostic.fix) {
+    actions.appendChild(button('Исправить', 'btn btn--sm btn--primary', () => {
+      close();
+      handlers.onFix();
+    }));
+  }
   actions.appendChild(button('Игнорировать', 'btn btn--sm', () => {
     close();
     handlers.onIgnore();

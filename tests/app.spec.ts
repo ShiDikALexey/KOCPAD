@@ -796,6 +796,26 @@ test.describe('editor surfaces', () => {
       .toContain('пёс 123 и пёс 456');
   });
 
+  test('style hints are opt-in and cover long sentences, repeats and filler words', async ({ page }) => {
+    const rules = await page.evaluate(() => {
+      const lint = window.__kocpad.lint;
+      return {
+        off: lint.diagnostics('слово слово', { style: false }).map((item: { rule: string }) => item.rule),
+        repeated: lint.diagnostics('слово слово', { style: true }).map((item: { rule: string }) => item.rule),
+        long: lint
+          .diagnostics(`Это ${'очень '.repeat(40)}длинное предложение.`, { style: true })
+          .map((item: { rule: string }) => item.rule),
+        filler: lint
+          .diagnostics('в общем, текст', { style: true })
+          .map((item: { rule: string }) => item.rule),
+      };
+    });
+    expect(rules.off).not.toContain('style-repeated-word');
+    expect(rules.repeated).toContain('style-repeated-word');
+    expect(rules.long).toContain('style-long-sentence');
+    expect(rules.filler).toContain('style-wordiness');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

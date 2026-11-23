@@ -4,7 +4,8 @@ A small, local assistant that watches what you type and quietly highlights place
 where the markdown is likely wrong or could be sharper. It is **not** a chat and
 it never rewrites anything on its own: a highlight is only an invitation to look.
 
-Status: **shipped in `1.5.1` on `main`.** The editor highlights likely markup
+Status: **shipped in `1.5.1` on `main`; M3 style hints are in the beta line.**
+The editor highlights likely markup
 mistakes, the popover fixes them on click, and the settings panel shows what the
 assistant has learned. It is still developed further on the `Experimental` branch
 (M3 style hints are next); nothing reaches `main` until it is accepted there.
@@ -142,6 +143,19 @@ Every interaction with a suggestion is recorded in `localStorage`
 - A weekly local summary ("`##` без пробела: было 14, стало 2") is still on the
   list; it can be derived from the same log without new storage.
 
+## Style hints (M3)
+
+Off by default; Settings → «Помощник» → «Стилевые подсказки».
+
+- `style-long-sentence` — a sentence with 35+ words; informational only.
+- `style-repeated-word` — «слово слово»; fixes to one word.
+- `style-wordiness` — `в общем`, `на самом деле`, `как бы`, `в принципе`,
+  `следует отметить`, `стоит отметить`, `по сути`, `в целом`; fixes by removing
+  the phrase and its trailing comma/space.
+
+Style rules skip fenced code, inline code and block starters (headings, lists,
+quotes, tables), and never run when the toggle is off.
+
 ## Privacy
 
 - Everything stays on the device: events and habits live in `localStorage` next to
@@ -166,7 +180,7 @@ Every interaction with a suggestion is recorded in `localStorage`
   debounced engine run per pause (measured with a counter).
 - No false positives inside fenced code blocks (one test per fence type).
 
-The branch currently runs **67 e2e scenarios** in total (ten of them cover the
+The branch currently runs **68 e2e scenarios** in total (eleven of them cover the
 assistant), plus typecheck, build, the Windows installers and the packaged `.exe`
 smoke in CI.
 
@@ -176,7 +190,7 @@ smoke in CI.
 |---|---|---|
 | M1 | Rules engine + decorations + popover + «Исправить/Игнорировать» for the 16 rules | done |
 | M2 | Settings section, event log, confidence, learned habits, reset | done |
-| M3 | Style suggestions (long sentences, repeats, wordiness) — opt-in, off by default | next |
+| M3 | Style suggestions (long sentences, repeats, wordiness) — opt-in, off by default | done in 1.5.3-beta.6 |
 | M4 | Optional tiny local model for richer explanations/rewrites | only if M1–M3 prove useful |
 
 ## Risks

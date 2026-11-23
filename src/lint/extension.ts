@@ -12,6 +12,8 @@ export interface LintOptions {
   onEvent?: (rule: string, outcome: 'applied' | 'ignored' | 'disabled') => void;
   /** Confidence from the learning log; higher rules are shown first. */
   weight?: (rule: string) => number;
+  /** Opt-in style suggestions (long sentences, repeats, filler words). */
+  styleHints?: () => boolean;
 }
 
 export interface LintApi {
@@ -113,7 +115,7 @@ export function lintExtension(options: LintOptions, register?: (api: LintApi) =>
       if (text === this.lastText) return;
       this.lastText = text;
       const disabled = new Set(options.disabledRules());
-      const diagnostics = runRules(text)
+      const diagnostics = runRules(text, { style: options.styleHints?.() ?? false })
         .filter((diagnostic) => !disabled.has(diagnostic.rule) && !ignored.has(keyOf(diagnostic)))
         .sort(
           (left, right) =>

@@ -1647,6 +1647,7 @@ function loadSettings(): Settings {
       ? merged.disabledLintRules.filter((item): item is string => typeof item === 'string')
       : [];
     merged.assistant = merged.assistant !== false;
+    merged.assistantStyle = merged.assistantStyle === true;
     merged.updateChannel = merged.updateChannel === 'beta' ? 'beta' : 'stable';
     merged.updateAutoCheck = merged.updateAutoCheck !== false;
     merged.skippedUpdateVersion =

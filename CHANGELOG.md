@@ -9,6 +9,18 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.6] — 2026-11-23
+
+### Added
+
+- **Style hints (M3), off by default.** Settings → «Помощник» has a second
+  toggle for style suggestions: long sentences (35+ words), repeated adjacent
+  words and filler phrases (`в общем`, `на самом деле`, `как бы`,
+  `в принципе`, `следует отметить`, `стоит отметить`, `по сути`, `в целом`).
+- Repeated words and filler phrases offer a one-click fix; long-sentence hints
+  are informational, so the popover shows only «Игнорировать» / «Больше не
+  предлагать» for them.
+
 ## [1.5.3-beta.5] — 2026-11-23
 
 ### Added
