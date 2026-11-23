@@ -4,9 +4,47 @@ mod recovery;
 mod trash;
 mod updates;
 
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::Manager;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager, State};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+/// A note passed on the command line (file association / second launch), waiting
+/// for the frontend to pick it up after boot.
+#[derive(Default)]
+struct PendingFile(Mutex<Option<String>>);
+
+const OPEN_FILE_EVENT: &str = "open-file";
+
+fn note_from_args(args: &[String]) -> Option<String> {
+    args.iter()
+        .find(|arg| {
+            let path = Path::new(arg);
+            if !path.is_file() {
+                return false;
+            }
+            matches!(
+                path.extension()
+                    .and_then(|extension| extension.to_str())
+                    .map(|extension| extension.to_ascii_lowercase())
+                    .as_deref(),
+                Some("md" | "markdown" | "mdown" | "txt")
+            )
+        })
+        .cloned()
+}
+
+/// Returns the file from the first launch once; the frontend opens it and mounts
+/// its folder as the workspace.
+#[tauri::command]
+fn take_initial_file(pending: State<'_, PendingFile>) -> Option<String> {
+    pending
+        .0
+        .lock()
+        .ok()
+        .and_then(|mut slot| slot.take())
+}
 
 /// Set once the webview is alive and has registered its close handler.
 /// Before that the window closes normally instead of being held open.
@@ -64,13 +102,19 @@ fn harden_webview(window: &tauri::WebviewWindow) {
 pub fn run() {
     tauri::Builder::default()
         .manage(fs_ops::WorkspaceRoot::default())
+        .manage(PendingFile::default())
         // Must be the first plugin: a second launch focuses the running window
         // instead of opening another copy that would write the same files.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.unminimize();
                 let _ = window.set_focus();
+            }
+            // Double-clicking a .md while KOCPAD is running opens it in the
+            // existing window.
+            if let Some(file) = note_from_args(&args) {
+                let _ = app.emit(OPEN_FILE_EVENT, file);
             }
         }))
         // Restores the window size and position from the previous run.
@@ -96,6 +140,14 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            // A file opened from Explorer or via the file association arrives as
+            // a command-line argument; keep it for the frontend.
+            let args: Vec<String> = std::env::args().collect();
+            if let Some(file) = note_from_args(&args) {
+                if let Ok(mut slot) = app.state::<PendingFile>().0.lock() {
+                    *slot = Some(file);
+                }
+            }
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyN);
             if let Err(error) = app.handle().global_shortcut().register(shortcut) {
                 // A hotkey owned by another app must not stop KOCPAD from starting.
@@ -142,6 +194,7 @@ pub fn run() {
             history::history_clear,
             kocpad_ready,
             kocpad_close_window,
+            take_initial_file,
         ])
         // The frontend decides whether there is anything to ask before quitting
         // (unsaved file changes, notes that are still drafts).

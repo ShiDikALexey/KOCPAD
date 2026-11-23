@@ -9,6 +9,18 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.7] — 2026-11-23
+
+### Added
+
+- **Windows file associations.** The NSIS/MSI installers register KOCPAD for
+  `.md`, `.markdown`, `.mdown` and `.txt`, so "Открыть с помощью" and
+  double-clicking a note open it in KOCPAD.
+- **Opening a file from Explorer or a second launch.** The first launch reads the
+  file from the command line, mounts its folder as the workspace and opens the
+  note; a second launch forwards the path to the running window through the
+  single-instance event instead of starting another process.
+
 ## [1.5.3-beta.6] — 2026-11-23
 
 ### Added
