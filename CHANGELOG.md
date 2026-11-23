@@ -9,6 +9,16 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.8] — 2026-11-23
+
+### Added
+
+- **System tray icon.** Left click or «Показать KOCPAD» brings the window back;
+  the menu also has «Новая заметка» and «Выход». Quit still follows the normal
+  close flow, so unsaved notes and drafts are not lost.
+- Tray is built in release and debug builds; if Windows refuses the icon,
+  startup only logs a warning and continues.
+
 ## [1.5.3-beta.7] — 2026-11-23
 
 ### Added

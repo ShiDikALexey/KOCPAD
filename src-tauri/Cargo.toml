@@ -1,6 +1,6 @@
 [package]
 name = "kocpad"
-version = "1.5.3-beta.7"
+version = "1.5.3-beta.8"
 description = "KOCPAD - a markdown notepad for Windows"
 authors = ["KOCPAD contributors"]
 edition = "2021"
@@ -15,7 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-single-instance = "2"

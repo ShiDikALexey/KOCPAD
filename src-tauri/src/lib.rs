@@ -7,6 +7,8 @@ mod updates;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -44,6 +46,57 @@ fn take_initial_file(pending: State<'_, PendingFile>) -> Option<String> {
         .lock()
         .ok()
         .and_then(|mut slot| slot.take())
+}
+
+fn show_main<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+/// System tray: quick access to the window, a fresh note and a proper quit that
+/// still goes through the frontend close flow (unsaved text must not be lost).
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    let show = MenuItemBuilder::with_id("show", "Показать KOCPAD").build(app)?;
+    let new_note = MenuItemBuilder::with_id("new-note", "Новая заметка").build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", "Выход").build(app)?;
+    let menu = MenuBuilder::new(app)
+        .items(&[&show, &new_note, &quit])
+        .build()?;
+
+    let mut builder = TrayIconBuilder::with_id("main-tray")
+        .menu(&menu)
+        .tooltip("KOCPAD")
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => show_main(app),
+            "new-note" => {
+                show_main(app);
+                let _ = app.emit("tray-new-note", ());
+            }
+            "quit" => {
+                let _ = app.emit("tray-quit", ());
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_main(tray.app_handle());
+            }
+        });
+
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(())
 }
 
 /// Set once the webview is alive and has registered its close handler.
@@ -156,6 +209,10 @@ pub fn run() {
             #[cfg(all(windows, not(debug_assertions)))]
             if let Some(window) = app.get_webview_window("main") {
                 harden_webview(&window);
+            }
+            if let Err(error) = build_tray(app) {
+                // A tray icon is a convenience: never block startup on it.
+                eprintln!("tray icon unavailable: {error}");
             }
             Ok(())
         })
