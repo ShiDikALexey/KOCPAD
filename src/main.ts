@@ -26,6 +26,7 @@ import { TagsView } from './ui/tags';
 import { LinksView } from './ui/links';
 import { openDraftsPanel } from './ui/drafts';
 import { openHistoryPanel } from './ui/history';
+import { openBrokenLinksPanel } from './ui/links-audit';
 import { openTrashPanel } from './ui/trash';
 import { trash } from './trash';
 import { decorateWikiLinks } from './wikilinks';
@@ -1296,6 +1297,8 @@ const actions: AppActions = {
       editor.applyText(text);
       updateFormatBar();
     }),
+  openBrokenLinks: () =>
+    openBrokenLinksPanel(store, actions, (target) => createNoteFromLink(target)),
 
   openGlobalSearch: () => searchPanel.open(),
   openPalette: () => palette(),
@@ -1400,6 +1403,7 @@ function palette(): void {
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
     { label: 'Перечитать файл с диска', run: actions.reloadActive },
     { label: 'История версий…', run: actions.openHistory },
+    { label: 'Битые ссылки…', run: actions.openBrokenLinks },
     {
       label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`,
       hint: 'Ctrl+Shift+L',
@@ -1476,6 +1480,7 @@ function mountToolbar(): void {
         { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
         { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
         { label: 'История версий…', onClick: actions.openHistory },
+        { label: 'Битые ссылки…', onClick: actions.openBrokenLinks },
         { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, onClick: actions.toggleTheme },
         { label: 'Тема: как в Windows', onClick: () => actions.setTheme('system') },
         {

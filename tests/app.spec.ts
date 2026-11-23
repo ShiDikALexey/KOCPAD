@@ -769,6 +769,17 @@ test.describe('editor surfaces', () => {
       .toContain('версия один');
   });
 
+  test('broken links panel lists unresolved wiki links', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.editor.applyText('# Тест\n\n[[Нет такой заметки]]\n'));
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => window.__kocpad.actions.openBrokenLinks());
+
+    const panel = page.locator('.history[aria-label="Битые ссылки"]');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('Нет такой заметки');
+    await expect(panel).toContainText('Найдено');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

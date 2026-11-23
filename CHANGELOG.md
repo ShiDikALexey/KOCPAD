@@ -9,6 +9,17 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.4] — 2026-11-23
+
+### Added
+
+- **Broken links panel.** «⋯» → «Битые ссылки…» scans the workspace and lists
+  every `[[…]]` that does not resolve, with the source note and line. From the
+  list you can open the source or create the missing note.
+- **Moving notes keeps folder-qualified links working.** `[[folder/Note]]` links
+  are rewritten to the note's new folder when it is moved; plain `[[Note]]` links
+  already survive because the title does not change.
+
 ## [1.5.3-beta.3] — 2026-11-23
 
 ### Added
