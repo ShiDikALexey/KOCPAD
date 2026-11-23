@@ -343,8 +343,80 @@ const rules: Rule[] = [
   },
 ];
 
+const styleRules: Rule[] = [
+  (context) => {
+    if (context.inFence) return [];
+    const line = context.line;
+    if (!line.trim() || line.includes('`')) return [];
+    if (/^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\|)/.test(line)) return [];
+    const sentences = line.match(/[^.!?]+[.!?]+/g);
+    if (!sentences) return [];
+    const results: LintDiagnostic[] = [];
+    let cursor = 0;
+    for (const sentence of sentences) {
+      const start = line.indexOf(sentence, cursor);
+      if (start < 0) continue;
+      cursor = start + sentence.length;
+      const words = sentence.trim().split(/\s+/).filter(Boolean).length;
+      if (words < 35) continue;
+      results.push({
+        rule: 'style-long-sentence',
+        from: context.from + start,
+        to: context.from + start + sentence.length,
+        severity: 'info',
+        message: `Длинное предложение (${words} слов) — можно разбить на два`,
+      });
+    }
+    return results;
+  },
+  (context) => {
+    if (context.inFence || context.line.includes('`')) return [];
+    const match = /(?<![\p{L}\p{N}_])([\p{L}\p{N}_-]+)[ \t]+\1(?![\p{L}\p{N}_])/iu.exec(context.line);
+    if (!match) return [];
+    const from = context.from + match.index;
+    return [{
+      rule: 'style-repeated-word',
+      from,
+      to: from + match[0].length,
+      severity: 'info',
+      message: 'Слово повторяется — второе можно убрать',
+      preview: match[1],
+      fix: { from, to: from + match[0].length, insert: match[1] },
+    }];
+  },
+  (context) => {
+    if (context.inFence || context.line.includes('`')) return [];
+    const phrases = [
+      'в общем',
+      'на самом деле',
+      'как бы',
+      'в принципе',
+      'следует отметить',
+      'стоит отметить',
+      'по сути',
+      'в целом',
+    ];
+    const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])(?:${phrases.join('|')})(?![\\p{L}\\p{N}_])`, 'iu');
+    const match = pattern.exec(context.line);
+    if (!match) return [];
+    let end = match.index + match[0].length;
+    if (context.line[end] === ',') end += 1;
+    if (context.line[end] === ' ') end += 1;
+    const from = context.from + match.index;
+    return [{
+      rule: 'style-wordiness',
+      from,
+      to: context.from + end,
+      severity: 'info',
+      message: 'Вводная фраза — без неё предложение короче',
+      preview: context.line.slice(0, match.index) + context.line.slice(end),
+      fix: { from, to: context.from + end, insert: '' },
+    }];
+  },
+];
+
 /** Runs every rule over the text. Fenced code is skipped except fence checks. */
-export function runRules(text: string): LintDiagnostic[] {
+export function runRules(text: string, options: { style?: boolean } = {}): LintDiagnostic[] {
   const diagnostics: LintDiagnostic[] = [];
   const lines = text.split('\n');
   let offset = 0;
@@ -403,6 +475,9 @@ export function runRules(text: string): LintDiagnostic[] {
       listMarker: list ? listMarker : null,
     };
     for (const rule of rules) diagnostics.push(...rule(context));
+    if (options.style) {
+      for (const rule of styleRules) diagnostics.push(...rule(context));
+    }
   }
 
   // An unclosed fence is reported at the opening line.

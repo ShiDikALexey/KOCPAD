@@ -76,6 +76,8 @@ export interface Settings {
   syncScroll: boolean;
   /** Inline assistant: subtle markup suggestions while typing. */
   assistant: boolean;
+  /** Opt-in style suggestions (long sentences, repeats, filler words). */
+  assistantStyle: boolean;
   /** Rules the user asked not to suggest again. */
   disabledLintRules: string[];
   /** Channel the updater follows. */
@@ -124,6 +126,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lastRoot: null,
   syncScroll: true,
   assistant: true,
+  assistantStyle: false,
   disabledLintRules: [],
   updateChannel: 'stable',
   updateAutoCheck: true,
