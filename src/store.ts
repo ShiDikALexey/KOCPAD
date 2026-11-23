@@ -1438,10 +1438,21 @@ export class Store {
   /**
    * Case-insensitive search across every note in the workspace plus open drafts.
    * Reads files lazily and stops at `limit` hits to stay responsive.
-   */  async searchAll(query: string, limit = 300): Promise<SearchHit[]> {
+   */  async searchAll(
+    query: string,
+    limit = 300,
+    options: { regex?: boolean } = {},
+  ): Promise<SearchHit[]> {
     const needle = query.trim();
     if (needle.length < 2) return [];
-    const pattern = new RegExp(escapeRegExp(needle), 'iu');
+    let pattern: RegExp;
+    try {
+      pattern = options.regex
+        ? new RegExp(needle, 'iu')
+        : new RegExp(escapeRegExp(needle), 'iu');
+    } catch {
+      return [];
+    }
     const hits: SearchHit[] = [];
 
     for (const draft of this.draftList) {
@@ -1460,6 +1471,73 @@ export class Store {
       collectHits(file.path, file.name, text, pattern, hits, limit);
     }
     return hits;
+  }
+
+  /**
+   * Replaces in every note of the workspace. Each affected note is snapshotted
+   * into history first, so a bad replacement can be rolled back per file.
+   * Returns the number of notes and matches changed.
+   */
+  async replaceAll(
+    query: string,
+    replacement: string,
+    options: { regex?: boolean } = {},
+  ): Promise<{ files: number; matches: number }> {
+    const needle = query.trim();
+    if (needle.length < 2) return { files: 0, matches: 0 };
+    let source: string;
+    let flags: string;
+    try {
+      const base = options.regex ? new RegExp(needle, 'iu') : new RegExp(escapeRegExp(needle), 'iu');
+      source = base.source;
+      flags = base.flags.includes('g') ? base.flags : `${base.flags}g`;
+    } catch {
+      return { files: 0, matches: 0 };
+    }
+
+    let files = 0;
+    let matches = 0;
+    for (const file of this.flatFiles()) {
+      let text = '';
+      try {
+        text = await this.readCached(file.path);
+      } catch {
+        continue;
+      }
+      const found = text.match(new RegExp(source, flags));
+      if (!found) continue;
+      const updated = options.regex
+        ? text.replace(new RegExp(source, flags), replacement)
+        : text.replace(new RegExp(source, flags), () => replacement);
+      if (updated === text) continue;
+      await recordHistorySnapshot(file.path, text, { force: true });
+
+      const doc = this.docs.find((item) => item.path === file.path);
+      if (doc) {
+        doc.content = updated;
+        this.scheduleSave(file.path);
+        this.onDocContentSynced(file.path);
+        this.emit('dirty');
+      } else {
+        const meta = this.meta.get(file.path) ?? {
+          encoding: 'utf-8' as const,
+          bom: false,
+          eol: '\n' as const,
+        };
+        try {
+          await this.storage.writeBinary(
+            file.path,
+            encodeText(updated, meta.encoding, meta.bom, meta.eol),
+          );
+          this.textCache.set(file.path, updated);
+        } catch {
+          continue;
+        }
+      }
+      files += 1;
+      matches += found.length;
+    }
+    return { files, matches };
   }
 
   // ---------------------------------------------------------------- errors

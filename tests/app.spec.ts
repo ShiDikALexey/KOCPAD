@@ -780,6 +780,22 @@ test.describe('editor surfaces', () => {
     await expect(panel).toContainText('Найдено');
   });
 
+  test('regex search and replace work across the workspace', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.editor.applyText('кот 123 и кот 456\n'));
+    await page.waitForTimeout(1000);
+
+    const hits = await page.evaluate(() =>
+      window.__kocpad.store.searchAll('\\d{3}', 50, { regex: true }),
+    );
+    expect(hits.length).toBeGreaterThan(0);
+
+    const result = await page.evaluate(() => window.__kocpad.store.replaceAll('кот', 'пёс'));
+    expect(result.matches).toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.store.activeDoc?.content ?? ''))
+      .toContain('пёс 123 и пёс 456');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
