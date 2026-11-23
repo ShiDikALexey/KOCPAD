@@ -1,4 +1,5 @@
 mod fs_ops;
+mod history;
 mod recovery;
 mod trash;
 mod updates;
@@ -135,6 +136,10 @@ pub fn run() {
             trash::trash_empty,
             updates::update_check,
             updates::update_install,
+            history::history_put,
+            history::history_list,
+            history::history_read,
+            history::history_clear,
             kocpad_ready,
             kocpad_close_window,
         ])

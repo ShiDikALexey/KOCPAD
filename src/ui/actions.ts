@@ -45,6 +45,7 @@ export interface AppActions {
   setSidebarTab(tab: SidebarTab): void;
   jumpToLine(line: number): void;
   openSettings(): void;
+  openHistory(): void;
   openGlobalSearch(): void;
   openPalette(): void;
   openFind(): void;

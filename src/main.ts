@@ -25,6 +25,7 @@ import { OutlineView } from './ui/outline';
 import { TagsView } from './ui/tags';
 import { LinksView } from './ui/links';
 import { openDraftsPanel } from './ui/drafts';
+import { openHistoryPanel } from './ui/history';
 import { openTrashPanel } from './ui/trash';
 import { trash } from './trash';
 import { decorateWikiLinks } from './wikilinks';
@@ -1290,6 +1291,11 @@ const actions: AppActions = {
   },
 
   openSettings: () => openSettings(store),
+  openHistory: () =>
+    openHistoryPanel(store, (text) => {
+      editor.applyText(text);
+      updateFormatBar();
+    }),
 
   openGlobalSearch: () => searchPanel.open(),
   openPalette: () => palette(),
@@ -1393,6 +1399,7 @@ function palette(): void {
     },
     { label: 'Сохранить сейчас', hint: 'Ctrl+S', run: actions.saveAll },
     { label: 'Перечитать файл с диска', run: actions.reloadActive },
+    { label: 'История версий…', run: actions.openHistory },
     {
       label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`,
       hint: 'Ctrl+Shift+L',
@@ -1468,6 +1475,7 @@ function mountToolbar(): void {
         { label: 'Экспорт в HTML', hint: 'Ctrl+Shift+E', onClick: actions.exportHtml },
         { label: 'Печать / сохранить в PDF', hint: 'Ctrl+P', onClick: actions.printPdf },
         { label: 'Перечитать файл с диска', onClick: actions.reloadActive },
+        { label: 'История версий…', onClick: actions.openHistory },
         { label: `Тема: ${resolvedTheme() === 'dark' ? 'тёмная' : 'светлая'}`, onClick: actions.toggleTheme },
         { label: 'Тема: как в Windows', onClick: () => actions.setTheme('system') },
         {
