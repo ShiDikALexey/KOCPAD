@@ -1568,8 +1568,7 @@ function overlayOpen(): boolean {
   return dom.overlay.classList.contains('overlay--visible');
 }
 
-function mountShortcuts(): void {
-  window.addEventListener('keydown', (event) => {
+function mountShortcuts(): void {  window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !overlayOpen() && tree.hasSelection) {
       event.preventDefault();
       tree.clearSelection();
@@ -1860,6 +1859,23 @@ function mountCloseInterception(): void {
   void invoke('kocpad_ready').catch(() => undefined);
 }
 
+/** Opens a note handed over by Windows: file association, shell, second launch. */
+async function openExternalFile(rawPath: string): Promise<void> {
+  if (!isTauriRuntime() || !rawPath || !isTextFile(rawPath)) return;
+  if (store.storage.kind !== 'tauri') return;
+  const directory = dirname(rawPath);
+  const normalize = (value: string): string => value.replace(/[\\/]+$/, '').toLowerCase();
+  if (!store.storage.root || normalize(store.storage.root) !== normalize(directory)) {
+    const mounted = await store.openWorkspaceByPath(directory);
+    if (!mounted) {
+      showToast(`Не удалось открыть папку: ${directory}`, 'error');
+      return;
+    }
+  }
+  await store.openNote(rawPath);
+  showToast(`Открыто · ${basename(rawPath)}`, 'success');
+}
+
 // ------------------------------------------------------------------ startup
 
 function applySettings(): void {
@@ -1947,6 +1963,18 @@ async function boot(): Promise<void> {
     await store.refreshTree();
   }
   await restoreTabs();
+
+  // Windows file association / "open with": the first launch gets a file on the
+  // command line, later launches arrive through the single-instance event.
+  if (isTauriRuntime()) {
+    const initial = await invoke<string | null>('take_initial_file').catch(() => null);
+    if (initial) await openExternalFile(initial);
+    const { listen } = await import('@tauri-apps/api/event');
+    await listen<string>('open-file', (event) => {
+      void openExternalFile(event.payload);
+    });
+  }
+
   // Nothing to restore from tabs: bring back the most recent draft, if any.
   if (!store.activeDoc && store.draftsCount > 0) {
     const recent = store.draftList[0];
