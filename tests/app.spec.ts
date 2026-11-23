@@ -701,6 +701,42 @@ test.describe('editor surfaces', () => {
     await expect(page.locator('.toast')).toContainText('выделенного');
   });
 
+  test('an available update shows a dot and a menu action', async ({ page }) => {
+    await page.evaluate(() => {
+      window.__kocpad.updates.setAvailable({
+        version: '9.9.9',
+        currentVersion: '1.5.2-a',
+        body: 'Заметки к релизу',
+        channel: 'stable',
+      });
+    });
+    await expect(page.locator('#btn-more')).toHaveClass(/tb-btn--update/);
+
+    await page.locator('#btn-more').click();
+    await expect(page.locator('.menu')).toContainText('Обновление 9.9.9');
+    await page.keyboard.press('Escape');
+
+    await page.evaluate(() => window.__kocpad.updates.setAvailable(null));
+    await expect(page.locator('#btn-more')).not.toHaveClass(/tb-btn--update/);
+  });
+
+  test('update channel is saved in settings', async ({ page }) => {
+    await page.evaluate(() => window.__kocpad.actions.openSettings());
+    const settings = page.locator('.settings');
+    await expect(settings).toContainText('Обновления');
+    await settings.getByRole('button', { name: 'Бета' }).click();
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.store.settings.updateChannel))
+      .toBe('beta');
+
+    await settings.getByRole('button', { name: 'Готово' }).click();
+    await page.reload();
+    await page.waitForSelector('.cm-content');
+    await expect
+      .poll(async () => page.evaluate(() => window.__kocpad.store.settings.updateChannel))
+      .toBe('beta');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

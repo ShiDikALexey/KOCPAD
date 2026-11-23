@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
    KOCPAD вЂ” design tokens
    The chrome is quiet graphite paper; the document is the hero. One accent,
    a marker yellow borrowed from proofreading, marks where you are.
@@ -410,6 +410,23 @@ button {
 
 .tb-btn[hidden] {
   display: none;
+}
+
+/* An available update: small accent dot on the "⋯" button. */
+.tb-btn--update {
+  position: relative;
+}
+
+.tb-btn--update::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg);
 }
 
 .tb-btn--sm {

@@ -37,6 +37,14 @@ import type { AppActions } from './ui/actions';
 import { ImageStore } from './images';
 import { isDraftPath, draftIdOf } from './drafts';
 import { isTauriRuntime } from './storage';
+import {
+  checkForUpdate,
+  getAvailableUpdate,
+  installUpdate,
+  scheduleUpdateChecks,
+  setAvailableUpdateForTests,
+  subscribeUpdates,
+} from './updates';
 import { invoke } from '@tauri-apps/api/core';
 import type { EditorKeymap, PreviewFont, SidebarTab, ViewMode } from './types';
 import { basename, dirname, isTextFile, joinPath } from './path';
@@ -682,49 +690,24 @@ async function restoreTabs(): Promise<void> {
 
 // ------------------------------------------------------------------- actions
 
-/** Asks the release endpoint for a signed update and installs it on consent. */
-async function checkForUpdates(): Promise<void> {
-  if (!isTauriRuntime()) {
-    showToast('Обновления проверяются только в приложении KOCPAD', 'info');
-    return;
-  }
+/** Menu label and the manual check share the same pending-update state. */
+function updateMenuLabel(): string {
+  const pending = getAvailableUpdate();
+  return pending ? `Обновление ${pending.version} — установить` : 'Проверить обновления…';
+}
 
-  let current = '';
-  try {
-    const { getVersion } = await import('@tauri-apps/api/app');
-    current = await getVersion();
-  } catch {
-    // The version is only used in the toast text.
-  }
+function openUpdateFlow(): void {
+  if (getAvailableUpdate()) void installUpdate(store);
+  else void checkForUpdate(store, { manual: true });
+}
 
-  try {
-    const { check } = await import('@tauri-apps/plugin-updater');
-    const update = await check();
-    if (!update) {
-      showToast(current ? `Обновлений нет · установлена ${current}` : 'Обновлений нет');
-      return;
-    }
-
-    const confirmed = await confirmAction({
-      title: `Доступно обновление ${update.version}`,
-      message:
-        update.body?.trim() ||
-        'Скачать и установить новую версию? KOCPAD закроется, установит обновление, после чего его нужно будет запустить снова.',
-      confirmLabel: 'Обновить',
-    });
-    if (!confirmed) return;
-
-    showToast('Скачиваю обновление…');
-    await update.downloadAndInstall();
-    showToast('Обновление установлено. Запустите KOCPAD снова.', 'success');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const hint =
-      message.includes('Could not fetch') || message.includes('release JSON')
-        ? ' — в последнем релизе ещё нет файла обновления'
-        : '';
-    showToast(`Не удалось проверить обновления: ${message}${hint}`, 'error');
-  }
+/** Small dot on the "⋯" button while an update is waiting. */
+function refreshUpdateIndicator(): void {
+  const pending = getAvailableUpdate();
+  const button = document.getElementById('btn-more');
+  if (!button) return;
+  button.classList.toggle('tb-btn--update', Boolean(pending));
+  button.title = pending ? `Доступно обновление ${pending.version}` : 'Ещё';
 }
 
 /** Re-reads the workspace and drops cached text so external edits are visible. */
@@ -1386,7 +1369,7 @@ function palette(): void {
     { label: 'Тип блока: разделитель', run: () => actions.setBlockType('hr') },
     { label: 'Убрать форматирование', run: actions.clearFormatting },
     { label: 'Найти выделенное', hint: 'Ctrl+F', run: actions.findSelection },
-    { label: 'Проверить обновления…', run: () => void checkForUpdates() },
+    { label: updateMenuLabel(), run: openUpdateFlow },
     { label: 'Найти в заметке', hint: 'Ctrl+F', run: actions.openFind },
     { label: 'Найти во всех заметках', hint: 'Ctrl+Shift+F', run: actions.openGlobalSearch },
     { label: 'Настройки', hint: 'Ctrl+,', run: actions.openSettings },
@@ -1499,7 +1482,7 @@ function mountToolbar(): void {
         { label: 'Корзина…', onClick: () => openTrashPanel(store) },
         { label: `Папка: ${store.rootName}`, onClick: () => actions.openFolder() },
         { separator: true },
-        { label: 'Проверить обновления…', onClick: () => void checkForUpdates() },
+        { label: updateMenuLabel(), onClick: openUpdateFlow },
       ],
       { key: 'more', anchorElement: target },
     );
@@ -2000,6 +1983,11 @@ async function boot(): Promise<void> {
     dom.tabs.scrollLeft += event.deltaY;
   }, { passive: true });
 
+  // Update badge: startup + periodic check, but only when the setting allows it.
+  subscribeUpdates(refreshUpdateIndicator);
+  refreshUpdateIndicator();
+  scheduleUpdateChecks(store);
+
   // Development-only handle for debugging and end-to-end checks.
   if (import.meta.env.DEV) {
     (window as unknown as Record<string, unknown>).__kocpad = {
@@ -2010,6 +1998,11 @@ async function boot(): Promise<void> {
       journal,
       encoding: { decodeText, decodeAs, encodeText },
       lint: { diagnostics: (text: string) => runRules(text) },
+      updates: {
+        available: getAvailableUpdate,
+        setAvailable: setAvailableUpdateForTests,
+        check: () => checkForUpdate(store, { manual: true }),
+      },
       trash,
       openTrash: () => openTrashPanel(store),
       buildExport: async () => {

@@ -1,6 +1,6 @@
 [package]
 name = "kocpad"
-version = "1.5.2-a"
+version = "1.5.3-beta.1"
 description = "KOCPAD - a markdown notepad for Windows"
 authors = ["KOCPAD contributors"]
 edition = "2021"

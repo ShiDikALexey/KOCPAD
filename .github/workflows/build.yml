@@ -381,3 +381,25 @@ jobs:
           # `/releases/latest` — and therefore the updater — keeps pointing at
           # the last plain release. A rejected beta must not reach users.
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+      # The in-app beta channel checks a fixed URL. CI keeps a rolling release
+      # named `beta-channel` whose only asset is the latest prerelease manifest;
+      # the installer URL inside it still points at the versioned release.
+      - name: Publish beta channel manifest
+        if: contains(github.ref_name, '-')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f artifacts/latest.json ]; then
+            echo "no updater manifest (signing key missing), skipping beta channel"
+            exit 0
+          fi
+          if gh release view beta-channel >/dev/null 2>&1; then
+            gh release upload beta-channel artifacts/latest.json --clobber
+          else
+            gh release create beta-channel \
+              --prerelease \
+              --title "KOCPAD beta channel" \
+              --notes "Rolling update manifest for the in-app beta channel. The manifest points at the latest signed prerelease." \
+              artifacts/latest.json
+          fi

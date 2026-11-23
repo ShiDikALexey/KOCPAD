@@ -78,6 +78,10 @@ export interface Settings {
   assistant: boolean;
   /** Rules the user asked not to suggest again. */
   disabledLintRules: string[];
+  /** Update channel: stable releases or the beta line. */
+  updateChannel: 'stable' | 'beta';
+  /** Check for updates in the background and show an indicator. */
+  updateAutoCheck: boolean;
 }
 
 export interface SearchHit {
@@ -119,4 +123,6 @@ export const DEFAULT_SETTINGS: Settings = {
   syncScroll: true,
   assistant: true,
   disabledLintRules: [],
+  updateChannel: 'stable',
+  updateAutoCheck: true,
 };
