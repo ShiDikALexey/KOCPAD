@@ -9,6 +9,17 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.12] — 2026-11-24
+
+### Fixed
+
+- **Bold and italic text at line start are not list markers.** `**24.11.2026г.**`
+  and `*курсив*` no longer trigger «После маркера списка нужен пробел»;
+  `-пункт` still does.
+- **An empty blockquote is not a trailing space.** A line that is only a
+  blockquote/list/heading marker (`> `, `- `, `1. `, `# `) is valid markup and
+  is skipped by the trailing-space rule.
+
 ## [1.5.3-beta.11] — 2026-11-23
 
 ### Changed

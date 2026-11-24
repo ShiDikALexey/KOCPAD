@@ -198,6 +198,16 @@ const rules: Rule[] = [
     if (context.inFence) return [];
     const match = /^(\s*)([-*+])(\S)/.exec(context.line);
     if (!match) return [];
+    const markerIndex = match[1].length;
+    const afterMarker = context.line[markerIndex + 1] ?? '';
+    // `**24.11.2026г.**` is bold and `*курсив*` is italic; neither is a list
+    // item missing its space after the marker.
+    if (
+      match[2] === '*'
+      && (afterMarker === '*' || context.line.slice(markerIndex + 1).includes('*'))
+    ) {
+      return [];
+    }
     const position = context.from + match[1].length + 1;
     return [{
       rule: 'list-space',
@@ -313,6 +323,10 @@ const rules: Rule[] = [
     if (context.inFence) return [];
     const match = /[ \t]+$/.exec(context.line);
     if (!match) return [];
+    // A bare blockquote/list/heading marker (`> `, `- `, `1. `, `# `) is valid
+    // markup; the trailing space is not noise there.
+    const trimmed = context.line.trim();
+    if (/^(?:[-*+]|\d+[.)]|>|#{1,6})$/.test(trimmed)) return [];
     return [{
       rule: 'trailing-space',
       from: context.from + match.index,
