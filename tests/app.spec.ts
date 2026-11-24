@@ -859,6 +859,24 @@ test.describe('editor surfaces', () => {
     expect(rules.realList).toContain('list-space');
   });
 
+  test('applying the same block type twice removes it', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const editor = window.__kocpad.editor;
+      editor.applyText('> цитата\n');
+      editor.setBlockType('quote');
+      const unquoted = editor.text.trim();
+      editor.applyText('строка\n');
+      editor.setBlockType('quote');
+      const quoted = editor.text.trim();
+      editor.setBlockType('quote');
+      const back = editor.text.trim();
+      return { unquoted, quoted, back };
+    });
+    expect(result.unquoted).toBe('цитата');
+    expect(result.quoted).toBe('> строка');
+    expect(result.back).toBe('строка');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {

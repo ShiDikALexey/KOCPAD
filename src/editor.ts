@@ -568,18 +568,29 @@ export class MarkdownEditor {
 
     if (type === 'hr') {
       const line = state.doc.lineAt(range.head);
+      const isRule = detectBlockType(line.text) === 'hr';
+      const insert = isRule ? stripBlockPrefix(line.text) : '---';
       this.view.dispatch({
-        changes: { from: line.from, to: line.to, insert: '---' },
-        selection: { anchor: line.from + 3 },
+        changes: { from: line.from, to: line.to, insert },
+        selection: { anchor: line.from + insert.length },
       });
       this.view.focus();
       return;
     }
 
+    // Applying the block type a line already has removes it, like a toggle:
+    // «Цитата» on a quote turns the line back into a paragraph.
+    const lineTypes: BlockType[] = [];
+    for (let number = first.number; number <= last.number; number += 1) {
+      lineTypes.push(detectBlockType(state.doc.line(number).text));
+    }
+    const alreadyApplied = lineTypes.length > 0 && lineTypes.every((lineType) => lineType === type);
+    const target: BlockType = type !== 'paragraph' && alreadyApplied ? 'paragraph' : type;
+
     const changes: { from: number; to: number; insert: string }[] = [];
     for (let number = first.number; number <= last.number; number += 1) {
       const line = state.doc.line(number);
-      const next = blockPrefix(type, number - first.number) + stripBlockPrefix(line.text);
+      const next = blockPrefix(target, number - first.number) + stripBlockPrefix(line.text);
       if (next !== line.text) changes.push({ from: line.from, to: line.to, insert: next });
     }
     if (changes.length) this.view.dispatch({ changes });
