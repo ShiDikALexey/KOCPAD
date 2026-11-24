@@ -38,15 +38,20 @@ export function openPalette(commands: Command[]): void {
 
   let active = 0;
   let filtered = commands.slice();
+  const previousFocus = document.activeElement as HTMLElement | null;
 
   const input = h('input', {
     class: 'palette__input',
     type: 'text',
     placeholder: 'Команда или действие…',
     spellcheck: false,
+    role: 'combobox',
     'aria-label': 'Палитра команд',
+    'aria-expanded': 'true',
+    'aria-controls': 'palette-list',
+    'aria-autocomplete': 'list',
   }) as HTMLInputElement;
-  const list = h('div', { class: 'palette__list', role: 'listbox' });
+  const list = h('div', { class: 'palette__list', role: 'listbox', id: 'palette-list' });
   const root = h(
     'div',
     { class: 'palette', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Палитра команд' },
@@ -64,6 +69,7 @@ export function openPalette(commands: Command[]): void {
     document.removeEventListener('keydown', onKey, true);
     overlay.classList.remove('overlay--visible');
     clear(overlay);
+    if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
   };
 
   const runActive = (): void => {
@@ -88,6 +94,8 @@ export function openPalette(commands: Command[]): void {
             class: `palette__item${index === active ? ' palette__item--active' : ''}`,
             type: 'button',
             role: 'option',
+            id: `palette-option-${index}`,
+            tabindex: '-1',
             'aria-selected': index === active ? 'true' : 'false',
             onmouseenter: () => {
               active = index;
@@ -105,9 +113,16 @@ export function openPalette(commands: Command[]): void {
     });
     const node = list.children[active] as HTMLElement | undefined;
     node?.scrollIntoView({ block: 'nearest' });
+    input.setAttribute('aria-activedescendant', `palette-option-${active}`);
   };
 
   const onKey = (event: KeyboardEvent): void => {
+    if (event.key === 'Tab') {
+      // The palette is a single-input dialog; Tab must not walk into the page.
+      event.preventDefault();
+      input.focus();
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();

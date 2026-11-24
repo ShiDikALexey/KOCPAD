@@ -7,7 +7,8 @@ it never rewrites anything on its own: a highlight is only an invitation to look
 Status: **shipped in `1.5.1` on `main`; M3 style hints are in the beta line.**
 The editor highlights likely markup
 mistakes, the popover fixes them on click, and the settings panel shows what the
-assistant has learned. It is still developed further on the `Experimental` branch
+assistant has learned. It is still developed further on the `beta` line; `Experimental`
+mirrors beta and does not hold a separate assistant-only codebase.
 (M3 style hints are next); nothing reaches `main` until it is accepted there.
 
 ![Inline assistant: a missing space after ## is highlighted, the popover explains it and offers «Исправить / Игнорировать / Больше не предлагать»](screenshots/assistant.png)
@@ -22,12 +23,13 @@ assistant has learned. It is still developed further on the `Experimental` branc
 | Scope of v1 rules | All 16 markup rules below. Style advice is a later phase. |
 | Learning | Local only. The panel lives in **Settings**, shows accepted/ignored counts, per-rule confidence and learned habits, with a reset. |
 | Network | None. No model download in v1; no LLM, no telemetry. |
-| Branch | `Experimental` (from `beta`), CI builds it, no release tags. |
+| Branch | `beta` (current development line); `Experimental` mirrors it. Beta tags are prereleases. |
 
 ## Non-goals for v1
 
 - No chat, no "ask AI" panel, no free-form generation.
-- No style/grammar advice (long sentences, wordiness) — phase 3.
+- Style advice (long sentences, repeated words, filler phrases) is opt-in since
+  beta.6; it never rewrites silently and can be disabled in Settings.
 - No automatic edits.
 - No model fine-tuning or per-user trained weights.
 - No changes to the note format or the file layer.
@@ -180,7 +182,7 @@ quotes, tables), and never run when the toggle is off.
   debounced engine run per pause (measured with a counter).
 - No false positives inside fenced code blocks (one test per fence type).
 
-The branch currently runs **71 e2e scenarios** in total (eleven of them cover the
+The branch currently runs **75 e2e scenarios** in total (eleven of them cover the
 assistant), plus typecheck, build, the Windows installers and the packaged `.exe`
 smoke in CI.
 
@@ -201,4 +203,4 @@ smoke in CI.
   sensitive; rules must be conservative, and each gets a dedicated test.
 - **Performance.** Debounced, cached by text hash, no async work in v1.
 - **Scope creep.** The assistant must stay outside the core release line until it
-  is accepted; it lives on `Experimental` and never touches the file layer.
+  is accepted; it lives on the `beta` line, is opt-in and never touches the file layer.

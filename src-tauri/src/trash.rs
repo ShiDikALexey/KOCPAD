@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
@@ -54,7 +55,39 @@ fn read_meta(dir: &Path) -> Option<TrashEntry> {
 fn write_meta(dir: &Path, entry: &TrashEntry) -> Result<(), String> {
     let data =
         serde_json::to_vec(entry).map_err(|error| format!("Не удалось сохранить корзину: {error}"))?;
-    fs::write(dir.join("meta.json"), data).map_err(|error| format!("Не удалось сохранить корзину: {error}"))
+    // Atomic meta: a torn meta.json used to turn a recoverable deletion into a
+    // permanent one. Write a sibling temp file, fsync it, then rename.
+    let temp = dir.join("meta.json.tmp");
+    let mut file = fs::File::create(&temp)
+        .map_err(|error| format!("Не удалось сохранить корзину: {error}"))?;
+    file.write_all(&data)
+        .map_err(|error| format!("Не удалось сохранить корзину: {error}"))?;
+    file.sync_all()
+        .map_err(|error| format!("Не удалось сохранить корзину: {error}"))?;
+    drop(file);
+    fs::rename(&temp, dir.join("meta.json"))
+        .map_err(|error| format!("Не удалось сохранить корзину: {error}"))
+}
+
+/// Moves the payload into place. Cross-volume copies go through a temp name so a
+/// partial copy is never visible as a valid trash entry.
+fn move_payload(source: &Path, payload: &Path, is_dir: bool) -> Result<(), String> {
+    if fs::rename(source, payload).is_ok() {
+        return Ok(());
+    }
+    let temp = payload.with_file_name("payload.tmp");
+    let _ = fs::remove_file(&temp);
+    let _ = fs::remove_dir_all(&temp);
+    if is_dir {
+        copy_dir_all(source, &temp)?;
+        fs::rename(&temp, payload).map_err(|error| format!("{error}"))?;
+        fs::remove_dir_all(source).map_err(|error| format!("Не удалось удалить файл: {error}"))?;
+    } else {
+        fs::copy(source, &temp).map_err(|error| format!("{error}"))?;
+        fs::rename(&temp, payload).map_err(|error| format!("{error}"))?;
+        fs::remove_file(source).map_err(|error| format!("Не удалось удалить файл: {error}"))?;
+    }
+    Ok(())
 }
 
 fn copy_dir_all(from: &Path, to: &Path) -> Result<(), String> {
@@ -72,7 +105,7 @@ fn copy_dir_all(from: &Path, to: &Path) -> Result<(), String> {
 
 /// Moves a file or folder into the trash; returns the stored entry.
 #[tauri::command]
-pub fn trash_put(app: AppHandle, path: String) -> Result<TrashEntry, String> {
+pub async fn trash_put(app: AppHandle, path: String) -> Result<TrashEntry, String> {
     let source = PathBuf::from(&path);
     let metadata = fs::symlink_metadata(&source)
         .map_err(|error| format!("Не удалось удалить «{path}»: {error}"))?;
@@ -96,17 +129,6 @@ pub fn trash_put(app: AppHandle, path: String) -> Result<TrashEntry, String> {
     fs::create_dir_all(&dir).map_err(|error| format!("Не удалось создать запись корзины: {error}"))?;
     let payload = dir.join("payload");
 
-    if fs::rename(&source, &payload).is_err() {
-        // Different volume (or a locked rename): copy, then remove the original.
-        if is_dir {
-            copy_dir_all(&source, &payload)?;
-            fs::remove_dir_all(&source).map_err(|error| format!("Не удалось удалить «{path}»: {error}"))?;
-        } else {
-            fs::copy(&source, &payload).map_err(|error| format!("{error}"))?;
-            fs::remove_file(&source).map_err(|error| format!("Не удалось удалить «{path}»: {error}"))?;
-        }
-    }
-
     let entry = TrashEntry {
         id: id.clone(),
         original_path: path,
@@ -115,12 +137,20 @@ pub fn trash_put(app: AppHandle, path: String) -> Result<TrashEntry, String> {
         is_dir,
         size,
     };
+    // Metadata goes first: if the process dies during the move, the payload may
+    // be absent but the source still exists; the entry is hidden, never purged.
     write_meta(&dir, &entry)?;
+    if let Err(error) = move_payload(&source, &payload, is_dir) {
+        if !payload.exists() {
+            let _ = fs::remove_dir_all(&dir);
+        }
+        return Err(error);
+    }
     Ok(entry)
 }
 
 #[tauri::command]
-pub fn trash_list(app: AppHandle) -> Result<Vec<TrashEntry>, String> {
+pub async fn trash_list(app: AppHandle) -> Result<Vec<TrashEntry>, String> {
     let root = trash_dir(&app)?;
     let mut entries = Vec::new();
     for item in fs::read_dir(&root).map_err(|error| format!("{error}"))?.flatten() {
@@ -162,7 +192,7 @@ fn unique_target(target: &Path) -> PathBuf {
 
 /// Restores an entry; returns the path it landed on.
 #[tauri::command]
-pub fn trash_restore(app: AppHandle, id: String) -> Result<String, String> {
+pub async fn trash_restore(app: AppHandle, id: String) -> Result<String, String> {
     if !safe_id(&id) {
         return Err("Некорректный идентификатор записи".into());
     }
@@ -191,7 +221,7 @@ pub fn trash_restore(app: AppHandle, id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn trash_delete(app: AppHandle, id: String) -> Result<(), String> {
+pub async fn trash_delete(app: AppHandle, id: String) -> Result<(), String> {
     if !safe_id(&id) {
         return Err("Некорректный идентификатор записи".into());
     }
@@ -205,8 +235,10 @@ pub fn trash_delete(app: AppHandle, id: String) -> Result<(), String> {
 
 /// Removes entries older than `days` and caps the trash at 200 items.
 #[tauri::command]
-pub fn trash_purge(app: AppHandle, days: u64) -> Result<u64, String> {
+pub async fn trash_purge(app: AppHandle, days: u64) -> Result<u64, String> {
     let root = trash_dir(&app)?;
+    // Never allow days=0 to wipe the whole trash; keep at least one day.
+    let days = days.max(1);
     let cutoff = now_ms().saturating_sub(days.saturating_mul(24 * 60 * 60 * 1000));
     let mut kept: Vec<(u64, PathBuf)> = Vec::new();
     let mut removed = 0u64;
@@ -221,9 +253,9 @@ pub fn trash_purge(app: AppHandle, days: u64) -> Result<u64, String> {
                 removed += 1;
             }
             Some(entry) => kept.push((entry.deleted_at, dir)),
-            None => {
-                let _ = fs::remove_dir_all(&dir);
-            }
+            // No meta: could be an interrupted delete. Keep it rather than
+            // deleting the only payload; it is hidden from the panel.
+            None => {}
         }
     }
     kept.sort_by(|left, right| right.0.cmp(&left.0));
@@ -235,7 +267,7 @@ pub fn trash_purge(app: AppHandle, days: u64) -> Result<u64, String> {
 }
 
 #[tauri::command]
-pub fn trash_empty(app: AppHandle) -> Result<(), String> {
+pub async fn trash_empty(app: AppHandle) -> Result<(), String> {
     let root = trash_dir(&app)?;
     for item in fs::read_dir(&root).map_err(|error| format!("{error}"))?.flatten() {
         if item.path().is_dir() {

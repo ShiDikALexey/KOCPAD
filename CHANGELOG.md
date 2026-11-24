@@ -9,6 +9,46 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.14] — 2026-11-24
+
+Data-safety and correctness pass from the independent audit.
+
+### Fixed
+
+- A failed disk write is no longer reported as a successful save; closing a tab
+  keeps the buffer and its recovery snapshot when the write fails.
+- Opening a note always reads the file, not the search cache; rename refuses an
+  existing target; encoding metadata and pending journal entries follow a
+  rename/move; dirty notes are saved before a folder switch, move or delete.
+- Trash writes its metadata atomically before moving the payload and no longer
+  purges entries whose metadata was never written. Browser trash refuses to
+  delete a note when localStorage cannot store the copy.
+- Recovery reads bytes with the encoding detector (cp1251/UTF-16), keeps the
+  snapshot on Esc, and no longer removes it when opening the file fails. The
+  journal is a heartbeat while dirty again, not a per-keystroke debounce.
+- History records the version being overwritten, not the newly saved one;
+  history reads reject a snapshot whose stored path does not match.
+- Update install saves every dirty note first; the install uses the channel
+  that produced the update; beta builds default to the beta channel.
+- Ctrl+N creates at the workspace root when no file tab is active; drafts open
+  from search/tags/links; Ctrl+Z is left to the focused field.
+- Encoding: BOM-less UTF-16 is detected before UTF-8, decodeAs keeps CRLF, and
+  "Open as…" asks before dropping unsaved edits.
+
+### Security / release
+
+- Wiki-link aliases are escaped in export/print; the CSP now has an explicit
+  script-src and no longer allows data:/blob: scripts or remote images.
+- Release tags must come from the right branch and pass typecheck/e2e; the beta
+  channel refuses to move backwards; local beta builds document the MSI step.
+
+### Accessibility / docs
+
+- Settings controls have accessible names, status changes are live regions,
+  palette/search keep focus inside, and muted text tokens meet contrast.
+- README/BETA/VERSIONING/PUBLISHING/KEYBINDINGS/ASSISTANT/HANDOFF no longer
+  deny shipped releases, use stale versions or claim "no associations/tray".
+
 ## [1.5.3-beta.13] — 2026-11-24
 
 ### Fixed

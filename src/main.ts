@@ -41,8 +41,9 @@ import { isDraftPath, draftIdOf } from './drafts';
 import { isTauriRuntime } from './storage';
 import {
   checkForUpdate,
+  currentAppVersion,
   getAvailableUpdate,
-  installUpdate,
+  promptInstall,
   scheduleUpdateChecks,
   setAvailableUpdateForTests,
   showUpdateDialogForTests,
@@ -50,7 +51,7 @@ import {
 } from './updates';
 import { invoke } from '@tauri-apps/api/core';
 import type { EditorKeymap, PreviewFont, SidebarTab, ViewMode } from './types';
-import { basename, dirname, isTextFile, joinPath } from './path';
+import { basename, dirname, isInside, isTextFile, joinPath } from './path';
 import { clamp, debounce, plural, bytesToBase64 } from './util';
 
 const TABS_KEY = 'kocpad.tabs';
@@ -701,7 +702,8 @@ function updateMenuLabel(): string {
 }
 
 function openUpdateFlow(): void {
-  if (getAvailableUpdate()) void installUpdate(store);
+  const pending = getAvailableUpdate();
+  if (pending) void promptInstall(store, pending);
   else void checkForUpdate(store, { manual: true });
 }
 
@@ -832,7 +834,12 @@ async function showConflictDialog(path: string): Promise<void> {
       { id: 'copy', label: 'Сохранить копию' },
     ],
   });
-  if (!choice) return;
+  if (!choice) {
+    // Keep the conflict flagged and make the state visible; the note is still
+    // unsaveable, so silently returning would let the user keep typing into it.
+    showToast('Конфликт не решён — файл не сохранён', 'error');
+    return;
+  }
   const resolved = await store.resolveConflict(path, choice as 'reload' | 'mine' | 'copy');
   if (!resolved) {
     showToast('Не удалось разрешить конфликт — попробуйте ещё раз', 'error');
@@ -851,6 +858,15 @@ async function reopenAs(encoding: TextEncoding): Promise<void> {
   if (!doc || isDraftPath(doc.path)) {
     showToast('Кодировка применяется к файлу заметки, а не к черновику', 'info');
     return;
+  }
+  if (store.isDirty(doc)) {
+    const confirmed = await confirmAction({
+      title: 'Открыть в другой кодировке?',
+      message: 'В заметке есть несохранённые изменения. Перечитывание файла в другой кодировке их потеряет.',
+      confirmLabel: 'Продолжить',
+      danger: true,
+    });
+    if (!confirmed) return;
   }
   const ok = await store.reopenWithEncoding(doc.path, encoding);
   if (!ok) return;
@@ -873,6 +889,7 @@ async function offerRecovery(): Promise<void> {
       options: [
         { id: 'restore', label: 'Восстановить', kind: 'primary' },
         { id: 'open', label: 'Открыть файл с диска' },
+        { id: 'later', label: 'Позже' },
         { id: 'delete', label: 'Удалить снапшот', kind: 'danger' },
       ],
     });
@@ -884,11 +901,18 @@ async function offerRecovery(): Promise<void> {
         showToast('Текст восстановлен — проверьте и сохраните');
       }
     } else if (choice === 'open') {
-      await store.openNote(entry.path).catch(() => null);
+      // Keep the snapshot unless the file really opened: openNote catches its
+      // own errors and returns null, so a dead .catch() would delete the only copy.
+      const opened = await store.openNote(entry.path);
+      if (!opened) {
+        showToast('Не удалось открыть файл — снапшот оставлен', 'error');
+        continue;
+      }
       await journal.remove(entry.key);
-    } else {
+    } else if (choice === 'delete') {
       await journal.remove(entry.key);
     }
+    // 'later' and a dismissed dialog (null) keep the snapshot for next launch.
   }
 }
 
@@ -909,7 +933,10 @@ function mountExternalChangeWatch(): void {
 
 function targetDirectory(): string {
   const doc = store.activeDoc;
-  return doc ? dirname(doc.path) : '';
+  if (doc && !isDraftPath(doc.path)) return dirname(doc.path);
+  // No file tab: native builds create at the workspace root. Browser/demo paths
+  // are relative, so an empty string is correct there.
+  return store.storage.kind === 'tauri' ? store.storage.root ?? '' : '';
 }
 
 /** Opens the folder picker and mounts the result. Shared by "Открыть папку" and friends. */
@@ -1017,7 +1044,6 @@ async function openRecentFolderNow(path: string): Promise<void> {
 /** One screen on the very first launch: start with a draft or pick a folder. */
 async function runOnboarding(): Promise<void> {
   if (store.settings.onboarded) return;
-  store.patchSettings({ onboarded: true });
   const choice = await choiceDialog({
     title: 'Добро пожаловать в KOCPAD',
     message: 'Блокнот для markdown-заметок. Начать можно сразу с чистого листа или подключить готовую папку с заметками.',
@@ -1026,6 +1052,9 @@ async function runOnboarding(): Promise<void> {
       { id: 'folder', label: 'Открыть папку заметок' },
     ],
   });
+  // Only a real choice dismisses the onboarding; Esc/backdrop must show it again.
+  if (!choice) return;
+  store.patchSettings({ onboarded: true });
   if (choice === 'draft') await createNoteNow();
   else if (choice === 'folder') await chooseWorkspace();
 }
@@ -1173,6 +1202,12 @@ const actions: AppActions = {
 
   openNote: (path, options) => {
     void (async () => {
+      if (isDraftPath(path)) {
+        const draft = store.openDraft(draftIdOf(path));
+        if (!draft) return;
+        syncActive();
+        return;
+      }
       const doc = await store.openNote(path);
       if (!doc) return;
       syncActive();
@@ -1630,6 +1665,9 @@ function mountShortcuts(): void {  window.addEventListener('keydown', (event) =>
       return;
     }
     if (!mod || overlayOpen()) return;
+    // Leave plain Ctrl+Z to the native/CodeMirror undo of the focused field.
+    // Only Ctrl+Shift+Z is our focus-mode shortcut.
+    if (key === 'z' && !event.shiftKey) return;
 
     // Ctrl+Alt+1/2/3 make headings, Ctrl+Alt+0 turns a block back into text.
     if (event.altKey) {
@@ -1661,8 +1699,7 @@ function mountShortcuts(): void {  window.addEventListener('keydown', (event) =>
     const handlers: Record<string, () => void> = {
       z: () => {
         if (event.shiftKey) actions.toggleFocusMode();
-      },
-      n: () => (event.shiftKey ? actions.createFolder() : actions.createNote()),
+      },      n: () => (event.shiftKey ? actions.createFolder() : actions.createNote()),
       o: () => (event.shiftKey ? actions.setSidebarTab('outline') : actions.openFolder()),
       ',': () => actions.openSettings(),
       s: () => {
@@ -1866,11 +1903,16 @@ async function openExternalFile(rawPath: string): Promise<void> {
   if (store.storage.kind !== 'tauri') return;
   const directory = dirname(rawPath);
   const normalize = (value: string): string => value.replace(/[\\/]+$/, '').toLowerCase();
-  if (!store.storage.root || normalize(store.storage.root) !== normalize(directory)) {
-    const mounted = await store.openWorkspaceByPath(directory);
-    if (!mounted) {
-      showToast(`Не удалось открыть папку: ${directory}`, 'error');
-      return;
+  const root = store.storage.root;
+  // A file already inside the mounted workspace must not re-root it (that used
+  // to close every other tab when a note lived in a subfolder).
+  if (!root || !isInside(rawPath, root)) {
+    if (!root || normalize(root) !== normalize(directory)) {
+      const mounted = await store.openWorkspaceByPath(directory);
+      if (!mounted) {
+        showToast(`Не удалось открыть папку: ${directory}`, 'error');
+        return;
+      }
     }
   }
   await store.openNote(rawPath);
@@ -1894,6 +1936,38 @@ async function boot(): Promise<void> {
   mountPaste();
   mountDragAndDrop();
   mountCloseInterception();
+
+  // Register native events before restoring the workspace: a second launch or a
+  // tray click during startup must not be dropped because no listener exists yet.
+  const pendingExternal: string[] = [];
+  let pendingNewNote = false;
+  let pendingQuit = false;
+  let externalReady = false;
+  if (isTauriRuntime()) {
+    const { listen } = await import('@tauri-apps/api/event');
+    await listen<string>('open-file', (event) => {
+      if (!externalReady) {
+        pendingExternal.push(event.payload);
+        return;
+      }
+      void openExternalFile(event.payload);
+    });
+    await listen('tray-new-note', () => {
+      if (!externalReady) {
+        pendingNewNote = true;
+        return;
+      }
+      void createNoteNow();
+    });
+    await listen('tray-quit', () => {
+      if (!externalReady) {
+        pendingQuit = true;
+        return;
+      }
+      void handleCloseRequest();
+    });
+  }
+
   tree.mount();
   tabsView.mount();
   statusBar.mount();
@@ -1968,18 +2042,25 @@ async function boot(): Promise<void> {
   // Windows file association / "open with": the first launch gets a file on the
   // command line, later launches arrive through the single-instance event.
   if (isTauriRuntime()) {
+    // A beta build should follow the beta channel until the user picks one;
+    // otherwise beta.13 never sees beta.14 (stable latest is older).
+    const version = await currentAppVersion();
+    if (version.includes('-') && !store.settings.updateChannelChosen) {
+      store.patchSettings({ updateChannel: 'beta' });
+    }
     const initial = await invoke<string | null>('take_initial_file').catch(() => null);
     if (initial) await openExternalFile(initial);
-    const { listen } = await import('@tauri-apps/api/event');
-    await listen<string>('open-file', (event) => {
-      void openExternalFile(event.payload);
-    });
-    await listen('tray-new-note', () => {
-      void createNoteNow();
-    });
-    await listen('tray-quit', () => {
-      void handleCloseRequest();
-    });
+    externalReady = true;
+    for (const path of pendingExternal) await openExternalFile(path);
+    pendingExternal.length = 0;
+    if (pendingNewNote) {
+      pendingNewNote = false;
+      await createNoteNow();
+    }
+    if (pendingQuit) {
+      pendingQuit = false;
+      await handleCloseRequest();
+    }
   }
 
   // Nothing to restore from tabs: bring back the most recent draft, if any.

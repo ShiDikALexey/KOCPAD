@@ -161,9 +161,31 @@ fn is_text_file(path: &Path) -> bool {
     }
 }
 
-fn list_dir(dir: &Path) -> Vec<FileNode> {
+const MAX_TREE_DEPTH: u32 = 32;
+
+#[cfg(windows)]
+fn is_reparse(entry: &fs::DirEntry) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    match fs::symlink_metadata(entry.path()) {
+        Ok(metadata) => metadata.file_attributes() & 0x400 != 0,
+        Err(_) => true,
+    }
+}
+
+#[cfg(not(windows))]
+fn is_reparse(entry: &fs::DirEntry) -> bool {
+    entry
+        .file_type()
+        .map(|file_type| file_type.is_symlink())
+        .unwrap_or(true)
+}
+
+fn list_dir(dir: &Path, depth: u32) -> Vec<FileNode> {
     let mut dirs: Vec<FileNode> = Vec::new();
     let mut files: Vec<FileNode> = Vec::new();
+    if depth > MAX_TREE_DEPTH {
+        return Vec::new();
+    }
 
     let Ok(entries) = fs::read_dir(dir) else {
         return Vec::new();
@@ -173,6 +195,11 @@ fn list_dir(dir: &Path) -> Vec<FileNode> {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if name.starts_with('.') || SKIP_DIRS.contains(&name.as_str()) {
+            continue;
+        }
+        // Never follow junctions/symlinks inside the workspace: a loop aborts the
+        // process (panic=abort) and a link can expose paths outside the root.
+        if is_reparse(&entry) {
             continue;
         }
         let Ok(metadata) = entry.metadata() else {
@@ -185,7 +212,7 @@ fn list_dir(dir: &Path) -> Vec<FileNode> {
                 path: path.to_string_lossy().to_string(),
                 is_dir: true,
                 size: 0,
-                children: list_dir(&path),
+                children: list_dir(&path, depth + 1),
             });
         } else if is_text_file(&path) {
             files.push(FileNode {
@@ -216,7 +243,7 @@ pub async fn fs_list_tree(
     if !root.is_dir() {
         return Err(format!("Не папка: {path}"));
     }
-    Ok(list_dir(&root))
+    Ok(list_dir(&root, 0))
 }
 
 #[tauri::command]
@@ -302,6 +329,9 @@ pub async fn fs_rename(
 ) -> Result<(), String> {
     let source = scoped(&state, &from, false)?;
     let target = scoped(&state, &to, false)?;
+    if target != source && target.exists() {
+        return Err("Файл или папка с таким именем уже существует".into());
+    }
     fs::rename(&source, &target).map_err(|error| format!("Не удалось переименовать: {error}"))
 }
 

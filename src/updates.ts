@@ -143,7 +143,7 @@ export function cleanReleaseNotes(body?: string | null): string[] {
     .map((line) => (line.length > 180 ? `${line.slice(0, 177)}…` : line));
 }
 
-async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
+export async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
   const details = cleanReleaseNotes(info.body);
   if (info.channel === 'beta') {
     details.push('Это тестовая сборка: возможны ошибки.');
@@ -164,7 +164,14 @@ async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
     if (store.settings.skippedUpdateVersion === info.version) {
       store.patchSettings({ skippedUpdateVersion: null });
     }
-    await installUpdate(store);
+    // Never restart into an installer with unsaved text. A conflict or a failed
+    // write is exactly when the user must be told instead of losing the buffer.
+    const failed = await store.saveAll();
+    if (failed > 0) {
+      showToast('Есть несохранённые изменения — обновление отложено', 'error');
+      return;
+    }
+    await installUpdate(store, info.channel);
   } else if (choice === 'skip') {
     store.patchSettings({ skippedUpdateVersion: info.version });
     available = null;
@@ -173,9 +180,13 @@ async function promptInstall(store: Store, info: UpdateInfo): Promise<void> {
   }
 }
 
-export async function installUpdate(store: Store): Promise<void> {  showToast('Скачиваю обновление…');
+export async function installUpdate(
+  store: Store,
+  channel: UpdateInfo['channel'] = store.settings.updateChannel,
+): Promise<void> {
+  showToast('Скачиваю обновление…');
   try {
-    await invoke('update_install', { channel: store.settings.updateChannel });
+    await invoke('update_install', { channel });
     available = null;
     emit();
     showToast('Обновление установлено · KOCPAD перезапустится', 'success');

@@ -10,6 +10,7 @@ import { icon } from './icons';
  */
 export function openTrashPanel(store: Store): void {
   let pendingDelete: string | null = null;
+  let clearArmed = false;
 
   openModal((close) => {
     const body = h('div', { class: 'drafts__body' });
@@ -126,13 +127,20 @@ export function openTrashPanel(store: Store): void {
             type: 'button',
             onclick: async () => {
               const entries = await trash.list();
+              if (!entries.length) return;
+              if (!clearArmed) {
+                clearArmed = true;
+                void render();
+                return;
+              }
+              clearArmed = false;
               for (const entry of entries) await trash.remove(entry.id);
               showToast('Корзина очищена');
               void render();
               await store.refreshTree();
             },
           },
-          'Очистить',
+          clearArmed ? 'Точно очистить?' : 'Очистить',
         ),
       );
       footer.appendChild(

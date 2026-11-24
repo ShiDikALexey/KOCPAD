@@ -112,13 +112,15 @@ export function promptText(options: PromptOptions): Promise<string | null> {
     };
 
     const modal = openModal((close) => {
-      const error = h('p', { class: 'dialog__error', role: 'alert' });
+      const error = h('p', { class: 'dialog__error', id: 'dialog-error', role: 'alert' });
       const input = h('input', {
         class: 'dialog__input',
+        id: 'dialog-input',
         type: 'text',
         value: options.value ?? '',
         placeholder: options.placeholder ?? '',
         spellcheck: false,
+        'aria-describedby': 'dialog-error',
       }) as HTMLInputElement;
 
       const submit = (): void => {
@@ -127,6 +129,7 @@ export function promptText(options: PromptOptions): Promise<string | null> {
         if (message) {
           error.textContent = message;
           input.classList.add('dialog__input--invalid');
+          input.setAttribute('aria-invalid', 'true');
           input.focus();
           return;
         }
@@ -136,6 +139,7 @@ export function promptText(options: PromptOptions): Promise<string | null> {
       input.addEventListener('input', () => {
         error.textContent = '';
         input.classList.remove('dialog__input--invalid');
+        input.removeAttribute('aria-invalid');
       });
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {

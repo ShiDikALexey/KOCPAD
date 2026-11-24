@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -57,7 +57,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -92,7 +92,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
@@ -251,7 +251,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: actions/download-artifact@v4
         with:
@@ -325,17 +325,34 @@ jobs:
   release:
     name: Attach installers to a release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: windows
+    # A tag must not publish while typecheck or e2e are red.
+    needs: [frontend, e2e, windows]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify the tag comes from the right branch
+        shell: bash
+        run: |
+          git fetch --no-tags origin main beta
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            branch=origin/beta
+          else
+            branch=origin/main
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "$branch"; then
+            echo "Tag $GITHUB_REF_NAME is not on $branch" >&2
+            exit 1
+          fi
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Check that versions and the tag agree
         env:
@@ -356,6 +373,19 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           EXPECT_SIGNATURES: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
         run: node scripts/make-latest-json.cjs artifacts
+
+      - name: Refuse to move the beta channel backwards
+        if: contains(github.ref_name, '-')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view beta-channel >/dev/null 2>&1; then
+            mkdir -p channel-current
+            gh release download beta-channel -p latest.json -D channel-current || true
+            if [ -f channel-current/latest.json ]; then
+              node scripts/compare-beta-versions.cjs channel-current/latest.json artifacts/latest.json
+            fi
+          fi
 
       - name: Generate SHA256 checksums
         shell: pwsh

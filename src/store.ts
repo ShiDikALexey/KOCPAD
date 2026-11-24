@@ -138,6 +138,10 @@ export class Store {
   }
 
   async chooseRoot(): Promise<boolean> {
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), 'Не удалось сменить папку');
+      return false;
+    }
     const ok = await this.storage.chooseRoot();
     if (!ok) return false;
     this.patchSettings({ lastRoot: this.storage.root });
@@ -164,7 +168,10 @@ export class Store {
 
   /** Mounts a folder from the recent list without opening the picker. */
   async openWorkspaceByPath(path: string): Promise<boolean> {
-    await this.saveAll();
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), 'Не удалось открыть папку');
+      return false;
+    }
     const ok = await this.storage.mountRoot(path);
     if (!ok) return false;
     this.patchSettings({ lastRoot: path });
@@ -203,6 +210,15 @@ export class Store {
   private async readCached(path: string): Promise<string> {
     const cached = this.textCache.get(path);
     if (cached !== undefined) return cached;
+    return this.readFresh(path);
+  }
+
+  /**
+   * Reads a note from disk, bypassing the cache. Opening a note must never use
+   * cached text: it would look clean with a fresh disk stamp and the next save
+   * would overwrite an external edit.
+   */
+  private async readFresh(path: string): Promise<string> {
     // Read bytes, not `readText`: the file may be cp1251/UTF-16, and the encoding
     // must survive the round trip, otherwise saving silently converts the file.
     const bytes = await this.storage.readBinary(path);
@@ -470,7 +486,10 @@ export class Store {
       return null;
     }
     try {
-      const content = await this.readCached(path);
+      // Always read the file, not the search/tags cache: the cache may be older
+      // than the disk and would hide an external edit.
+      this.textCache.delete(path);
+      const content = await this.readFresh(path);
       const disk = await this.storage.stat(path).catch(() => null);
       const meta = this.meta.get(path);
       const doc: Doc = {
@@ -532,8 +551,9 @@ export class Store {
   private scheduleJournal(path: string): void {
     const doc = this.docs.find((item) => item.path === path);
     if (!doc || isDraftPath(path)) return;
-    const existing = this.journalTimers.get(path);
-    if (existing !== undefined) window.clearTimeout(existing);
+    // Do not reset the timer on every keystroke: a continuous typing burst must
+    // still produce snapshots. If a timer is already pending, let it fire.
+    if (this.journalTimers.has(path)) return;
     this.journalTimers.set(
       path,
       window.setTimeout(() => {
@@ -551,6 +571,8 @@ export class Store {
       return;
     }
     await journal.write({ key, path, text: doc.content, savedAt: Date.now() });
+    // Keep a heartbeat while the document remains dirty.
+    if (this.isDirty(doc)) this.scheduleJournal(path);
   }
 
   private forgetJournal(path: string): void {
@@ -571,13 +593,17 @@ export class Store {
         await journal.remove(entry.key);
         continue;
       }
-      let current = '';
+      let current: string | null = null;
       try {
-        current = await this.storage.readText(entry.path);
+        // Read bytes and decode: recovery must not assume UTF-8, or cp1251 notes
+        // are reported as pending forever and restored with a wrong baseline.
+        const decoded = decodeText(await this.storage.readBinary(entry.path));
+        current = decoded.text;
       } catch {
-        current = '';
+        current = null;
       }
-      if (current === entry.text) {
+      // If the file cannot be read, keep the snapshot rather than delete it.
+      if (current !== null && current === entry.text) {
         await journal.remove(entry.key);
         continue;
       }
@@ -590,8 +616,11 @@ export class Store {
   async restoreJournalEntry(entry: JournalEntry): Promise<boolean> {
     if (!isTextFile(entry.path)) return false;
     let saved = '';
+    let meta: { encoding: TextEncoding; bom: boolean; eol: Eol } | undefined;
     try {
-      saved = await this.storage.readText(entry.path);
+      const decoded = decodeText(await this.storage.readBinary(entry.path));
+      saved = decoded.text;
+      meta = { encoding: decoded.encoding, bom: decoded.bom, eol: decoded.eol };
     } catch {
       saved = '';
     }
@@ -601,6 +630,11 @@ export class Store {
       existing.content = entry.text;
       existing.savedContent = saved;
       existing.disk = disk;
+      if (meta) {
+        existing.encoding = meta.encoding;
+        existing.bom = meta.bom;
+        existing.eol = meta.eol;
+      }
       this.activePath = entry.path;
       this.emit('docs', 'active');
       return true;
@@ -611,7 +645,11 @@ export class Store {
       content: entry.text,
       savedContent: saved,
       disk,
+      encoding: meta?.encoding,
+      bom: meta?.bom,
+      eol: meta?.eol,
     };
+    if (meta) this.meta.set(entry.path, meta);
     this.docs = [...this.docs, doc];
     this.activePath = entry.path;
     this.rememberNote(entry.path);
@@ -663,6 +701,7 @@ export class Store {
     const previous = this.writes.get(path) ?? Promise.resolve();
     const write = previous.then(async () => {
       const snapshot = doc.content;
+      const before = doc.savedContent;
       // Somebody else may have written the file since we read it. Overwriting
       // that version would lose it, so stop and let the UI ask what to do.
       const current = await this.storage.stat(path).catch(() => null);
@@ -677,6 +716,11 @@ export class Store {
           bom: doc.bom ?? false,
           eol: doc.eol ?? '\n',
         };
+        // Keep the version we are about to overwrite, so history can roll back
+        // to what was on disk before this save (throttled by the history module).
+        if (before && before !== snapshot) {
+          await recordHistorySnapshot(path, before);
+        }
         const bytes = encodeText(snapshot, meta.encoding, meta.bom, meta.eol);
         await this.storage.writeBinary(path, bytes);
       } catch (error) {
@@ -689,21 +733,23 @@ export class Store {
       this.conflicts.delete(path);
       this.forgetJournal(path);
       this.textCache.set(path, snapshot);
-      // Keep an older revision available for rollback; the history module
-      // throttles this so autosave cannot create a snapshot per keystroke.
-      if (!isDraftPath(path)) void recordHistorySnapshot(path, snapshot);
       if (doc.content === snapshot) this.setStatus(`Сохранено · ${doc.name}`);
       this.emit('dirty');
     });
-    this.writes.set(
-      path,
-      write.catch(() => undefined),
-    );
+    const tracked = write.catch(() => undefined);
+    this.writes.set(path, tracked);
+    void tracked.finally(() => {
+      if (this.writes.get(path) === tracked) this.writes.delete(path);
+    });
     try {
       await write;
       return true;
     } catch (error) {
-      return !(error instanceof SaveConflict);
+      // A conflict is not a successful save, and a write error is not either.
+      if (error instanceof SaveConflict) {
+        this.setStatus(`Конфликт · ${doc.name}: файл изменён на диске`, 'error');
+      }
+      return false;
     }
   }
 
@@ -815,6 +861,9 @@ export class Store {
     }
     this.conflicts.delete(path);
     this.forgetJournal(path);
+    // Do not serve a closed note from cache later: reopening must read the disk.
+    this.textCache.delete(path);
+    this.meta.delete(path);
     const index = this.docs.findIndex((item) => item.path === path);
     this.docs = this.docs.filter((item) => item.path !== path);
     if (this.activePath === path) {
@@ -880,12 +929,16 @@ export class Store {
   /** Creates a note with an automatic name, then opens it. One keypress, no prompt. */
   async createNoteAuto(parentDir: string): Promise<string | null> {
     if (!this.requireWorkspace()) return null;
-    return this.createNote(parentDir, await this.nextNoteName(parentDir));
+    const dir = parentDir || (this.storage.kind === 'tauri' ? this.workspaceRootDir : '');
+    return this.createNote(dir, await this.nextNoteName(dir));
   }
 
   /** Detaches the current workspace; notes stay on disk. */
   async closeWorkspace(): Promise<void> {
-    await this.saveAll();
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), 'Не удалось закрыть папку');
+      return;
+    }
 
     for (const timer of this.saveTimers.values()) window.clearTimeout(timer);
     this.saveTimers.clear();
@@ -939,12 +992,13 @@ export class Store {
 
   async createFolder(parentDir: string, rawName: string): Promise<boolean> {
     if (!this.requireWorkspace()) return false;
+    const parent = parentDir || (this.storage.kind === 'tauri' ? this.workspaceRootDir : '');
     const name = rawName.trim().replace(/[\\/:*?"<>|]/g, '').trim();
     if (!name) {
       this.onError('Имя папки не может быть пустым');
       return false;
     }
-    const path = joinPath(parentDir, name);
+    const path = joinPath(parent, name);
     try {
       await this.storage.createDir(path);
       await this.refreshTree();
@@ -1011,12 +1065,43 @@ export class Store {
     }
   }
 
-  async renameEntry(node: NoteNode, rawName: string): Promise<boolean> {    const trimmed = rawName.trim();
+  /** Moves cached text/encoding entries when a file or folder is renamed. */
+  private remapMap<T>(map: Map<string, T>, from: string, to: string): void {
+    for (const key of [...map.keys()]) {
+      if (key === from) {
+        const value = map.get(key)!;
+        map.delete(key);
+        map.set(to, value);
+      } else if (isInside(key, from)) {
+        const value = map.get(key)!;
+        map.delete(key);
+        map.set(to + key.slice(from.length), value);
+      }
+    }
+  }
+
+  async renameEntry(node: NoteNode, rawName: string): Promise<boolean> {
+    const trimmed = rawName.trim();
     if (!trimmed || trimmed === node.name) return false;
     const base = dirname(node.path);
     const nextName = node.kind === 'file' ? ensureMarkdownName(trimmed) : trimmed.replace(/[\\/:*?"<>|]/g, '');
     if (!nextName) return false;
     const target = joinPath(base, nextName);
+    if (target !== node.path && (await this.storage.exists(target))) {
+      this.report(new Error('Файл или папка с таким именем уже существует'), 'Не удалось переименовать');
+      return false;
+    }
+    // Save dirty notes first: otherwise a pending timer/journal for the old path
+    // survives the rename and can either write the old file back or be lost.
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), 'Не удалось переименовать');
+      return false;
+    }
+    const pending = this.writes.get(node.path);
+    if (pending) await pending;
+    const affected = this.docs
+      .filter((doc) => doc.path === node.path || isInside(doc.path, node.path))
+      .map((doc) => doc.path);
     try {
       await this.storage.rename(node.path, target);
     } catch (error) {
@@ -1024,18 +1109,9 @@ export class Store {
       return false;
     }
 
-    // Cached text follows the file.
-    for (const cachedPath of [...this.textCache.keys()]) {
-      if (cachedPath === node.path) {
-        const text = this.textCache.get(cachedPath)!;
-        this.textCache.delete(cachedPath);
-        this.textCache.set(target, text);
-      } else if (isInside(cachedPath, node.path)) {
-        const text = this.textCache.get(cachedPath)!;
-        this.textCache.delete(cachedPath);
-        this.textCache.set(target + cachedPath.slice(node.path.length), text);
-      }
-    }
+    this.remapMap(this.textCache, node.path, target);
+    this.remapMap(this.meta, node.path, target);
+    for (const oldPath of affected) this.forgetJournal(oldPath);
 
     // Keep tabs pointing at the new paths.
     this.docs = this.docs.map((doc) => {
@@ -1115,7 +1191,15 @@ export class Store {
     }
   }
 
-  async deleteEntry(node: NoteNode): Promise<boolean> {    // Deletions go through the internal trash: a misclick must be recoverable.
+  async deleteEntry(node: NoteNode): Promise<boolean> {
+    // Deleting must not throw away text typed since the last save.
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), `Не удалось удалить ${node.name}`);
+      return false;
+    }
+    const pending = this.writes.get(node.path);
+    if (pending) await pending;
+    // Deletions go through the internal trash: a misclick must be recoverable.
     const stored = await trash.put(this.storage, node.path);
     if (!stored) {
       this.report(new Error('Не удалось переместить в корзину'), `Не удалось удалить ${node.name}`);
@@ -1259,7 +1343,13 @@ export class Store {
     const failed: string[] = [];
     const deletedPaths: string[] = [];
     let deleted = 0;
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), 'Не удалось удалить');
+      return { deleted: 0, failed: paths.map((path) => basename(path)) };
+    }
     for (const path of paths) {
+      const pending = this.writes.get(path);
+      if (pending) await pending;
       const stored = await trash.put(this.storage, path);
       if (!stored) {
         failed.push(basename(path));
@@ -1288,6 +1378,11 @@ export class Store {
     const skipped: string[] = [];
     const moved: { from: string; to: string }[] = [];
 
+    if (this.dirtyCount > 0 && (await this.saveAll()) > 0) {
+      this.report(new Error('Есть несохранённые изменения'), 'Не удалось переместить');
+      return { moved: 0, skipped: paths.map((path) => basename(path)) };
+    }
+
     for (const path of paths) {
       const name = basename(path);
       const target = joinPath(dir, name);
@@ -1300,13 +1395,13 @@ export class Store {
           skipped.push(name);
           continue;
         }
+        const pending = this.writes.get(path);
+        if (pending) await pending;
         await this.storage.rename(path, target);
         moved.push({ from: path, to: target });
-        const cachedText = this.textCache.get(path);
-        if (cachedText !== undefined) {
-          this.textCache.delete(path);
-          this.textCache.set(target, cachedText);
-        }
+        this.remapMap(this.textCache, path, target);
+        this.remapMap(this.meta, path, target);
+        this.forgetJournal(path);
         this.docs = this.docs.map((doc) => (doc.path === path ? { ...doc, path: target, name } : doc));
         if (this.activePath === path) this.activePath = target;
         this.onDocRenamed(path, target);
@@ -1498,9 +1593,12 @@ export class Store {
     let files = 0;
     let matches = 0;
     for (const file of this.flatFiles()) {
+      const doc = this.docs.find((item) => item.path === file.path);
       let text = '';
       try {
-        text = await this.readCached(file.path);
+        // Use the live buffer for open notes: replace-all must include their
+        // unsaved edits, not the last saved version from the cache.
+        text = doc ? doc.content : await this.readFresh(file.path);
       } catch {
         continue;
       }
@@ -1512,7 +1610,6 @@ export class Store {
       if (updated === text) continue;
       await recordHistorySnapshot(file.path, text, { force: true });
 
-      const doc = this.docs.find((item) => item.path === file.path);
       if (doc) {
         doc.content = updated;
         this.scheduleSave(file.path);
@@ -1649,6 +1746,7 @@ function loadSettings(): Settings {
     merged.assistant = merged.assistant !== false;
     merged.assistantStyle = merged.assistantStyle === true;
     merged.updateChannel = merged.updateChannel === 'beta' ? 'beta' : 'stable';
+    merged.updateChannelChosen = merged.updateChannelChosen === true;
     merged.updateAutoCheck = merged.updateAutoCheck !== false;
     merged.skippedUpdateVersion =
       typeof merged.skippedUpdateVersion === 'string' ? merged.skippedUpdateVersion : null;

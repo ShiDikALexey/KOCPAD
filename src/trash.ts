@@ -45,11 +45,13 @@ function readLocal(): LocalEntry[] {
   }
 }
 
-function writeLocal(entries: LocalEntry[]): void {
+function writeLocal(entries: LocalEntry[]): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, 200)));
+    return true;
   } catch {
-    // Best effort: the browser fallback has no disk to rely on anyway.
+    // Quota/private mode: the caller must not delete the original file.
+    return false;
   }
 }
 
@@ -86,7 +88,8 @@ export const trash = {
         size: bytes.byteLength,
         data: bytesToBase64(bytes),
       };
-      writeLocal([entry, ...readLocal()]);
+      const stored = writeLocal([entry, ...readLocal()]);
+      if (!stored) return false;
       await storage.remove(path);
       return true;
     } catch {
