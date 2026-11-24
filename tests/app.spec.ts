@@ -841,6 +841,24 @@ test.describe('editor surfaces', () => {
     await dialog.getByRole('button', { name: 'Позже' }).click();
   });
 
+  test('bold dates, italic lines and empty quotes are not lint errors', async ({ page }) => {
+    const rules = await page.evaluate(() => {
+      const lint = window.__kocpad.lint;
+      const ids = (text: string) =>
+        lint.diagnostics(text).map((item: { rule: string }) => item.rule);
+      return {
+        bold: ids('**24.11.2026г.**\n'),
+        italic: ids('*курсив*\n'),
+        quote: ids('> \n'),
+        realList: ids('-пункт\n'),
+      };
+    });
+    expect(rules.bold).not.toContain('list-space');
+    expect(rules.italic).not.toContain('list-space');
+    expect(rules.quote).not.toContain('trailing-space');
+    expect(rules.realList).toContain('list-space');
+  });
+
   test('typing does not rebuild the sidebar tree', async ({ page }) => {
     // Regression guard: every keystroke used to re-render the tree and the tabs.
     const mutations = await page.evaluate(async () => {
