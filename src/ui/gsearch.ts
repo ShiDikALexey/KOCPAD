@@ -15,6 +15,7 @@ export class GlobalSearchPanel {
   private overlay: HTMLElement | null = null;
   private disposeBackdrop: (() => void) | null = null;
   private lastQuery = '';
+  private previousFocus: HTMLElement | null = null;
 
   constructor(
     private store: Store,
@@ -26,15 +27,21 @@ export class GlobalSearchPanel {
     const host = document.getElementById('overlay');
     if (!host) return;
 
+    const previousFocus = document.activeElement as HTMLElement | null;
+    this.previousFocus = previousFocus;
     const input = h('input', {
       class: 'gsearch__input',
       type: 'text',
       placeholder: 'Искать во всех заметках…',
       spellcheck: false,
+      role: 'combobox',
       'aria-label': 'Поиск по всем заметкам',
+      'aria-expanded': 'true',
+      'aria-controls': 'gsearch-results',
+      'aria-autocomplete': 'list',
       value: this.lastQuery,
     }) as HTMLInputElement;
-    const results = h('div', { class: 'gsearch__results' });
+    const results = h('div', { class: 'gsearch__results', id: 'gsearch-results' });
     const counter = h('span', { class: 'gsearch__count' });
     const regexButton = h(
       'button',
@@ -166,6 +173,8 @@ export class GlobalSearchPanel {
               {
                 class: `gsearch__hit${rowIndex === selected ? ' gsearch__hit--active' : ''}`,
                 type: 'button',
+                id: `gsearch-hit-${rowIndex}`,
+                tabindex: '-1',
                 onmouseenter: () => {
                   selected = rowIndex;
                   highlight();
@@ -190,6 +199,7 @@ export class GlobalSearchPanel {
       const rows = results.querySelectorAll<HTMLElement>('.gsearch__hit');
       rows.forEach((row, rowIndex) => row.classList.toggle('gsearch__hit--active', rowIndex === selected));
       rows[selected]?.scrollIntoView({ block: 'nearest' });
+      input.setAttribute('aria-activedescendant', `gsearch-hit-${selected}`);
     };
 
     const open = (): void => {
@@ -284,6 +294,12 @@ export class GlobalSearchPanel {
     });
 
     panel.addEventListener('keydown', (event) => {
+      if (event.key === 'Tab') {
+        // Keep Tab inside the search dialog instead of walking the page behind.
+        event.preventDefault();
+        input.focus();
+        return;
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
         this.close();
@@ -313,6 +329,8 @@ export class GlobalSearchPanel {
     host.classList.remove('overlay--visible');
     clear(host);
     this.overlay = null;
+    if (this.previousFocus && document.contains(this.previousFocus)) this.previousFocus.focus();
+    this.previousFocus = null;
   }
 }
 

@@ -167,7 +167,7 @@ export function renderWikiLinks(html: string): string {
         /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
         (_match, target: string, label?: string) => {
           const display = (label ?? target).trim();
-          return `<span class="wikilink" title="Заметка: ${escapeAttribute(target.trim())}">${display}</span>`;
+          return `<span class="wikilink" title="Заметка: ${escapeAttribute(target.trim())}">${escapeAttribute(display)}</span>`;
         },
       );
     })
@@ -175,7 +175,12 @@ export function renderWikiLinks(html: string): string {
 }
 
 function escapeAttribute(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 /** Builds a standalone, self-contained HTML document for export or printing. */

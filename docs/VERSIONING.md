@@ -39,7 +39,7 @@ a `-beta` tag needs a `-beta` version).
 
 | Bump | What may go in | Gate |
 |---|---|---|
-| **patch** `1.5.x` | bug fixes, documentation, small UI corrections | typecheck + build + 71 e2e green; the bug's reproduction checked by hand |
+| **patch** `1.5.x` | bug fixes, documentation, small UI corrections | typecheck + build + 75 e2e green; the bug's reproduction checked by hand |
 | **minor** `1.5.0` | a coherent set of features or a data-model change | the above, plus: the owner uses the beta for at least a week, no data-loss bug open, the changes have e2e coverage, rollback plan for user data |
 | **major** `2.0.0` | a claim of stability | everything below in "2.0 gate" |
 
@@ -74,7 +74,7 @@ a `-beta` tag needs a `-beta` version).
 
 ## Release checklist (short)
 
-1. `beta` is green in CI (typecheck, 46 e2e, Windows build).
+1. `beta` is green in CI (typecheck, 75 e2e, Windows build).
 2. Manual pass: create/edit/close/reopen, drafts panel, large note, images, export,
    search, tags/links, settings persistence.
 3. Cleanup: no `TODO`/debug code, versions consistent (`npm run check:versions`),
@@ -87,10 +87,10 @@ a `-beta` tag needs a `-beta` version).
 | Area | State |
 |---|---|
 | Core writing (edit, save, close, reopen) | works, covered by tests and by hand |
-| Drafts and session restore | works on `beta`, needs a week of real use |
+| Drafts and session restore | works; drafts panel and session restore shipped in 1.4.1–1.5.2 |
 | Search, tags, links | work; search reads the folder on first query (cached after) |
-| Images and export | images work in the packaged app since 1.4.1 (CSP fix); export does not embed them |
+| Images and export | images work in the packaged app since 1.4.1 (CSP fix); export embeds images into a standalone HTML file |
 | Large folders | chunked rendering; no lazy backend loading yet |
-| Windows integration | no file associations, no tray, no jump list, no single-instance guard |
+| Windows integration | file associations (installer only), tray, single-instance and open-from-Explorer; no jump list |
 | Installer | unsigned, SmartScreen warning on first launch |
 | Updates | signed with a project key, verified end to end once; beta releases are pre-releases |

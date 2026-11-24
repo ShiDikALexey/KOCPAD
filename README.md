@@ -4,7 +4,7 @@
   <p><b>Следующая версия. Здесь коротко: что поменялось и что проверяем.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/бета-1.5.3--beta.13-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/бета-1.5.3--beta.14-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub>Русский · <a href="README.en.md">English</a> · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md">полное описание (main)</a></sub>
@@ -12,7 +12,7 @@
 
 ---
 
-Это ветка `beta`. Сейчас здесь предрелизная сборка `1.5.3-beta.13`: канал
+Это ветка `beta`. Сейчас здесь предрелизная сборка `1.5.3-beta.14`: канал
 обновлений стабильный/бета, индикатор доступного обновления, пакетные исправления
 помощника и печать только текста. Стабильная версия `1.5.2` лежит в
 [main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md); ниже — что
@@ -41,6 +41,13 @@
 
 Ещё в CI появился запуск собранного `.exe`: раньше проверялась только
 веб-страница.
+
+## Что нового в 1.5.3-beta.14
+
+- Исправлена потеря несохранённого текста: ошибка записи, переименование,
+  корзина, recovery и обновление больше не закрывают вкладку молча.
+- `Ctrl+N` работает без активной вкладки, черновики открываются из поиска,
+  кодировки и CRLF сохраняются при перечитывании.
 
 ## Что нового в 1.5.3-beta.13
 
@@ -76,8 +83,9 @@
 
 ## Что нового в 1.5.3-beta.7
 
-- Ассоциации файлов: `.md`, `.markdown`, `.mdown`, `.txt` открываются в KOCPAD
-  двойным кликом или через «Открыть с помощью».
+- Ассоциации файлов ставит установщик: `.md`, `.markdown`, `.mdown`, `.txt`.
+  Портативный `kocpad.exe` их не регистрирует; если у расширения уже выбран
+  обработчик, Windows может сохранить его (UserChoice).
 - Заметка из Проводника открывает свою папку как рабочую; повторный запуск
   передаёт файл уже открытому окну.
 
@@ -146,7 +154,7 @@
 - пройтись по меню стрелками, создать заметку по отсутствующей ссылке,
   переименовать заметку и проверить ссылки.
 
-Автотестов в ветке 61. Есть ещё запуск `.exe` в CI, но полный нативный e2e
+Автотестов в ветке 75. Есть ещё запуск `.exe` в CI, но полный нативный e2e
 против собранного приложения упирается в среду GitHub-раннера, подробности в
 [ROADMAP](docs/ROADMAP.md).
 
@@ -156,14 +164,15 @@
 `kocpad.exe` и NSIS-установщик. MSI для беты не собирается: WiX не принимает
 версию с суффиксом.
 
-Тегов и релизов с этой ветки нет. Сначала проверка, потом вливание в `main` и
-выпуск `1.5.0`.
+Теги и prerelease-релизы с этой ветки есть. Бета публикуется как prerelease и
+обновляет плавающий `beta-channel`; стабильный `latest` она не трогает. Следующий
+стабильный выпуск — `1.5.3`.
 
 ## Что дальше
 
-После проверки beta вливается в `main` и выпускается как `1.5.0`. Отдельно живёт
-ветка [Experimental](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.md)
-с помощником по разметке — в бету он не входит.
+После проверки beta вливается в `main` и выпускается как `1.5.3`. Ветка
+[Experimental](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.md)
+зеркалит бету; помощник по разметке уже в beta и вышел в стабильной 1.5.1.
 
 Ограничения и планы: [ROADMAP](docs/ROADMAP.md). Политика версий:
 [VERSIONING](docs/VERSIONING.md).

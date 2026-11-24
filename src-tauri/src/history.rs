@@ -105,7 +105,7 @@ fn prune(dir: &Path) {
 
 /// Stores one snapshot. The frontend decides when a snapshot is worth writing.
 #[tauri::command]
-pub fn history_put(app: AppHandle, path: String, text: String) -> Result<HistoryEntry, String> {
+pub async fn history_put(app: AppHandle, path: String, text: String) -> Result<HistoryEntry, String> {
     let dir = snapshot_dir(&app, &path)?;
     let mut saved_at = now_ms();
     let mut id = saved_at.to_string();
@@ -134,16 +134,19 @@ pub fn history_put(app: AppHandle, path: String, text: String) -> Result<History
 }
 
 #[tauri::command]
-pub fn history_list(app: AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
+pub async fn history_list(app: AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
     let dir = snapshot_dir(&app, &path)?;
     let files = fs::read_dir(&dir).map_err(|error| format!("Не удалось прочитать историю: {error}"))?;
     let mut entries = Vec::new();
     for file in files.flatten() {
-        let path = file.path();
-        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+        let snapshot_file = file.path();
+        if snapshot_file.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
         }
-        if let Some(snapshot) = read_snapshot(&path) {
+        if let Some(snapshot) = read_snapshot(&snapshot_file) {
+            if snapshot.path != path {
+                continue;
+            }
             entries.push(HistoryEntry {
                 id: snapshot.id,
                 saved_at: snapshot.saved_at,
@@ -156,17 +159,20 @@ pub fn history_list(app: AppHandle, path: String) -> Result<Vec<HistoryEntry>, S
 }
 
 #[tauri::command]
-pub fn history_read(app: AppHandle, path: String, id: String) -> Result<String, String> {
+pub async fn history_read(app: AppHandle, path: String, id: String) -> Result<String, String> {
     if !safe_id(&id) {
         return Err("Некорректная версия".into());
     }
     let file = snapshot_dir(&app, &path)?.join(format!("{id}.json"));
     let snapshot = read_snapshot(&file).ok_or("Версия не найдена")?;
+    if snapshot.path != path {
+        return Err("Версия относится к другой заметке".into());
+    }
     Ok(snapshot.text)
 }
 
 #[tauri::command]
-pub fn history_clear(app: AppHandle, path: String) -> Result<(), String> {
+pub async fn history_clear(app: AppHandle, path: String) -> Result<(), String> {
     let dir = history_root(&app)?.join(key_for(&path));
     match fs::remove_dir_all(dir) {
         Ok(()) => Ok(()),

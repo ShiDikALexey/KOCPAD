@@ -4,7 +4,7 @@
   <p><b>The next version. Just what changed and what we are checking.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/beta-1.5.3--beta.13-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.3--beta.14-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
@@ -12,7 +12,7 @@
 
 ---
 
-This is the `beta` branch. It currently carries the pre-release `1.5.3-beta.13`:
+This is the `beta` branch. It currently carries the pre-release `1.5.3-beta.14`:
 stable/beta update channels, the available-update indicator, batch assistant fixes
 and text-only printing. Stable `1.5.2` lives in
 [main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md); below is what
@@ -40,6 +40,12 @@ a note rewrites links in other notes, and search no longer shows results from a 
 query.
 
 CI also launches the built `.exe` now; before, only the web page was tested.
+
+## What is new in 1.5.3-beta.14
+
+- Fixed silent loss around failed writes, rename, trash, recovery and update
+  install; Ctrl+N works without an active file tab, drafts open from search,
+  encodings and CRLF survive re-reading.
 
 ## What is new in 1.5.3-beta.13
 
@@ -70,13 +76,14 @@ CI also launches the built `.exe` now; before, only the web page was tested.
 
 ## What is new in 1.5.3-beta.8
 
-- System tray icon: «Show KOCPAD», «New note», «Quit»; left click restores the
-  window and quitting goes through the normal save/close flow.
+- System tray icon: «Показать KOCPAD», «Новая заметка», «Выход»; left click restores
+  the window and quitting goes through the normal save/close flow.
 
 ## What is new in 1.5.3-beta.7
 
-- File associations: `.md`, `.markdown`, `.mdown` and `.txt` open in KOCPAD from
-  Explorer, double-click or "Open with".
+- File associations are registered by the installer for `.md`, `.markdown`,
+  `.mdown` and `.txt`. The portable `kocpad.exe` registers nothing, and Windows
+  may keep an existing handler for an extension (UserChoice).
 - A note opened from Explorer mounts its folder as the workspace; a second launch
   forwards the file to the running window.
 
@@ -144,7 +151,7 @@ Before merging into `main`, this needs a manual pass:
 - use the menus with arrows, create a note from a missing link, rename a note and
   check the links.
 
-There are 61 automated tests. There is also a launch of the `.exe` in CI, but a full
+There are 75 automated tests. There is also a launch of the `.exe` in CI, but a full
 native e2e against the packaged app is blocked by the GitHub runner environment; see
 [ROADMAP](docs/ROADMAP.md).
 
@@ -154,14 +161,16 @@ On every push to `beta`, Actions builds the `kocpad-windows` artifact: the porta
 `kocpad.exe` and the NSIS installer. MSI is skipped for beta because WiX does not
 accept a version with a suffix.
 
-No tags and no releases from this branch. First the checks, then the merge into
-`main` and the `1.5.0` release.
+Tags and prerelease releases from this branch exist. Beta builds are published as
+prereleases and update the rolling `beta-channel`; the stable `latest` is untouched.
+The next stable release is `1.5.3`.
 
 ## What comes next
 
-After the checks, beta merges into `main` and ships as `1.5.0`. The
+After the checks, beta merges into `main` and ships as `1.5.3`. The
 [Experimental](https://github.com/ShiDikALexey/KOCPAD/blob/Experimental/README.en.md)
-branch holds the inline markup assistant; it is not part of beta.
+branch mirrors beta; the inline markup assistant is already in beta and shipped in
+stable 1.5.1.
 
 Limitations and plans: [ROADMAP](docs/ROADMAP.md). Version policy:
 [VERSIONING](docs/VERSIONING.md).

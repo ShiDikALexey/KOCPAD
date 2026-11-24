@@ -59,7 +59,7 @@ function validUtf8(bytes: Uint8Array): boolean {
   }
 }
 
-/** Heuristic for BOM-less UTF-16LE: Cyrillic/Latin text has many zero high bytes. */
+/** Heuristic for BOM-less UTF-16LE: ASCII text has many zero high bytes. */
 function looksLikeUtf16Le(bytes: Uint8Array): boolean {
   if (bytes.length < 8) return false;
   let zeros = 0;
@@ -67,10 +67,42 @@ function looksLikeUtf16Le(bytes: Uint8Array): boolean {
   for (let index = 1; index < limit; index += 2) {
     if (bytes[index] === 0) zeros += 1;
   }
-  return zeros / (limit / 2) > 0.3;
+  if (zeros / (limit / 2) > 0.3) return true;
+  if (bytes.length % 2 !== 0) return false;
+  // Cyrillic UTF-16LE has no zero high bytes; compare the two decodings instead:
+  // real text scores high, a wrong code page leaves control characters.
+  try {
+    const sample = bytes.subarray(0, Math.min(bytes.length, 400));
+    if (validUtf8(bytes)) {
+      const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(sample);
+      const controls = [...utf8].filter((char) =>
+        /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffd]/u.test(char),
+      ).length;
+      // Normal UTF-8 text has no C0 controls; UTF-16 Cyrillic decoded as UTF-8
+      // is full of them, which is the signal we need.
+      if (controls / Math.max(1, [...utf8].length) < 0.05) return false;
+    }
+    const utf16 = new TextDecoder('utf-16le', { fatal: false }).decode(sample);
+    const legacy = new TextDecoder('cp1251', { fatal: false }).decode(sample);
+    const score = (text: string): number => {
+      const chars = [...text];
+      if (!chars.length) return 0;
+      let good = 0;
+      let bad = 0;
+      for (const char of chars) {
+        if (/[\p{L}\p{N}\s.,;:!?()[\]"'«»—–-]/u.test(char)) good += 1;
+        if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffd]/u.test(char)) bad += 1;
+      }
+      return (good - bad * 2) / chars.length;
+    };
+    return score(utf16) > score(legacy) + 0.2;
+  } catch {
+    return false;
+  }
 }
 
-export function decodeText(bytes: Uint8Array): DecodedText {  let encoding: TextEncoding = 'utf-8';
+export function decodeText(bytes: Uint8Array): DecodedText {
+  let encoding: TextEncoding = 'utf-8';
   let bom = false;
   let payload = bytes;
 
@@ -85,10 +117,12 @@ export function decodeText(bytes: Uint8Array): DecodedText {  let encoding: Text
     encoding = 'utf-16be';
     bom = true;
     payload = stripBom(bytes, 2);
+  } else if (looksLikeUtf16Le(bytes)) {
+    // Check BOM-less UTF-16LE before UTF-8: its ASCII code units (letter + NUL)
+    // are valid UTF-8, so validUtf8 would win and decode the file into garbage.
+    encoding = 'utf-16le';
   } else if (validUtf8(bytes)) {
     encoding = 'utf-8';
-  } else if (looksLikeUtf16Le(bytes)) {
-    encoding = 'utf-16le';
   } else {
     // The common legacy case on Russian Windows: old Notepad saved cp1251.
     encoding = 'cp1251';
@@ -105,8 +139,10 @@ export function decodeAs(bytes: Uint8Array, encoding: TextEncoding): DecodedText
   const bomLength = detected.bom ? (detected.encoding === 'utf-8' ? 3 : 2) : 0;
   const payload = stripBom(bytes, bomLength);
   const label = encoding === 'utf-8' ? 'utf-8' : encoding;
-  const text = normalizeEol(new TextDecoder(label, { fatal: false }).decode(payload));
-  return { text, encoding, bom: detected.bom, eol: detectEol(text) };
+  const raw = new TextDecoder(label, { fatal: false }).decode(payload);
+  // Detect EOL on the raw decoded text, before normalisation turns every CRLF
+  // into LF and makes the result always '\n'.
+  return { text: normalizeEol(raw), encoding, bom: detected.bom, eol: detectEol(raw) };
 }
 
 let reverseCp1251: Map<string, number> | null = null;

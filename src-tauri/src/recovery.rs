@@ -38,7 +38,7 @@ fn safe_key(key: &str) -> bool {
 
 /// Writes one snapshot. The caller hashes the document path into `key`.
 #[tauri::command]
-pub fn recovery_write(
+pub async fn recovery_write(
     app: AppHandle,
     key: String,
     path: String,
@@ -65,7 +65,7 @@ pub fn recovery_write(
 
 /// Lists readable entries, skipping corrupt files instead of failing the start.
 #[tauri::command]
-pub fn recovery_list(app: AppHandle) -> Result<Vec<RecoveryEntry>, String> {
+pub async fn recovery_list(app: AppHandle) -> Result<Vec<RecoveryEntry>, String> {
     let dir = recovery_dir(&app)?;
     let mut entries = Vec::new();
     let files = fs::read_dir(&dir).map_err(|error| format!("Не удалось прочитать журнал: {error}"))?;
@@ -102,7 +102,7 @@ pub fn recovery_remove(app: AppHandle, key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn recovery_clear(app: AppHandle) -> Result<(), String> {
+pub async fn recovery_clear(app: AppHandle) -> Result<(), String> {
     let dir = recovery_dir(&app)?;
     for file in fs::read_dir(&dir).map_err(|error| format!("{error}"))?.flatten() {
         let path = file.path();

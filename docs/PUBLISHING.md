@@ -2,7 +2,7 @@
 
 > **Status:** the repository is live at
 > <https://github.com/ShiDikALexey/KOCPAD>. `main` is the release line (currently
-> `1.4.0`), `beta` is the next version (`1.4.1`). CI builds Windows installers on
+> `1.5.2`), `beta` is the next version (`1.5.3-beta.x`). CI builds Windows installers on
 > every push and publishes a release on every `v*` tag. This page documents the
 > workflow and how to cut the next release.
 
@@ -15,7 +15,7 @@ updater endpoint in `src-tauri/tauri.conf.json`.
 
 ## 2. Check the build
 
-`.github/workflows/build.yml` runs on every push to `main` and `beta`, on pull
+`.github/workflows/build.yml` runs on every push to `main`, `beta` and `Experimental`, on pull
 requests and on tags:
 
 - **frontend** (Ubuntu): `npm ci` → version/tag check → `npm run typecheck` →
@@ -40,10 +40,10 @@ most.
 git checkout main
 git merge beta                    # after the beta has been used for a while
 npm run check:versions            # tag/version sanity while working
-node scripts/bump-version.cjs 1.4.2
-# write the "## [1.4.2]" section in CHANGELOG.md — the release job requires it
-git commit -am "release: 1.4.2"
-git tag -a v1.4.2 -m "KOCPAD 1.4.2"
+node scripts/bump-version.cjs 1.5.3
+# write the "## [1.5.3]" section in CHANGELOG.md — the release job requires it
+git commit -am "release: 1.5.3"
+git tag -a v1.5.3 -m "KOCPAD 1.4.2"
 git push origin main v1.4.2
 ```
 
@@ -94,8 +94,8 @@ How it was switched on (already done):
    (version, installer URL, signature) and attaches it to the release together with
    the `.sig` file.
 5. In the app: «⋯» → «Проверить обновления…». KOCPAD verifies the signature against
-   the public key, downloads the installer and, in `passive` mode, installs it; on
-   Windows the app closes itself during the install and must be started again.
+   the public key, downloads the installer and, in `passive` mode, installs it. On
+   Windows the updater restarts KOCPAD after installing; verify this on the packaged build.
 
 Notes:
 

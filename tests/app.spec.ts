@@ -766,7 +766,7 @@ test.describe('editor surfaces', () => {
     await row.getByRole('button', { name: 'Точно?' }).click();
     await expect
       .poll(async () => page.evaluate(() => window.__kocpad.editor.text))
-      .toContain('версия один');
+      .toContain('Добро пожаловать в KOCPAD');
   });
 
   test('broken links panel lists unresolved wiki links', async ({ page }) => {
@@ -875,6 +875,88 @@ test.describe('editor surfaces', () => {
     expect(result.unquoted).toBe('цитата');
     expect(result.quoted).toBe('> строка');
     expect(result.back).toBe('строка');
+  });
+
+  test('a failed write is not reported as saved and keeps the tab dirty', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const store = window.__kocpad.store;
+      const editor = window.__kocpad.editor;
+      const path = store.activeDoc!.path;
+      const original = store.storage.writeBinary.bind(store.storage);
+      store.storage.writeBinary = async () => {
+        throw new Error('disk full');
+      };
+      try {
+        editor.applyText('несохранённый текст\n');
+        const saved = await store.saveDoc(path);
+        return {
+          saved,
+          dirty: store.activeDoc!.content !== store.activeDoc!.savedContent,
+        };
+      } finally {
+        store.storage.writeBinary = original;
+      }
+    });
+    expect(result.saved).toBe(false);
+    expect(result.dirty).toBe(true);
+  });
+
+  test('rename refuses to overwrite an existing note', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const store = window.__kocpad.store;
+      const files = store.flatFiles();
+      const dirOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
+      const source = files.find((file) =>
+        files.some((other) => other.path !== file.path && dirOf(other.path) === dirOf(file.path)),
+      );
+      if (!source) return null;
+      const target = files.find(
+        (file) => file.path !== source.path && dirOf(file.path) === dirOf(source.path),
+      )!;
+      const ok = await store.renameEntry(source, target.name);
+      return {
+        ok,
+        sourcePath: source.path,
+        targetPath: target.path,
+        targetName: target.name,
+        targetExists: await store.storage.exists(target.path),
+        sourceExists: await store.storage.exists(source.path),
+      };
+    });
+    expect(result).not.toBeNull();
+    expect(result!.ok, JSON.stringify(result)).toBe(false);
+    expect(result!.sourceExists).toBe(true);
+    expect(result!.targetExists).toBe(true);
+  });
+
+  test('opening a note ignores a stale search cache', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const store = window.__kocpad.store;
+      const path = store.activeDoc!.path;
+      await store.closeDoc(path);
+      (store as unknown as { textCache: Map<string, string> }).textCache.set(path, 'старый кэш');
+      await store.storage.writeText(path, 'внешняя версия\n');
+      const doc = await store.openNote(path);
+      return doc?.content ?? null;
+    });
+    expect(result).toBe('внешняя версия\n');
+  });
+
+  test('detects BOM-less UTF-16LE and keeps CRLF in decodeAs', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const enc = await import('/src/encoding.ts');
+      const ascii = Uint8Array.from('Hello'.split('').flatMap((char) => [char.charCodeAt(0), 0]));
+      const cyrillic = Uint8Array.from('Привет'.split('').flatMap((char) => [char.charCodeAt(0) & 0xff, char.charCodeAt(0) >> 8]));
+      const crlf = new TextEncoder().encode('первая\r\nвторая\r\n');
+      return {
+        ascii: enc.decodeText(ascii).encoding,
+        cyrillic: enc.decodeText(cyrillic).encoding,
+        eol: enc.decodeAs(crlf, 'utf-8').eol,
+      };
+    });
+    expect(result.ascii).toBe('utf-16le');
+    expect(result.cyrillic).toBe('utf-16le');
+    expect(result.eol).toBe('\r\n');
   });
 
   test('typing does not rebuild the sidebar tree', async ({ page }) => {

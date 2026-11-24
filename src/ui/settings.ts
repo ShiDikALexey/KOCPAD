@@ -63,11 +63,29 @@ const SOFT_BREAKS: { id: 'notepad' | 'markdown'; label: string }[] = [
   { id: 'markdown', label: 'Как в Markdown' },
 ];
 
+let rowLabelId = 0;
+
 function row(label: string, control: HTMLElement, hint?: string): HTMLElement {
+  rowLabelId += 1;
+  const labelId = `settings-label-${rowLabelId}`;
+  // Controls are often wrapped (slider, segmented, toggle): label their inputs
+  // and selects with the visible row label. Buttons keep their own text (Бета,
+  // Тёмная, Вспомнить) as the accessible name.
+  control.querySelectorAll('input, select').forEach((element) => {
+    element.setAttribute('aria-labelledby', labelId);
+  });
+  if (control.matches('input, select')) {
+    control.setAttribute('aria-labelledby', labelId);
+  }
   return h(
     'div',
     { class: 'settings__row' },
-    h('div', { class: 'settings__label' }, h('span', null, label), hint ? h('span', { class: 'settings__hint' }, hint) : null),
+    h(
+      'div',
+      { class: 'settings__label' },
+      h('span', { id: labelId }, label),
+      hint ? h('span', { class: 'settings__hint' }, hint) : null,
+    ),
     control,
   );
 }
@@ -378,7 +396,10 @@ export function openSettings(store: Store): void {
                   { id: 'beta', label: 'Бета' },
                 ],
                 settings.updateChannel,
-                (value) => patch({ updateChannel: value === 'beta' ? 'beta' : 'stable' }),
+                (value) => patch({
+                  updateChannel: value === 'beta' ? 'beta' : 'stable',
+                  updateChannelChosen: true,
+                }),
               ),
               'Бета — тестовые сборки: возможны ошибки, автообновление на стабильную потом не откатит',
             ),

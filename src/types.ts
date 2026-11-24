@@ -82,6 +82,8 @@ export interface Settings {
   disabledLintRules: string[];
   /** Channel the updater follows. */
   updateChannel: 'stable' | 'beta';
+  /** True once the user picks a channel; beta builds otherwise default to beta. */
+  updateChannelChosen: boolean;
   /** Check for updates in the background and show an indicator. */
   updateAutoCheck: boolean;
   /** Version the user asked not to be offered again; null when cleared. */
@@ -129,6 +131,7 @@ export const DEFAULT_SETTINGS: Settings = {
   assistantStyle: false,
   disabledLintRules: [],
   updateChannel: 'stable',
+  updateChannelChosen: false,
   updateAutoCheck: true,
   skippedUpdateVersion: null,
 };
