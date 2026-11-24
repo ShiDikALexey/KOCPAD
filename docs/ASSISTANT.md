@@ -180,7 +180,7 @@ quotes, tables), and never run when the toggle is off.
   debounced engine run per pause (measured with a counter).
 - No false positives inside fenced code blocks (one test per fence type).
 
-The branch currently runs **70 e2e scenarios** in total (eleven of them cover the
+The branch currently runs **71 e2e scenarios** in total (eleven of them cover the
 assistant), plus typecheck, build, the Windows installers and the packaged `.exe`
 smoke in CI.
 

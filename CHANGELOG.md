@@ -9,6 +9,15 @@ All notable changes to KOCPAD are documented here. The format follows
 > [docs/VERSIONING.md](docs/VERSIONING.md) for the honest maturity assessment and
 > the rules used from now on. The history below is left as written.
 
+## [1.5.3-beta.13] — 2026-11-24
+
+### Fixed
+
+- **Choosing the same block type again removes it.** «Цитата» on a quote, a
+  heading on a heading, or a list on a list turns the selected lines back into
+  paragraphs instead of re-applying the prefix. «Разделитель» on an `---` line
+  returns plain text as well.
+
 ## [1.5.3-beta.12] — 2026-11-24
 
 ### Fixed

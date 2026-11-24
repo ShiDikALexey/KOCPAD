@@ -4,7 +4,7 @@
   <p><b>The next version. Just what changed and what we are checking.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=beta)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/beta-1.5.3--beta.12-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/beta-1.5.3--beta.13-orange)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
   [![stable](https://img.shields.io/github/v/release/ShiDikALexey/KOCPAD?label=stable)](https://github.com/ShiDikALexey/KOCPAD/releases/latest)
 
   <sub><a href="README.md">Русский</a> · English · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md">full description (main)</a></sub>
@@ -12,7 +12,7 @@
 
 ---
 
-This is the `beta` branch. It currently carries the pre-release `1.5.3-beta.12`:
+This is the `beta` branch. It currently carries the pre-release `1.5.3-beta.13`:
 stable/beta update channels, the available-update indicator, batch assistant fixes
 and text-only printing. Stable `1.5.2` lives in
 [main](https://github.com/ShiDikALexey/KOCPAD/blob/main/README.en.md); below is what
@@ -40,6 +40,11 @@ a note rewrites links in other notes, and search no longer shows results from a 
 query.
 
 CI also launches the built `.exe` now; before, only the web page was tested.
+
+## What is new in 1.5.3-beta.13
+
+- Picking the same block type again (quote, heading, list) removes it instead of
+  applying the prefix a second time.
 
 ## What is new in 1.5.3-beta.12
 

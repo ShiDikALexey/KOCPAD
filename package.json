@@ -1,7 +1,7 @@
 {
   "name": "kocpad",
   "private": true,
-  "version": "1.5.3-beta.12",
+  "version": "1.5.3-beta.13",
   "description": "KOCPAD — a markdown notepad for Windows. Local .md files, tabs, autosave, live preview.",
   "type": "module",
   "license": "MIT",
