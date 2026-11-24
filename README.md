@@ -4,7 +4,7 @@
   <p><b>Ветка для того, что ещё не готово к бету.</b></p>
 
   [![build](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml/badge.svg?branch=Experimental)](https://github.com/ShiDikALexey/KOCPAD/actions/workflows/build.yml)
-  [![beta](https://img.shields.io/badge/база-1.5.3-beta.13-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
+  [![beta](https://img.shields.io/badge/база-1.5.3-beta.14-blue)](https://github.com/ShiDikALexey/KOCPAD/tree/beta)
 
   <sub>Русский · <a href="README.en.md">English</a> · <a href="https://github.com/ShiDikALexey/KOCPAD/blob/main/README.md">полное описание (main)</a></sub>
 </div>
@@ -60,7 +60,7 @@
 - после «Исправить» в настройках появляется счётчик, «Сбросить обучение» его чистит;
 - на заметке в пять тысяч строк печать не тормозит.
 
-В ветке 71 e2e-теста, шесть из них про помощника. Плюс typecheck, сборка,
+В ветке 75 e2e-теста, шесть из них про помощника. Плюс typecheck, сборка,
 Windows-инсталлятор и запуск собранного `.exe` в CI.
 
 ## Что дальше
